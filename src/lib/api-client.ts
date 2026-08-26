@@ -63,8 +63,8 @@ export async function apiFetch(
 export async function apiJson<T = Record<string, unknown>>(
   url: string,
   options?: RequestInit
-): Promise<{ ok: boolean; data: T; status: number }> {
+): Promise<{ ok: boolean; data: T; status: number; message?: string }> {
   const res = await apiFetch(url, options);
   const data = (await res.json().catch(() => ({}))) as T;
-  return { ok: res.ok, data, status: res.status };
+  return { ok: res.ok, data, status: res.status, message: (data as any).message };
 }
