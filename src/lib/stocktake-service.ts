@@ -327,6 +327,7 @@ export async function getStocktakeDetail(
 ) {
   let stocktake:
     | (Awaited<ReturnType<typeof prisma.stocktake.findFirst>> & {
+        user?: { fullNameAr: string | null; username: string } | null;
         items?: Array<{
           id: string;
           productId: string;

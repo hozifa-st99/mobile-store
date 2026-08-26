@@ -53,7 +53,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         totalSystemQty: stocktake.totalSystemQty,
         totalCountedQty: stocktake.totalCountedQty,
         totalVariance: stocktake.totalVariance,
-        userName: (stocktake as any).user?.fullNameAr || (stocktake as any).user?.username || null,
+        userName: stocktake.user?.fullNameAr || stocktake.user?.username || null,
         items: (stocktake.items ?? []).map((item) => {
           const savedSerials = parseStocktakeSerials(item.serialsSnapshot);
           const serials =
