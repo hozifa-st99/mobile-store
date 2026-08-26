@@ -328,6 +328,7 @@ export default function NewStockEntryPage() {
             retailPrice: item.retailPrice,
             barcode: item.barcode.trim() || undefined,
             warrantyMonths: item.warrantyMonths,
+            taxStatus: item.taxStatus,
             deviceCondition: item.deviceCondition,
             boxCondition: item.deviceCondition === "used" ? item.boxCondition : null,
             batteryPercent:

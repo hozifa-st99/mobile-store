@@ -37,6 +37,7 @@ import {
 } from "@/lib/purchase-payment-service";
 import { attachInvoiceCreators, listDistinctInvoiceCreators } from "@/lib/invoice-creator-server";
 import { getOrCreateIndividualCustomerSupplier } from "@/lib/individual-customer-supplier";
+import { parseTaxStatus } from "@/lib/phone-device-display";
 import { SUPPLIER_KIND_WHOLESALE } from "@/lib/supplier-kind";
 
 export async function GET(request: NextRequest) {
@@ -179,7 +180,7 @@ interface PurchaseLineInput {
   barcode?: string;
   imeis?: string[];
   warrantyMonths?: number;
-  taxStatus?: "zero" | "taxable";
+  taxStatus?: string;
   deviceCondition?: "new" | "used";
   boxCondition?: string | null;
   batteryPercent?: number | null;
@@ -367,7 +368,7 @@ export async function POST(request: NextRequest) {
             retailPrice,
             barcode,
             warrantyMonths: item.warrantyMonths,
-            taxStatus: item.taxStatus,
+            taxStatus: parseTaxStatus(item.taxStatus),
             deviceCondition,
             boxCondition: item.boxCondition,
             batteryPercent: item.batteryPercent,
@@ -397,7 +398,7 @@ export async function POST(request: NextRequest) {
             retailPrice,
             barcode,
             warrantyMonths: item.warrantyMonths ?? 12,
-            taxStatus: item.taxStatus || "zero",
+            taxStatus: parseTaxStatus(item.taxStatus),
             deviceCondition,
             boxCondition: deviceCondition === "used" ? item.boxCondition || null : null,
             batteryPercent: deviceCondition === "used" ? item.batteryPercent ?? null : null,

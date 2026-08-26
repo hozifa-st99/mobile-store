@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { createStockEntry, getStockEntryErrorResponse } from "@/lib/stock-entry-service";
 
+/** مستند كبير = استعلامات متتالية على Vercel؛ الافتراضي 5 ثواني قصير جداً */
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
@@ -38,13 +41,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { documentNumber, entryDate, notes, items = [] } = body;
 
-    const entry = await prisma.$transaction((tx) =>
-      createStockEntry(tx, auth, {
-        documentNumber: documentNumber?.trim(),
-        entryDate,
-        notes,
-        items,
-      })
+    const entry = await prisma.$transaction(
+      (tx) =>
+        createStockEntry(tx, auth, {
+          documentNumber: documentNumber?.trim(),
+          entryDate,
+          notes,
+          items,
+        }),
+      { maxWait: 10_000, timeout: 60_000 }
     );
 
     return NextResponse.json({ entry }, { status: 201 });

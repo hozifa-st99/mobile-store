@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { buildPhoneDescription } from "@/lib/phone-model-options";
 import { ensureUniqueBarcode } from "@/lib/barcode-server";
 import { phoneCatalogLogoUrl } from "@/lib/product-image";
+import { parseTaxStatus, type TaxStatus } from "@/lib/phone-device-display";
 
 type Tx = Prisma.TransactionClient;
 
@@ -14,7 +15,7 @@ export interface PhoneProductInput {
   retailPrice?: number;
   barcode?: string;
   warrantyMonths?: number;
-  taxStatus?: "zero" | "taxable";
+  taxStatus?: TaxStatus;
   deviceCondition?: "new" | "used";
   boxCondition?: string | null;
   batteryPercent?: number | null;
@@ -76,7 +77,7 @@ export async function resolveOrCreatePhoneProduct(
   );
 
   const warrantyMonths = item.warrantyMonths ?? 12;
-  const taxStatus = item.taxStatus || "zero";
+  const taxStatus = parseTaxStatus(item.taxStatus);
   const retailPrice =
     item.retailPrice && item.retailPrice > 0
       ? item.retailPrice

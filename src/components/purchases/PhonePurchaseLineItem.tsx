@@ -14,6 +14,7 @@ import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/lib/utils";
 import { isIphonePlatform } from "@/lib/iphone-platform";
 import { getClientSpecRequirements } from "@/lib/phone-model-requirements";
+import { parseTaxStatus, TAX_STATUS_OPTIONS, type TaxStatus } from "@/lib/phone-device-display";
 
 export interface PhonePlatformOption {
   id: string;
@@ -56,7 +57,7 @@ export interface PhonePurchaseLine {
   retailPrice: number;
   barcode: string;
   warrantyMonths: number;
-  taxStatus: "zero" | "taxable";
+  taxStatus: TaxStatus;
   deviceCondition: "new" | "used";
   boxCondition: "" | "excellent" | "medium" | "missing";
   batteryPercent: number | "";
@@ -414,11 +415,14 @@ export default function PhonePurchaseLineItem({
           <label className="block text-xs text-muted mb-1.5">الضريبة</label>
           <select
             value={item.taxStatus}
-            onChange={(e) => onChange({ taxStatus: e.target.value as "zero" | "taxable" })}
+            onChange={(e) => onChange({ taxStatus: parseTaxStatus(e.target.value) })}
             className="glass-input text-sm"
           >
-            <option value="zero">مدفوع الضريبة (Zero)</option>
-            <option value="taxable">عليه ضريبة</option>
+            {TAX_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
         <div>

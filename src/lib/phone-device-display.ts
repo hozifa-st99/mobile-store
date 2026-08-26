@@ -1,6 +1,21 @@
+export const TAX_STATUS_OPTIONS = [
+  { value: "zero", label: "مدفوع الضريبة (Zero)" },
+  { value: "taxable", label: "عليه ضريبة" },
+  { value: "local_warranty", label: "ضمان محلي" },
+  { value: "exempt", label: "معفي" },
+] as const;
+
+export type TaxStatus = (typeof TAX_STATUS_OPTIONS)[number]["value"];
+
+export function parseTaxStatus(value: string | null | undefined): TaxStatus {
+  if (TAX_STATUS_OPTIONS.some((option) => option.value === value)) {
+    return value as TaxStatus;
+  }
+  return "zero";
+}
+
 export function taxStatusLabel(value: string | null | undefined): string {
-  if (value === "taxable") return "عليه ضريبة";
-  return "مدفوع الضريبة (Zero)";
+  return TAX_STATUS_OPTIONS.find((option) => option.value === value)?.label ?? "مدفوع الضريبة (Zero)";
 }
 
 export function deviceConditionLabel(value: string | null | undefined): string {

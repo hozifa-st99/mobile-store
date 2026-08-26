@@ -21,6 +21,7 @@ import {
 import { allocateStockEntryDocumentNumber } from "@/lib/stock-entry-document-number-server";
 import { setStockEntryItemImeisSnapshot } from "@/lib/stock-entry-item-fields";
 import { matchPurchaseLinesToResolved } from "@/lib/purchase-line-match";
+import { parseTaxStatus } from "@/lib/phone-device-display";
 import { computeWeightedAverageCost } from "@/lib/weighted-average-cost";
 import {
   assertBranchImeisAvailable,
@@ -46,6 +47,7 @@ export interface StockEntryLineInput {
   barcode?: string;
   imeis?: string[];
   warrantyMonths?: number;
+  taxStatus?: string;
   deviceCondition?: "new" | "used";
   boxCondition?: string | null;
   batteryPercent?: number | null;
@@ -128,6 +130,7 @@ async function resolveStockEntryLines(
         retailPrice,
         barcode,
         warrantyMonths: item.warrantyMonths,
+        taxStatus: parseTaxStatus(item.taxStatus),
         deviceCondition,
         boxCondition: item.boxCondition,
         batteryPercent: item.batteryPercent,
