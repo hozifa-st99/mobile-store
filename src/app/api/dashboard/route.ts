@@ -5,7 +5,6 @@ import { computeBranchVaultBalance } from "@/lib/branch-vault";
 import { computeOpenShiftKpis } from "@/lib/open-shift-kpis";
 import { computeOpenShiftHourlyChart } from "@/lib/open-shift-hourly-chart";
 import { resolveProductImageUrl } from "@/lib/product-image";
-import { serialBelongsToProduct } from "@/lib/phone-serial-product-filter";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -27,8 +26,7 @@ export async function GET(request: NextRequest) {
       branchVaultBalance,
       openShiftHourlyChart,
       customersCount,
-      accessoryProductsCount,
-      availablePhoneSerials,
+      productsCount,
       lowStockRow,
       recentSales,
       topProductsRaw,
@@ -40,23 +38,7 @@ export async function GET(request: NextRequest) {
       computeOpenShiftHourlyChart(auth.branchId),
       prisma.customer.count({ where: { companyId: auth.companyId, isActive: true } }),
       prisma.branchInventory.count({
-        where: {
-          branchId: auth.branchId,
-          quantity: { gt: 0 },
-          product: { type: { not: "phone" } },
-        },
-      }),
-      prisma.productSerial.findMany({
-        where: {
-          branchId: auth.branchId,
-          status: "available",
-          product: { type: "phone" },
-        },
-        select: {
-          productId: true,
-          purchaseItem: { select: { productId: true } },
-          stockEntryItem: { select: { productId: true } },
-        },
+        where: { branchId: auth.branchId, quantity: { gt: 0 } },
       }),
       prisma.$queryRaw<{ count: number }[]>`
         SELECT COUNT(*) as count
@@ -65,7 +47,7 @@ export async function GET(request: NextRequest) {
         WHERE bi.branch_id = ${auth.branchId}
           AND bi.quantity > 0
           AND bi.quantity <= bi.min_quantity
-          AND p.is_active = 1
+          AND p.is_active = true
           AND p.deleted_at IS NULL
       `,
       prisma.sale.findMany({
@@ -104,14 +86,6 @@ export async function GET(request: NextRequest) {
         select: { returnDate: true, total: true },
       }),
     ]);
-
-    const availablePhoneProductIds = new Set<string>();
-    for (const serial of availablePhoneSerials) {
-      if (serialBelongsToProduct(serial, serial.productId)) {
-        availablePhoneProductIds.add(serial.productId);
-      }
-    }
-    const productsCount = accessoryProductsCount + availablePhoneProductIds.size;
 
     const lowStockCount = Number(lowStockRow[0]?.count ?? 0);
 
