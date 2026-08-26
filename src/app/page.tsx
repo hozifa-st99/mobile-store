@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { em } from "@/components/ui/TableEmoji";
+import { getDefaultBranchLandingPath } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/lib/toast";
 
@@ -199,7 +200,9 @@ export default function LoginPage() {
         });
         if (branchRes.ok) {
           useAuthStore.getState().setBranch(data.branches[0]);
-          router.push("/dashboard");
+          router.push(
+            getDefaultBranchLandingPath(data.user.role, data.allowedScreens ?? "all")
+          );
           return;
         }
       }

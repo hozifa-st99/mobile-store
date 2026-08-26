@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { getDefaultBranchLandingPath } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/lib/toast";
 
 export default function BranchesPage() {
   const router = useRouter();
-  const { user, branches, isAuthenticated, setBranch } = useAuthStore();
+  const { user, branches, isAuthenticated, setBranch, allowedScreens } = useAuthStore();
   const [loading, setLoading] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -38,7 +39,7 @@ export default function BranchesPage() {
 
       const branch = branches.find((b) => b.id === branchId);
       if (branch) setBranch(branch);
-      router.push("/dashboard");
+      router.push(getDefaultBranchLandingPath(user?.role ?? "", allowedScreens));
     } catch {
       toast.error("حدث خطأ");
     } finally {

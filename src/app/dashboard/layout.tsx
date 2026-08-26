@@ -16,8 +16,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const hydrated = useAuthHydrated();
   const { isAuthenticated, selectedBranch } = useAuthStore();
   const { open, closeMenu } = useMobileMenu();
-  const { canAccessPath, role, allowedScreens } = useScreenAccess();
+  const { canAccessPath, role, allowedScreens, defaultLandingPath } = useScreenAccess();
   const settingsHubMode = !selectedBranch && isCompanyHubPath(pathname);
+  const blockedDashboardPath =
+    Boolean(selectedBranch) &&
+    pathname.startsWith("/dashboard") &&
+    !canAccessPath(pathname);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -29,7 +33,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     if (!hydrated || !isAuthenticated) return;
     if (!selectedBranch && !isCompanyHubPath(pathname)) return;
     if (pathname.startsWith("/dashboard") && !canAccessPath(pathname)) {
-      router.replace(settingsHubMode ? "/dashboard/settings" : "/dashboard");
+      router.replace(settingsHubMode ? "/dashboard/settings" : defaultLandingPath);
     }
   }, [
     hydrated,
@@ -41,6 +45,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     canAccessPath,
     router,
     settingsHubMode,
+    defaultLandingPath,
   ]);
   useEffect(() => {
     const onResize = () => {
@@ -60,6 +65,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) return null;
   if (!selectedBranch && !settingsHubMode) return null;
+  if (blockedDashboardPath) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted animate-pulse">جاري التحميل...</div>
+      </div>
+    );
+  }
 
   if (settingsHubMode) {
     return (

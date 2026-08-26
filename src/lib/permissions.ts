@@ -106,6 +106,17 @@ export function canAccessPathname(
   return hasScreenAccess(role, allowedScreens, key);
 }
 
+/** أول شاشة بعد اختيار الفرع — الرئيسية إن وُجدت صلاحيتها، وإلا استعراض فواتير المبيعات */
+export function getDefaultBranchLandingPath(
+  role: string,
+  allowedScreens: AllowedScreens | undefined
+): string {
+  if (hasScreenAccess(role, allowedScreens, "dashboard")) {
+    return "/dashboard";
+  }
+  return "/dashboard/sales";
+}
+
 export const SITE_NOT_ACTIVATED_MESSAGE =
   "رجاء تواصل مع المهندس في اقرب وقت لعمل التحديثات اللازمة";
 

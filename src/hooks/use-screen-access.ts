@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import {
   canAccessPathname,
+  getDefaultBranchLandingPath,
   hasScreenAccess,
   isSuperAdminRole,
   pathnameToScreenKey,
@@ -27,12 +28,15 @@ export function useScreenAccess() {
     [role, allowedScreens]
   );
 
+  const defaultLandingPath = getDefaultBranchLandingPath(role, allowedScreens);
+
   return {
     role,
     isSuperAdmin,
     allowedScreens,
     canAccessScreen,
     canAccessPath,
+    defaultLandingPath,
     pathnameToScreenKey,
   };
 }

@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 
+import { useScreenAccess } from "@/hooks/use-screen-access";
+
 export default function DashboardHomeButton() {
+  const { canAccessScreen } = useScreenAccess();
+  if (!canAccessScreen("dashboard")) return null;
+
   return (
     <Link
       href="/dashboard"
