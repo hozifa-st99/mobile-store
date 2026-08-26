@@ -11,9 +11,8 @@ import {
 import {
   computeActualCash,
   netPurchasesTotal,
+  sumCogsForSaleIds,
   sumCogsForSaleReturnIds,
-  sumCogsInRange,
-  sumExpensesInRange,
   sumPurchaseReturnCashBreakdownInRange,
   sumSaleReturnsInRange,
 } from "@/lib/dashboard-metrics";
@@ -214,9 +213,7 @@ export async function computeBranchComparisonRow(
     saleReturnsInRange,
     purchaseReturnsBreakdown,
     purchaseReturnsCount,
-    cogsGrossTotal,
-    expensesTotal,
-    expensesForRatio,
+    expensesForRatioAgg,
     customersInSales,
     inventories,
     phoneSerialCosts,
@@ -257,9 +254,14 @@ export async function computeBranchComparisonRow(
     }),
     sumPurchaseReturnCashBreakdownInRange(db, branchId, from, to),
     db.purchaseReturn.count({ where: { branchId, returnDate: { gte: from, lte: to } } }),
-    sumCogsInRange(db, branchId, from, to),
-    sumExpensesInRange(db, branchId, from, to, { includeReturnLinked: true }),
-    sumExpensesInRange(db, branchId, from, to),
+    db.expense.aggregate({
+      where: {
+        branchId,
+        expenseDate: { gte: from, lte: to },
+        purchaseReturnId: null,
+      },
+      _sum: { amount: true },
+    }),
     db.sale.findMany({
       where: {
         branchId,
@@ -397,13 +399,22 @@ export async function computeBranchComparisonRow(
     }),
     db.sale.findMany({
       where: { branchId, saleDate: { gte: from, lte: to }, status: "completed" },
-      select: { saleDate: true, total: true },
+      select: { id: true, saleDate: true, total: true },
     }),
   ]);
 
   const saleReturnIds = saleReturnsInRange.map((row) => row.id);
-  const saleReturnsTotal = await sumSaleReturnsInRange(db, branchId, from, to);
-  const returnCogsTotal = await sumCogsForSaleReturnIds(db, branchId, saleReturnIds);
+  const expensesTotal = Number(expenses._sum.amount || 0);
+  const expensesForRatio = Number(expensesForRatioAgg._sum.amount || 0);
+  const [saleReturnsTotal, returnCogsTotal, cogsGrossTotal] = await Promise.all([
+    sumSaleReturnsInRange(db, branchId, from, to),
+    sumCogsForSaleReturnIds(db, branchId, saleReturnIds),
+    sumCogsForSaleIds(
+      db,
+      branchId,
+      salesList.map((sale) => sale.id)
+    ),
+  ]);
 
   const salesGrossTotal = sales._sum.total || 0;
   const salesNetTotal = roundMoney(salesGrossTotal - saleReturnsTotal);

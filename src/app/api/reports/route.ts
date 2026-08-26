@@ -5,8 +5,8 @@ import { bucketDate, buildChartBuckets, resolveReportRange } from "@/lib/report-
 import {
   computeActualCash,
   netPurchasesTotal,
+  sumCogsForSaleIds,
   sumCogsForSaleReturnIds,
-  sumCogsInRange,
   sumPurchaseReturnCashBreakdownInRange,
   sumSaleReturnsInRange,
 } from "@/lib/dashboard-metrics";
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         saleDate: { gte: from, lte: to },
         status: "completed",
       },
-      select: { saleDate: true, total: true },
+      select: { id: true, saleDate: true, total: true },
     }),
     prisma.expense.groupBy({
       by: ["category"],
@@ -133,7 +133,11 @@ export async function GET(request: NextRequest) {
   const purchasesNetTotal = netPurchasesTotal(purchasesGrossTotal, purchaseReturnsTotal);
   const expensesTotal = Number(expenses._sum.amount || 0);
   const [cogsGrossTotal, returnCogsTotal, expensesForCashAgg] = await Promise.all([
-    sumCogsInRange(prisma, auth.branchId, from, to),
+    sumCogsForSaleIds(
+      prisma,
+      auth.branchId,
+      salesList.map((sale) => sale.id)
+    ),
     sumCogsForSaleReturnIds(prisma, auth.branchId, saleReturnIds),
     prisma.expense.aggregate({
       where: {
