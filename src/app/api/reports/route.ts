@@ -7,7 +7,6 @@ import {
   netPurchasesTotal,
   sumCogsForSaleReturnIds,
   sumCogsInRange,
-  sumExpensesInRange,
   sumPurchaseReturnCashBreakdownInRange,
   sumSaleReturnsInRange,
 } from "@/lib/dashboard-metrics";
@@ -132,12 +131,20 @@ export async function GET(request: NextRequest) {
   });
   const salesNetTotal = Math.round((salesGrossTotal - saleReturnsTotal) * 100) / 100;
   const purchasesNetTotal = netPurchasesTotal(purchasesGrossTotal, purchaseReturnsTotal);
-  const [cogsGrossTotal, returnCogsTotal, expensesTotal, expensesForCash] = await Promise.all([
+  const expensesTotal = Number(expenses._sum.amount || 0);
+  const [cogsGrossTotal, returnCogsTotal, expensesForCashAgg] = await Promise.all([
     sumCogsInRange(prisma, auth.branchId, from, to),
     sumCogsForSaleReturnIds(prisma, auth.branchId, saleReturnIds),
-    sumExpensesInRange(prisma, auth.branchId, from, to, { includeReturnLinked: true }),
-    sumExpensesInRange(prisma, auth.branchId, from, to),
+    prisma.expense.aggregate({
+      where: {
+        branchId: auth.branchId,
+        expenseDate: { gte: from, lte: to },
+        purchaseReturnId: null,
+      },
+      _sum: { amount: true },
+    }),
   ]);
+  const expensesForCash = Number(expensesForCashAgg._sum.amount || 0);
   const cogsTotal = Math.round((cogsGrossTotal - returnCogsTotal) * 100) / 100;
   const profit = Math.round((salesNetTotal - cogsTotal - expensesTotal) * 100) / 100;
   const profitMargin =
