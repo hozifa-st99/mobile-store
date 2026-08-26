@@ -1,0 +1,611 @@
+.branches-scene {
+  --branches-bg: #0a0b1e;
+  min-height: 100vh;
+  background-color: var(--branches-bg);
+  color: #f4f4f5;
+}
+
+.branches-scene__bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.branches-scene__mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 40%, rgba(124, 58, 237, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(59, 130, 246, 0.14) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 45% at 50% 90%, rgba(139, 92, 246, 0.12) 0%, transparent 55%),
+    linear-gradient(160deg, #0a0b1e 0%, #0d1028 45%, #0a0b1e 100%);
+  animation: branches-mesh-pulse 14s ease-in-out infinite;
+}
+
+.branches-scene__grid {
+  position: absolute;
+  inset: -50%;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, black 20%, transparent 75%);
+  animation: branches-grid-drift 40s linear infinite;
+}
+
+.branches-scene__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  will-change: transform;
+}
+
+.branches-scene__orb--1 {
+  top: 8%;
+  left: 12%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.28) 0%, transparent 68%);
+  animation: branches-orb-1 18s ease-in-out infinite;
+}
+
+.branches-scene__orb--2 {
+  bottom: 5%;
+  right: 8%;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 68%);
+  animation: branches-orb-2 22s ease-in-out infinite;
+}
+
+.branches-scene__orb--3 {
+  top: 45%;
+  left: 55%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.16) 0%, transparent 70%);
+  animation: branches-orb-3 16s ease-in-out infinite;
+}
+
+.branches-scene__beam {
+  position: absolute;
+  top: -20%;
+  left: 30%;
+  width: 40%;
+  height: 140%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(124, 58, 237, 0.06) 35%,
+    rgba(139, 92, 246, 0.04) 55%,
+    transparent 100%
+  );
+  transform: rotate(-18deg);
+  filter: blur(24px);
+  animation: branches-beam-sway 20s ease-in-out infinite;
+}
+
+.branches-scene__stars {
+  position: absolute;
+  inset: 0;
+}
+
+.branches-scene__star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.6);
+  animation: branches-star-float linear infinite;
+}
+
+.branches-scene__hero-glyphs {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mask-image: radial-gradient(
+    ellipse 26rem 36rem at calc(50% + 2.5rem) 50%,
+    transparent 0,
+    transparent 58%,
+    black 88%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 26rem 36rem at calc(50% + 2.5rem) 50%,
+    transparent 0,
+    transparent 58%,
+    black 88%
+  );
+}
+
+.branches-scene__hero-glyph {
+  position: absolute;
+  line-height: 1;
+  user-select: none;
+  filter: blur(0.3px) drop-shadow(0 0 36px rgba(124, 58, 237, 0.16));
+  will-change: transform;
+}
+
+.branches-scene__hero-glyph--map {
+  top: 10%;
+  right: 4%;
+  left: auto;
+  bottom: auto;
+  font-size: clamp(9rem, 18vw, 17rem);
+  opacity: 0.15;
+  animation: branches-hero-map 22s ease-in-out infinite;
+}
+
+.branches-scene__hero-glyph--map-alt {
+  top: auto;
+  bottom: 9%;
+  left: max(6.5rem, 5%);
+  right: auto;
+  font-size: clamp(8rem, 16vw, 15rem);
+  opacity: 0.16;
+  animation: branches-hero-map-alt 20s ease-in-out infinite;
+}
+
+@keyframes branches-hero-map {
+  0%,
+  100% {
+    transform: rotate(-10deg) scale(1);
+    opacity: 0.12;
+  }
+  50% {
+    transform: rotate(-4deg) translateY(-12px) scale(1.05);
+    opacity: 0.19;
+  }
+}
+
+@keyframes branches-hero-map-alt {
+  0%,
+  100% {
+    transform: rotate(6deg) scale(1);
+    opacity: 0.13;
+  }
+  50% {
+    transform: rotate(0deg) translateY(-10px) scale(1.06);
+    opacity: 0.2;
+  }
+}
+
+.branches-glass-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  max-width: 42rem;
+  padding: 1.85rem 1.5rem 1.5rem;
+  border-radius: 2rem;
+  background: transparent;
+  backdrop-filter: blur(32px) saturate(115%);
+  -webkit-backdrop-filter: blur(32px) saturate(115%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 16px 48px rgba(0, 0, 0, 0.18);
+}
+
+.branches-glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.015) 20%,
+    transparent 45%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.branches-glass-panel::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(2rem - 1px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.branches-glass-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.branches-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.branches-header__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.branches-header__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.45rem;
+  text-shadow: 0 0 30px rgba(124, 58, 237, 0.25);
+}
+
+.branches-header__title span {
+  background: linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.branches-header__subtitle {
+  font-size: 0.95rem;
+  color: #94a3b8;
+}
+
+.branches-scene .branch-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.branches-scene .branch-icon {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 1.1rem;
+}
+
+.branches-scene .branch-icon__emoji {
+  font-size: 1.65rem;
+}
+
+.branches-scene .branch-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 12px 32px rgba(0, 0, 0, 0.16);
+}
+
+.branches-scene .branch-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+}
+
+.branches-scene .branch-card:hover::before {
+  transform: translateX(120%);
+}
+
+.branches-card-enter {
+  animation: branches-card-rise 0.55s ease-out both;
+}
+
+@keyframes branches-mesh-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes branches-grid-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(56px, 56px);
+  }
+}
+
+@keyframes branches-orb-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, -30px) scale(1.08);
+  }
+}
+
+@keyframes branches-orb-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-35px, 25px) scale(1.06);
+  }
+}
+
+@keyframes branches-orb-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-20px, -35px) scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes branches-beam-sway {
+  0%,
+  100% {
+    transform: rotate(-18deg) translateX(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: rotate(-14deg) translateX(30px);
+    opacity: 1;
+  }
+}
+
+@keyframes branches-star-float {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-90px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes branches-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 640px) {
+  .branches-scene .branch-icon {
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 1.2rem;
+  }
+
+  .branches-scene .branch-icon__emoji {
+    font-size: 1.85rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .branches-scene .branch-icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 1.25rem;
+  }
+
+  .branches-scene .branch-icon__emoji {
+    font-size: 2rem;
+  }
+}
+
+.branches-scene .hub-rail-main--branches {
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .branches-scene__hero-glyphs {
+    mask-image: radial-gradient(
+      ellipse min(24rem, 90%) min(32rem, 78%) at 50% 48%,
+      transparent 0,
+      transparent 58%,
+      black 88%
+    );
+    -webkit-mask-image: radial-gradient(
+      ellipse min(24rem, 90%) min(32rem, 78%) at 50% 48%,
+      transparent 0,
+      transparent 58%,
+      black 88%
+    );
+  }
+
+  .branches-scene__hero-glyph--map {
+    top: 8%;
+    right: 2%;
+    left: auto;
+    bottom: auto;
+    font-size: clamp(7rem, 16vw, 14rem);
+  }
+
+  .branches-scene__hero-glyph--map-alt {
+    top: auto;
+    bottom: 8%;
+    left: 2%;
+    right: auto;
+    font-size: clamp(6rem, 14vw, 12rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .branches-scene .hub-rail-main--branches {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 1rem;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .branches-glass-panel {
+    margin-inline: auto;
+    padding: 1.25rem 1rem 1rem;
+    border-radius: 1.5rem;
+  }
+
+  .branches-glass-panel::after {
+    border-radius: calc(1.5rem - 1px);
+  }
+
+  .branches-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .branches-header__title {
+    font-size: 1.45rem;
+  }
+
+  .branches-header__subtitle {
+    font-size: 0.875rem;
+  }
+
+  .branches-scene .branch-card {
+    padding: 1rem;
+  }
+
+  .branches-scene__hero-glyphs {
+    mask-image: radial-gradient(
+      ellipse 94% 58% at 50% 44%,
+      transparent 0,
+      transparent 54%,
+      black 86%
+    );
+    -webkit-mask-image: radial-gradient(
+      ellipse 94% 58% at 50% 44%,
+      transparent 0,
+      transparent 54%,
+      black 86%
+    );
+  }
+
+  .branches-scene__hero-glyph--map {
+    top: 4%;
+    right: -2%;
+    left: auto;
+    bottom: auto;
+    font-size: clamp(5.5rem, 28vw, 8rem);
+    opacity: 0.1;
+  }
+
+  .branches-scene__hero-glyph--map-alt {
+    top: auto;
+    bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    left: -4%;
+    right: auto;
+    font-size: clamp(5rem, 26vw, 7rem);
+    opacity: 0.1;
+  }
+
+  .branches-scene__orb--1 {
+    width: 280px;
+    height: 280px;
+  }
+
+  .branches-scene__orb--2 {
+    width: 220px;
+    height: 220px;
+  }
+
+  .branches-scene__orb--3 {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .branches-glass-panel {
+    padding: 1.1rem 0.85rem 0.85rem;
+    border-radius: 1.25rem;
+  }
+
+  .branches-glass-panel::after {
+    border-radius: calc(1.25rem - 1px);
+  }
+
+  .branches-header__badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.7rem;
+  }
+
+  .branches-header__title {
+    font-size: 1.3rem;
+  }
+
+  .branches-scene .branch-card {
+    padding: 0.85rem;
+  }
+
+  .branches-scene .branch-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 1rem;
+  }
+
+  .branches-scene .branch-icon__emoji {
+    font-size: 1.45rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .branches-scene__hero-glyph--map,
+  .branches-scene__hero-glyph--map-alt {
+    opacity: 0.07;
+    font-size: 4.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .branches-scene__hero-glyph--map {
+    right: 6%;
+    font-size: 17rem;
+  }
+
+  .branches-scene__hero-glyph--map-alt {
+    left: max(7rem, 6%);
+    font-size: 15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branches-scene__mesh,
+  .branches-scene__grid,
+  .branches-scene__orb,
+  .branches-scene__beam,
+  .branches-scene__star,
+  .branches-scene__hero-glyph {
+    animation: none !important;
+  }
+}

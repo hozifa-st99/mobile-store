@@ -1,0 +1,1086 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id                 String    @id @default(uuid())
+  name               String
+  nameAr             String    @map("name_ar")
+  isActive           Boolean   @default(true) @map("is_active")
+  siteActivatedUntil DateTime? @map("site_activated_until")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  branches   Branch[]
+  users      User[]
+  categories ProductCategory[]
+  products   Product[]
+  phonePlatforms PhonePlatform[]
+  phoneBrands    PhoneBrand[]
+  phoneModels    PhoneModel[]
+  itemCategories ItemCategory[]
+  itemBrands     ItemBrand[]
+  itemNames      ItemName[]
+  suppliers      Supplier[]
+  customers      Customer[]
+  appSettings    AppSetting[]
+  creditLedgerEntries CreditLedgerEntry[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  code      String?  @map("code")
+  name      String
+  nameAr    String   @map("name_ar")
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company      Company           @relation(fields: [companyId], references: [id])
+  userBranches UserBranch[]
+  inventories  BranchInventory[]
+  serials      ProductSerial[]
+  purchases        Purchase[]
+  purchaseReturns  PurchaseReturn[]
+  stockEntries     StockEntry[]
+  saleReturns      SaleReturn[]
+  sales        Sale[]
+  retailPriceChanges RetailPriceChange[]
+  maintenanceOrders MaintenanceOrder[]
+  expenses     Expense[]
+  expenseDocuments ExpenseDocument[]
+  treasuryShifts TreasuryShift[]
+  stocktakes Stocktake[]
+  vaultMovements BranchVaultMovement[]
+  creditLedgerEntries CreditLedgerEntry[]
+  branchEmployees   BranchEmployee[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("branches")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  fullNameAr   String   @map("full_name_ar")
+  email        String?
+  phone        String?
+  role         String   @default("employee")
+  isActive     Boolean  @default(true) @map("is_active")
+  isHidden     Boolean  @default(false) @map("is_hidden")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company            Company              @relation(fields: [companyId], references: [id])
+  userBranches       UserBranch[]
+  screenPermissions  UserScreenPermission[]
+  purchaseReturns PurchaseReturn[]
+  saleReturns     SaleReturn[]
+  treasuryShifts  TreasuryShift[]
+  retailPriceChanges RetailPriceChange[]
+  stocktakes Stocktake[]
+  creditLedgerEntriesCreated CreditLedgerEntry[] @relation("CreditLedgerEntryCreator")
+  creditLedgerPaymentsCreated CreditLedgerPayment[] @relation("CreditLedgerPaymentCreator")
+  vaultMovementsCreated BranchVaultMovement[] @relation("BranchVaultMovementCreator")
+  salesCreated      Sale[]     @relation("SaleCreator")
+  purchasesCreated  Purchase[] @relation("PurchaseCreator")
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model UserBranch {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  branchId  String   @map("branch_id")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@map("user_branches")
+}
+
+model UserScreenPermission {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  screenKey String   @map("screen_key")
+  allowed   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, screenKey])
+  @@index([userId])
+  @@map("user_screen_permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ProductCategory {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  name      String
+  nameAr    String   @map("name_ar")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  products Product[]
+
+  @@index([companyId])
+  @@map("product_categories")
+}
+
+model Product {
+  id              String    @id @default(uuid())
+  companyId       String    @map("company_id")
+  categoryId      String?   @map("category_id")
+  type            String    @default("phone")
+  name            String
+  nameAr          String    @map("name_ar")
+  brand           String
+  model           String?
+  barcode         String?
+  sku             String?
+  color           String?
+  storage         String?
+  ram             String?
+  deviceCondition String   @default("new") @map("device_condition")
+  boxCondition    String?  @map("box_condition")
+  batteryPercent  Int?     @map("battery_percent")
+  taxStatus       String   @default("zero") @map("tax_status")
+  description     String?
+  specs           String?
+  warrantyMonths  Int       @default(12) @map("warranty_months")
+  imageUrl        String?   @map("image_url")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+  phonePlatformId String?   @map("phone_platform_id")
+  phoneBrandId    String?   @map("phone_brand_id")
+  phoneModelId    String?   @map("phone_model_id")
+  itemCategoryId  String?   @map("item_category_id")
+  itemBrandId     String?   @map("item_brand_id")
+  itemNameId      String?   @map("item_name_id")
+
+  company       Company           @relation(fields: [companyId], references: [id])
+  category      ProductCategory?  @relation(fields: [categoryId], references: [id])
+  phonePlatform PhonePlatform?    @relation(fields: [phonePlatformId], references: [id])
+  phoneBrand    PhoneBrand?       @relation(fields: [phoneBrandId], references: [id])
+  phoneModel    PhoneModel?       @relation(fields: [phoneModelId], references: [id])
+  itemCategory  ItemCategory?     @relation(fields: [itemCategoryId], references: [id])
+  itemBrand     ItemBrand?          @relation(fields: [itemBrandId], references: [id])
+  itemName      ItemName?           @relation(fields: [itemNameId], references: [id])
+  inventories   BranchInventory[]
+  serials       ProductSerial[]
+  purchaseItems PurchaseItem[]
+  stockEntryItems StockEntryItem[]
+  saleItems     SaleItem[]
+  retailPriceChanges RetailPriceChange[]
+  stocktakeItems StocktakeItem[]
+
+  @@index([companyId])
+  @@index([barcode])
+  @@map("products")
+}
+
+model RetailPriceChange {
+  id        String   @id @default(uuid())
+  branchId  String   @map("branch_id")
+  productId String   @map("product_id")
+  serialId  String?  @map("serial_id")
+  imei      String?
+  userId    String?  @map("user_id")
+  oldPrice  Float    @map("old_price")
+  newPrice  Float    @map("new_price")
+  reason    String
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  branch  Branch         @relation(fields: [branchId], references: [id])
+  product Product        @relation(fields: [productId], references: [id])
+  serial  ProductSerial? @relation(fields: [serialId], references: [id])
+  user    User?          @relation(fields: [userId], references: [id])
+
+  @@index([branchId, productId])
+  @@index([productId, changedAt])
+  @@index([serialId, changedAt])
+  @@map("retail_price_changes")
+}
+
+model BranchInventory {
+  id             String   @id @default(uuid())
+  branchId       String   @map("branch_id")
+  productId      String   @map("product_id")
+  quantity       Int      @default(0)
+  minQuantity    Int      @default(5) @map("min_quantity")
+  purchasePrice  Float    @default(0) @map("purchase_price")
+  retailPrice    Float    @default(0) @map("retail_price")
+  wholesalePrice Float    @default(0) @map("wholesale_price")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([branchId, productId])
+  @@index([branchId])
+  @@map("branch_inventories")
+}
+
+model ProductSerial {
+  id             String   @id @default(uuid())
+  branchId       String   @map("branch_id")
+  productId      String   @map("product_id")
+  purchaseItemId String?  @map("purchase_item_id")
+  stockEntryItemId String? @map("stock_entry_item_id")
+  unitCost       Float    @default(0) @map("unit_cost")
+  retailPrice    Float    @default(0) @map("retail_price")
+  barcode        String?  @map("barcode")
+  serialNumber   String?  @map("serial_number")
+  status         String   @default("available")
+  cycleIndex     Int      @default(1) @map("cycle_index")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  branch       Branch        @relation(fields: [branchId], references: [id])
+  product      Product       @relation(fields: [productId], references: [id])
+  purchaseItem PurchaseItem? @relation(fields: [purchaseItemId], references: [id])
+  stockEntryItem StockEntryItem? @relation(fields: [stockEntryItemId], references: [id])
+  retailPriceChanges RetailPriceChange[]
+  imeiEntries  ProductSerialImei[]
+  saleItems    SaleItem[]
+
+  @@unique([branchId, barcode])
+  @@index([branchId, productId])
+  @@index([purchaseItemId])
+  @@index([stockEntryItemId])
+  @@map("product_serials")
+}
+
+/// أرقام جهاز واحد — جهاز بشريحتين = سجل ProductSerial واحد + أكثر من IMEI
+model ProductSerialImei {
+  id       String   @id @default(uuid())
+  branchId String   @map("branch_id")
+  serialId String   @map("serial_id")
+  imei     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  serial ProductSerial @relation(fields: [serialId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, imei])
+  @@index([serialId])
+  @@map("product_serial_imeis")
+}
+
+// ─── Phone Catalog (Settings) ───────────────────────────────────────────────
+// iPhone  → models directly
+// Android → brands → models
+
+model PhonePlatform {
+  id             String   @id @default(uuid())
+  companyId      String   @map("company_id")
+  nameAr           String   @map("name_ar")
+  logoUrl          String?  @map("logo_url")
+  requiresBrand    Boolean  @default(false) @map("requires_brand")
+  requireColors    Boolean  @default(false) @map("require_colors")
+  requireStorage   Boolean  @default(false) @map("require_storage")
+  requireRam       Boolean  @default(false) @map("require_ram")
+  sortOrder        Int      @default(0) @map("sort_order")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  company  Company      @relation(fields: [companyId], references: [id])
+  brands   PhoneBrand[]
+  models   PhoneModel[]
+  products Product[]
+
+  @@index([companyId])
+  @@map("phone_platforms")
+}
+
+model PhoneBrand {
+  id             String   @id @default(uuid())
+  companyId      String   @map("company_id")
+  platformId     String   @map("platform_id")
+  nameAr         String   @map("name_ar")
+  logoUrl        String?  @map("logo_url")
+  requireColors  Boolean  @default(false) @map("require_colors")
+  requireStorage Boolean  @default(false) @map("require_storage")
+  requireRam     Boolean  @default(false) @map("require_ram")
+  sortOrder      Int      @default(0) @map("sort_order")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company  Company       @relation(fields: [companyId], references: [id])
+  platform PhonePlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  models   PhoneModel[]
+  products Product[]
+
+  @@index([platformId])
+  @@map("phone_brands")
+}
+
+model PhoneModel {
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  platformId String   @map("platform_id")
+  brandId    String?  @map("brand_id")
+  nameAr     String   @map("name_ar")
+  logoUrl    String?  @map("logo_url")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company  Company             @relation(fields: [companyId], references: [id])
+  platform PhonePlatform       @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  brand    PhoneBrand?         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  products Product[]
+  colors   PhoneModelColor[]
+  storages PhoneModelStorage[]
+  rams     PhoneModelRam[]
+
+  @@index([platformId])
+  @@index([brandId])
+  @@map("phone_models")
+}
+
+model PhoneModelColor {
+  id        String   @id @default(uuid())
+  modelId   String   @map("model_id")
+  nameAr    String   @map("name_ar")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  model PhoneModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, nameAr])
+  @@index([modelId])
+  @@map("phone_model_colors")
+}
+
+model PhoneModelStorage {
+  id        String   @id @default(uuid())
+  modelId   String   @map("model_id")
+  nameAr    String   @map("name_ar")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  model PhoneModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, nameAr])
+  @@index([modelId])
+  @@map("phone_model_storages")
+}
+
+model PhoneModelRam {
+  id        String   @id @default(uuid())
+  modelId   String   @map("model_id")
+  nameAr    String   @map("name_ar")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  model PhoneModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, nameAr])
+  @@index([modelId])
+  @@map("phone_model_rams")
+}
+
+// ─── Item Catalog (Settings) — أصناف + علامات تجارية (سماعات، ساعات، …) ──
+
+model ItemCategory {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  nameAr    String   @map("name_ar")
+  logoUrl   String?  @map("logo_url")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company  Company     @relation(fields: [companyId], references: [id])
+  brands   ItemBrand[]
+  products Product[]
+
+  @@index([companyId])
+  @@map("item_categories")
+}
+
+model ItemBrand {
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  categoryId String   @map("category_id")
+  nameAr     String   @map("name_ar")
+  logoUrl    String?  @map("logo_url")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company  Company      @relation(fields: [companyId], references: [id])
+  category ItemCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products Product[]
+  names    ItemName[]
+
+  @@index([companyId])
+  @@index([categoryId])
+  @@map("item_brands")
+}
+
+model ItemName {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  brandId   String   @map("brand_id")
+  nameAr    String   @map("name_ar")
+  logoUrl   String?  @map("logo_url")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  brand    ItemBrand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([companyId])
+  @@index([brandId])
+  @@map("item_names")
+}
+
+// ─── Purchases ──────────────────────────────────────────────────────────────
+
+model Supplier {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  nameAr    String   @map("name_ar")
+  phone     String?
+  email     String?
+  address   String?
+  balance   Float    @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  supplierKind String @default("wholesale") @map("supplier_kind")
+  customerId   String? @unique @map("customer_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  purchases Purchase[]
+  creditLedgerEntries CreditLedgerEntry[]
+  customer  Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([companyId, supplierKind])
+  @@map("suppliers")
+}
+
+model Purchase {
+  id            String   @id @default(uuid())
+  branchId      String   @map("branch_id")
+  supplierId    String   @map("supplier_id")
+  invoiceNumber String   @map("invoice_number")
+  purchaseDate  DateTime @default(now()) @map("purchase_date")
+  dueDate       DateTime? @map("due_date")
+  status        String   @default("pending")
+  subtotal      Float    @default(0)
+  discount      Float    @default(0)
+  taxRate       Float    @default(14) @map("tax_rate")
+  taxAmount     Float    @default(0) @map("tax_amount")
+  total         Float    @default(0)
+  paymentType   String   @default("full_cash") @map("payment_type")
+  paidAmount    Float    @default(0) @map("paid_amount")
+  invoiceCashPaid Float  @default(0) @map("invoice_cash_paid")
+  cashSource    String?  @map("cash_source")
+  notes         String?
+  createdByUserId String?  @map("created_by_user_id")
+  returnStatus  String   @default("none") @map("return_status")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  branch    Branch           @relation(fields: [branchId], references: [id])
+  supplier  Supplier         @relation(fields: [supplierId], references: [id])
+  createdBy User?            @relation("PurchaseCreator", fields: [createdByUserId], references: [id])
+  items     PurchaseItem[]
+  returns   PurchaseReturn[]
+  creditLedgerEntries CreditLedgerEntry[]
+
+  @@unique([branchId, invoiceNumber])
+  @@index([branchId])
+  @@index([createdByUserId])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id              String  @id @default(uuid())
+  purchaseId      String  @map("purchase_id")
+  productId       String? @map("product_id")
+  description     String
+  quantity        Int     @default(1)
+  unitPrice       Float   @default(0) @map("unit_price")
+  unitPriceBefore Float?  @map("unit_price_before")
+  retailPrice     Float   @default(0) @map("retail_price")
+  total           Float   @default(0)
+  barcode         String?
+  warrantyMonths  Int     @default(12) @map("warranty_months")
+  taxStatus       String  @default("zero") @map("tax_status")
+  deviceCondition String  @default("new") @map("device_condition")
+  boxCondition    String? @map("box_condition")
+  batteryPercent     Int?    @map("battery_percent")
+  itemNotes          String? @map("item_notes")
+  returnedQuantity   Int     @default(0) @map("returned_quantity")
+  imeisSnapshot      String? @map("imeis_snapshot")
+
+  purchase     Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product      Product?             @relation(fields: [productId], references: [id])
+  returnItems  PurchaseReturnItem[]
+  serials      ProductSerial[]
+  costAdjustments PurchaseItemCostAdjustment[]
+
+  @@index([purchaseId])
+  @@map("purchase_items")
+}
+
+model PurchaseReturn {
+  id           String   @id @default(uuid())
+  branchId     String   @map("branch_id")
+  purchaseId   String   @map("purchase_id")
+  userId       String?  @map("user_id")
+  returnNumber String   @map("return_number")
+  returnDate   DateTime @default(now()) @map("return_date")
+  subtotal     Float    @default(0)
+  total        Float    @default(0)
+  notes        String?
+  expenseHandling String? @map("expense_handling")
+  expenseAmount   Float   @default(0) @map("expense_amount")
+  expenseRecoveredAmount Float @default(0) @map("expense_recovered_amount")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  branch   Branch               @relation(fields: [branchId], references: [id])
+  purchase Purchase             @relation(fields: [purchaseId], references: [id])
+  user     User?                @relation(fields: [userId], references: [id])
+  items    PurchaseReturnItem[]
+  expenses Expense[]
+  costAdjustments PurchaseItemCostAdjustment[]
+
+  @@unique([branchId, returnNumber])
+  @@index([branchId])
+  @@index([purchaseId])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               String  @id @default(uuid())
+  purchaseReturnId String  @map("purchase_return_id")
+  purchaseItemId   String  @map("purchase_item_id")
+  productId        String? @map("product_id")
+  description      String
+  quantity         Int     @default(1)
+  unitPrice        Float   @default(0) @map("unit_price")
+  total            Float   @default(0)
+  imeisSnapshot    String? @map("imeis_snapshot")
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id])
+
+  @@index([purchaseReturnId])
+  @@map("purchase_return_items")
+}
+
+// تعديل تكلفة سطر الفاتورة بعد مرتجع — الفاتورة الأصلية ثابتة
+model PurchaseItemCostAdjustment {
+  id               String   @id @default(uuid())
+  purchaseItemId   String   @map("purchase_item_id")
+  purchaseReturnId String   @map("purchase_return_id")
+  perUnitIncrease  Float    @map("per_unit_increase")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id], onDelete: Cascade)
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseItemId])
+  @@index([purchaseReturnId])
+  @@map("purchase_item_cost_adjustments")
+}
+
+// ─── Stock entry (opening balance / existing inventory) ───────────────────────
+
+model StockEntry {
+  id             String   @id @default(uuid())
+  branchId       String   @map("branch_id")
+  documentNumber String   @map("document_number")
+  entryDate      DateTime @default(now()) @map("entry_date")
+  status         String   @default("completed")
+  subtotal       Float    @default(0)
+  total          Float    @default(0)
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  branch Branch           @relation(fields: [branchId], references: [id])
+  items  StockEntryItem[]
+
+  @@unique([branchId, documentNumber])
+  @@index([branchId])
+  @@map("stock_entries")
+}
+
+model StockEntryItem {
+  id              String  @id @default(uuid())
+  stockEntryId    String  @map("stock_entry_id")
+  productId       String? @map("product_id")
+  description     String
+  quantity        Int     @default(1)
+  unitPrice       Float   @default(0) @map("unit_price")
+  retailPrice     Float   @default(0) @map("retail_price")
+  total           Float   @default(0)
+  barcode         String?
+  warrantyMonths  Int     @default(12) @map("warranty_months")
+  deviceCondition String  @default("new") @map("device_condition")
+  boxCondition    String? @map("box_condition")
+  batteryPercent  Int?    @map("battery_percent")
+  itemNotes       String? @map("item_notes")
+  imeisSnapshot   String? @map("imeis_snapshot")
+
+  stockEntry StockEntry      @relation(fields: [stockEntryId], references: [id], onDelete: Cascade)
+  product    Product?        @relation(fields: [productId], references: [id])
+  serials    ProductSerial[]
+
+  @@index([stockEntryId])
+  @@map("stock_entry_items")
+}
+
+model Stocktake {
+  id              String   @id @default(uuid())
+  branchId        String   @map("branch_id")
+  userId          String?  @map("user_id")
+  documentNumber  String   @map("document_number")
+  stocktakeDate   DateTime @default(now()) @map("stocktake_date")
+  mode            String   @default("full")
+  status          String   @default("completed")
+  notes           String?
+  totalSystemQty  Int      @default(0) @map("total_system_qty")
+  totalCountedQty Int      @default(0) @map("total_counted_qty")
+  totalVariance   Int      @default(0) @map("total_variance")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  branch Branch          @relation(fields: [branchId], references: [id])
+  user   User?           @relation(fields: [userId], references: [id])
+  items  StocktakeItem[]
+
+  @@unique([branchId, documentNumber])
+  @@index([branchId, stocktakeDate])
+  @@map("stocktakes")
+}
+
+model StocktakeItem {
+  id              String  @id @default(uuid())
+  stocktakeId     String  @map("stocktake_id")
+  productId       String  @map("product_id")
+  description     String
+  barcode         String?
+  imeiSnapshot    String? @map("imei_snapshot")
+  serialsSnapshot String? @map("serials_snapshot")
+  systemQuantity  Int     @default(0) @map("system_quantity")
+  countedQuantity Int     @default(0) @map("counted_quantity")
+  variance        Int     @default(0)
+  unitCost        Float   @default(0) @map("unit_cost")
+
+  stocktake Stocktake @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@index([stocktakeId])
+  @@index([productId])
+  @@map("stocktake_items")
+}
+
+// ─── Customers & Sales ──────────────────────────────────────────────────────
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  nameAr    String   @map("name_ar")
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  balance   Float    @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company           Company            @relation(fields: [companyId], references: [id])
+  sales             Sale[]
+  maintenanceOrders MaintenanceOrder[]
+  creditLedgerEntries CreditLedgerEntry[]
+  individualSupplier Supplier?
+
+  @@index([companyId])
+  @@map("customers")
+}
+
+model BranchEmployee {
+  id           String   @id @default(uuid())
+  branchId     String   @map("branch_id")
+  employeeCode String   @map("employee_code")
+  nameAr       String   @map("name_ar")
+  phone        String?
+  address      String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  branch Branch @relation(fields: [branchId], references: [id])
+  sales  Sale[]
+
+  @@unique([branchId, employeeCode])
+  @@index([branchId, isActive])
+  @@map("branch_employees")
+}
+
+model Sale {
+  id               String   @id @default(uuid())
+  branchId         String   @map("branch_id")
+  customerId       String?  @map("customer_id")
+  branchEmployeeId String?  @map("branch_employee_id")
+  servedByName     String?  @map("served_by_name")
+  invoiceNumber    String   @map("invoice_number")
+  saleDate      DateTime @default(now()) @map("sale_date")
+  status        String   @default("completed")
+  paymentMethod String   @default("cash") @map("payment_method")
+  subtotal      Float    @default(0)
+  discount      Float    @default(0)
+  taxRate       Float    @default(14) @map("tax_rate")
+  taxAmount     Float    @default(0) @map("tax_amount")
+  total         Float    @default(0)
+  paidAmount    Float    @default(0) @map("paid_amount")
+  notes         String?
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  customer       Customer?       @relation(fields: [customerId], references: [id])
+  branchEmployee BranchEmployee? @relation(fields: [branchEmployeeId], references: [id])
+  createdBy      User?           @relation("SaleCreator", fields: [createdByUserId], references: [id])
+  items          SaleItem[]
+  returns        SaleReturn[]
+
+  @@unique([branchId, invoiceNumber])
+  @@index([branchId, saleDate])
+  @@index([branchId, status, saleDate])
+  @@index([branchEmployeeId])
+  @@index([createdByUserId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String  @id @default(uuid())
+  saleId      String  @map("sale_id")
+  productId   String? @map("product_id")
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Float   @default(0) @map("unit_price")
+  unitCost    Float   @default(0) @map("unit_cost")
+  total       Float   @default(0)
+  imei        String?
+  scannedImei String? @map("scanned_imei")
+  barcode     String?
+  serialId    String? @map("serial_id")
+
+  sale         Sale              @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product      Product?          @relation(fields: [productId], references: [id])
+  serial       ProductSerial?    @relation(fields: [serialId], references: [id])
+  returnItems  SaleReturnItem[]
+
+  @@index([saleId])
+  @@index([serialId])
+  @@map("sale_items")
+}
+
+model SaleReturn {
+  id           String   @id @default(uuid())
+  branchId     String   @map("branch_id")
+  saleId       String   @map("sale_id")
+  userId       String?  @map("user_id")
+  returnNumber String   @map("return_number")
+  returnDate   DateTime @default(now()) @map("return_date")
+  subtotal     Float    @default(0)
+  discount     Float    @default(0)
+  taxRate      Float    @default(0) @map("tax_rate")
+  taxAmount    Float    @default(0) @map("tax_amount")
+  total        Float    @default(0)
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  branch Branch           @relation(fields: [branchId], references: [id])
+  sale   Sale             @relation(fields: [saleId], references: [id])
+  user   User?            @relation(fields: [userId], references: [id])
+  items  SaleReturnItem[]
+
+  @@unique([branchId, returnNumber])
+  @@index([branchId])
+  @@index([saleId])
+  @@map("sale_returns")
+}
+
+model SaleReturnItem {
+  id           String  @id @default(uuid())
+  saleReturnId String  @map("sale_return_id")
+  saleItemId   String  @map("sale_item_id")
+  productId    String? @map("product_id")
+  description  String
+  quantity     Int     @default(1)
+  unitPrice    Float   @default(0) @map("unit_price")
+  total        Float   @default(0)
+  imei         String?
+  barcode      String?
+
+  saleReturn SaleReturn @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
+  saleItem   SaleItem   @relation(fields: [saleItemId], references: [id])
+
+  @@index([saleReturnId])
+  @@index([saleItemId])
+  @@map("sale_return_items")
+}
+
+// ─── Maintenance ────────────────────────────────────────────────────────────
+
+model MaintenanceOrder {
+  id            String    @id @default(uuid())
+  branchId      String    @map("branch_id")
+  customerId    String?   @map("customer_id")
+  orderNumber   String    @map("order_number")
+  deviceBrand   String    @map("device_brand")
+  deviceModel   String?   @map("device_model")
+  imei          String?
+  issue         String
+  status        String    @default("pending")
+  cost          Float     @default(0)
+  paidAmount    Float     @default(0) @map("paid_amount")
+  receivedDate  DateTime  @default(now()) @map("received_date")
+  dueDate       DateTime? @map("due_date")
+  deliveredDate DateTime? @map("delivered_date")
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([branchId])
+  @@map("maintenance_orders")
+}
+
+// ─── Expenses ─────────────────────────────────────────────────────────────
+
+model ExpenseDocument {
+  id            String   @id @default(uuid())
+  branchId      String   @map("branch_id")
+  invoiceNumber String   @map("invoice_number")
+  paymentMethod String   @default("cash") @map("payment_method")
+  expenseDate   DateTime @default(now()) @map("expense_date")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  expenses Expense[]
+
+  @@unique([branchId, invoiceNumber])
+  @@index([branchId])
+  @@map("expense_documents")
+}
+
+model Expense {
+  id               String   @id @default(uuid())
+  branchId         String   @map("branch_id")
+  documentId       String?  @map("document_id")
+  invoiceNumber    String?  @map("invoice_number")
+  lineNumber       Int      @default(1) @map("line_number")
+  category         String
+  description      String
+  amount           Float
+  expenseDate      DateTime @default(now()) @map("expense_date")
+  paymentMethod    String   @default("cash") @map("payment_method")
+  notes            String?
+  purchaseReturnId String?  @map("purchase_return_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  branch         Branch           @relation(fields: [branchId], references: [id])
+  document       ExpenseDocument? @relation(fields: [documentId], references: [id])
+  purchaseReturn PurchaseReturn?  @relation(fields: [purchaseReturnId], references: [id])
+
+  @@index([branchId])
+  @@index([documentId])
+  @@index([invoiceNumber])
+  @@map("expenses")
+}
+
+// ─── Treasury Shifts ───────────────────────────────────────────────────────
+
+model TreasuryShift {
+  id           String   @id @default(uuid())
+  branchId     String   @map("branch_id")
+  userId       String?  @map("user_id")
+  shiftNumber  String   @map("shift_number")
+  closedAt     DateTime @map("closed_at")
+  totalIn      Float    @map("total_in")
+  totalOut     Float    @map("total_out")
+  netAmount    Float    @map("net_amount")
+  entryCount   Int      @map("entry_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  branch  Branch               @relation(fields: [branchId], references: [id])
+  user    User?                @relation(fields: [userId], references: [id])
+  entries TreasuryShiftEntry[]
+
+  @@index([branchId, closedAt])
+  @@map("treasury_shifts")
+}
+
+model TreasuryShiftEntry {
+  id              String   @id @default(uuid())
+  shiftId         String   @map("shift_id")
+  entryKey        String   @map("entry_key")
+  type            String
+  typeLabel       String   @map("type_label")
+  direction       String
+  amount          Float
+  transactionDate DateTime @map("transaction_date")
+  sourceCreatedAt DateTime @map("source_created_at")
+  documentNumber  String   @map("document_number")
+  description     String
+  detailUrl       String   @map("detail_url")
+  paymentMethod   String?  @map("payment_method")
+
+  shift TreasuryShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, entryKey])
+  @@index([entryKey])
+  @@index([shiftId])
+  @@map("treasury_shift_entries")
+}
+
+// ─── Branch vault (خزنة الفرع — نقدية التقفيلات السابقة) ───────────────────
+
+model BranchVaultMovement {
+  id              String   @id @default(uuid())
+  branchId        String   @map("branch_id")
+  type            String
+  direction       String
+  amount          Float
+  referenceType   String?  @map("reference_type")
+  referenceId     String?  @map("reference_id")
+  movementDate    DateTime @default(now()) @map("movement_date")
+  documentNumber  String?  @map("document_number")
+  description     String
+  notes           String?
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  branch    Branch @relation(fields: [branchId], references: [id])
+  createdBy User?  @relation("BranchVaultMovementCreator", fields: [createdByUserId], references: [id])
+
+  @@index([branchId, movementDate])
+  @@index([referenceType, referenceId])
+  @@map("branch_vault_movements")
+}
+
+// ─── App Settings ───────────────────────────────────────────────────────────
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, key])
+  @@map("app_settings")
+}
+
+// ─── Company credit ledger (ديون وأجل — مستقل عن حسابات الفروع) ─────────────
+
+model CreditLedgerEntry {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  branchId     String?  @map("branch_id")
+  partyType    String   @map("party_type")
+  supplierId   String?  @map("supplier_id")
+  customerId   String?  @map("customer_id")
+  purchaseId   String?  @map("purchase_id")
+  entryDate    DateTime @default(now()) @map("entry_date")
+  creditAmount Float    @map("credit_amount")
+  paidAmount   Float    @default(0) @map("paid_amount")
+  notes        String?
+  createdByUserId String? @map("created_by_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
+  createdBy User?    @relation("CreditLedgerEntryCreator", fields: [createdByUserId], references: [id])
+  payments CreditLedgerPayment[]
+
+  @@index([companyId, partyType])
+  @@index([branchId])
+  @@index([supplierId])
+  @@index([customerId])
+  @@index([purchaseId])
+  @@index([createdByUserId])
+  @@map("credit_ledger_entries")
+}
+
+model CreditLedgerPayment {
+  id           String   @id @default(uuid())
+  entryId      String   @map("entry_id")
+  movementType String   @default("payment") @map("movement_type")
+  amount       Float
+  paidAt       DateTime @default(now()) @map("paid_at")
+  cashSource   String?  @map("cash_source")
+  branchId     String?  @map("branch_id")
+  notes        String?
+  createdByUserId String? @map("created_by_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entry     CreditLedgerEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdBy User?             @relation("CreditLedgerPaymentCreator", fields: [createdByUserId], references: [id])
+
+  @@index([entryId])
+  @@index([branchId])
+  @@index([createdByUserId])
+  @@map("credit_ledger_payments")
+}
