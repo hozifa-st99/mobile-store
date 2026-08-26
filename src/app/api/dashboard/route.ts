@@ -5,6 +5,7 @@ import { computeBranchVaultBalance } from "@/lib/branch-vault";
 import { computeOpenShiftKpis } from "@/lib/open-shift-kpis";
 import { computeOpenShiftHourlyChart } from "@/lib/open-shift-hourly-chart";
 import { resolveProductImageUrl } from "@/lib/product-image";
+import { serialBelongsToProduct } from "@/lib/phone-serial-product-filter";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -26,7 +27,8 @@ export async function GET(request: NextRequest) {
       branchVaultBalance,
       openShiftHourlyChart,
       customersCount,
-      productsCount,
+      accessoryProductsCount,
+      availablePhoneSerials,
       lowStockRow,
       recentSales,
       topProductsRaw,
@@ -38,7 +40,23 @@ export async function GET(request: NextRequest) {
       computeOpenShiftHourlyChart(auth.branchId),
       prisma.customer.count({ where: { companyId: auth.companyId, isActive: true } }),
       prisma.branchInventory.count({
-        where: { branchId: auth.branchId, quantity: { gt: 0 } },
+        where: {
+          branchId: auth.branchId,
+          quantity: { gt: 0 },
+          product: { type: { not: "phone" } },
+        },
+      }),
+      prisma.productSerial.findMany({
+        where: {
+          branchId: auth.branchId,
+          status: "available",
+          product: { type: "phone" },
+        },
+        select: {
+          productId: true,
+          purchaseItem: { select: { productId: true } },
+          stockEntryItem: { select: { productId: true } },
+        },
       }),
       prisma.$queryRaw<{ count: number }[]>`
         SELECT COUNT(*) as count
@@ -86,6 +104,14 @@ export async function GET(request: NextRequest) {
         select: { returnDate: true, total: true },
       }),
     ]);
+
+    const availablePhoneProductIds = new Set<string>();
+    for (const serial of availablePhoneSerials) {
+      if (serialBelongsToProduct(serial, serial.productId)) {
+        availablePhoneProductIds.add(serial.productId);
+      }
+    }
+    const productsCount = accessoryProductsCount + availablePhoneProductIds.size;
 
     const lowStockCount = Number(lowStockRow[0]?.count ?? 0);
 
