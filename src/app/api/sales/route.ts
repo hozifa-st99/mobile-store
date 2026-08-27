@@ -15,6 +15,9 @@ import { compareNewestDocumentFirst } from "@/lib/document-list-sort";
 import { documentRecordedAt } from "@/lib/document-datetime";
 import { attachInvoiceCreators, listDistinctInvoiceCreators } from "@/lib/invoice-creator-server";
 
+/** فاتورة كبيرة = استعلامات متتالية على Vercel؛ الافتراضي 5 ثواني قصير جداً */
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
@@ -346,7 +349,7 @@ export async function POST(request: NextRequest) {
       }
 
       return s;
-    });
+    }, { maxWait: 10_000, timeout: 60_000 });
 
     return NextResponse.json({ sale }, { status: 201 });
   } catch (error) {

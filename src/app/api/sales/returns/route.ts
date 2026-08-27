@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { processSaleReturn } from "@/lib/sale-return-service";
 
+/** مرتجع قد يتضمن عدة أصناف/أجهزة — الافتراضي 5 ثواني قصير على Vercel */
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
@@ -37,20 +40,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "اختر فاتورة البيع" }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) =>
-      processSaleReturn(tx, {
-        branchId: auth.branchId,
-        saleId,
-        userId: auth.userId,
-        notes: body.notes,
-        fullReturn: Boolean(body.fullReturn),
-        items: Array.isArray(body.items)
-          ? body.items.map((row: { saleItemId: string; quantity: number }) => ({
-              saleItemId: String(row.saleItemId),
-              quantity: Number(row.quantity),
-            }))
-          : undefined,
-      })
+    const result = await prisma.$transaction(
+      async (tx) =>
+        processSaleReturn(tx, {
+          branchId: auth.branchId,
+          saleId,
+          userId: auth.userId,
+          notes: body.notes,
+          fullReturn: Boolean(body.fullReturn),
+          items: Array.isArray(body.items)
+            ? body.items.map((row: { saleItemId: string; quantity: number }) => ({
+                saleItemId: String(row.saleItemId),
+                quantity: Number(row.quantity),
+              }))
+            : undefined,
+        }),
+      { maxWait: 10_000, timeout: 60_000 }
     );
 
     return NextResponse.json(

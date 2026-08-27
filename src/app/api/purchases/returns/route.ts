@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { processPurchaseReturn } from "@/lib/purchase-return-service";
 
+/** مرتجع قد يتضمن عدة أصناف/أجهزة — الافتراضي 5 ثواني قصير على Vercel */
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
@@ -37,28 +40,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "اختر فاتورة الشراء" }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) =>
-      processPurchaseReturn(tx, {
-        branchId: auth.branchId,
-        userId: auth.userId,
-        purchaseId,
-        notes: body.notes,
-        fullReturn: Boolean(body.fullReturn),
-        expenseHandling:
-          body.expenseHandling === "redistribute" ||
-          body.expenseHandling === "daily_expense" ||
-          body.expenseHandling === "partial_recovery"
-            ? body.expenseHandling
+    const result = await prisma.$transaction(
+      async (tx) =>
+        processPurchaseReturn(tx, {
+          branchId: auth.branchId,
+          userId: auth.userId,
+          purchaseId,
+          notes: body.notes,
+          fullReturn: Boolean(body.fullReturn),
+          expenseHandling:
+            body.expenseHandling === "redistribute" ||
+            body.expenseHandling === "daily_expense" ||
+            body.expenseHandling === "partial_recovery"
+              ? body.expenseHandling
+              : undefined,
+          expenseRecoveredAmount:
+            body.expenseRecoveredAmount != null ? Number(body.expenseRecoveredAmount) : undefined,
+          items: Array.isArray(body.items)
+            ? body.items.map((row: { purchaseItemId?: string; quantity?: number }) => ({
+                purchaseItemId: String(row.purchaseItemId || ""),
+                quantity: Number(row.quantity) || 0,
+              }))
             : undefined,
-        expenseRecoveredAmount:
-          body.expenseRecoveredAmount != null ? Number(body.expenseRecoveredAmount) : undefined,
-        items: Array.isArray(body.items)
-          ? body.items.map((row: { purchaseItemId?: string; quantity?: number }) => ({
-              purchaseItemId: String(row.purchaseItemId || ""),
-              quantity: Number(row.quantity) || 0,
-            }))
-          : undefined,
-      })
+        }),
+      { maxWait: 10_000, timeout: 60_000 }
     );
 
     return NextResponse.json(

@@ -40,6 +40,9 @@ import { getOrCreateIndividualCustomerSupplier } from "@/lib/individual-customer
 import { parseTaxStatus } from "@/lib/phone-device-display";
 import { SUPPLIER_KIND_WHOLESALE } from "@/lib/supplier-kind";
 
+/** فاتورة كبيرة = استعلامات متتالية على Vercel؛ الافتراضي 5 ثواني قصير جداً */
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
@@ -668,7 +671,7 @@ export async function POST(request: NextRequest) {
       }
 
       return p;
-    });
+    }, { maxWait: 10_000, timeout: 60_000 });
 
     return NextResponse.json({ purchase }, { status: 201 });
   } catch (error) {
