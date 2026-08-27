@@ -110,12 +110,12 @@ async function createReturnDailyExpense(
       ],
     });
   } catch {
-    const nowMs = Date.now();
+    const now = new Date();
     await tx.$executeRaw`
       INSERT INTO expenses (id, branch_id, category, description, amount, expense_date, payment_method, notes, purchase_return_id, created_at, line_number)
       VALUES (${randomUUID()}, ${branchId}, ${"مصاريف مشتريات"}, ${description},
-        ${rounded}, ${nowMs}, ${"cash"},
-        ${expenseLine || `مرتجع ${returnNumber}`}, ${purchaseReturnId}, ${nowMs}, ${1})
+        ${rounded}, ${now}, ${"cash"},
+        ${expenseLine || `مرتجع ${returnNumber}`}, ${purchaseReturnId}, ${now}, ${1})
     `;
   }
 }

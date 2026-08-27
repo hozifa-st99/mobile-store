@@ -63,9 +63,9 @@ export async function listDistinctInvoiceCreators(
   try {
     const table = kind === "sale" ? "sales" : "purchases";
     const rows = await prisma.$queryRawUnsafe<Array<{ userId: string }>>(
-      `SELECT DISTINCT created_by_user_id AS userId
+      `SELECT DISTINCT created_by_user_id AS "userId"
        FROM ${table}
-       WHERE branch_id = ? AND created_by_user_id IS NOT NULL`,
+       WHERE branch_id = $1 AND created_by_user_id IS NOT NULL`,
       branchId
     );
     return loadCreatorsByIds(
