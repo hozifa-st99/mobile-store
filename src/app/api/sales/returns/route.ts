@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { processSaleReturn } from "@/lib/sale-return-service";
 
-/** Ù…Ø±ØªØ¬Ø¹ Ù‚Ø¯ ÙŠØªØ¶Ù…Ù† Ø¹Ø¯Ø© Ø£ØµÙ†Ø§Ù/Ø£Ø¬Ù‡Ø²Ø© â€” Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠ 5 Ø«ÙˆØ§Ù†ÙŠ Ù‚ØµÙŠØ± Ø¹Ù„Ù‰ Vercel */
+/** مرتجع قد يتضمن عدة أصناف/أجهزة — الافتراضي 5 ثواني قصير على Vercel */
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const saleId = String(body.saleId || "").trim();
     if (!saleId) {
-      return NextResponse.json({ message: "Ø§Ø®ØªØ± ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø¨ÙŠØ¹" }, { status: 400 });
+      return NextResponse.json({ message: "اختر فاتورة البيع" }, { status: 400 });
     }
 
     const result = await prisma.$transaction(
@@ -67,52 +67,52 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Sale return error:", error);
-    let message = error instanceof Error ? "DEBUG: " + error.message : "DEBUG: " + String(error);
+    let message = "حدث خطأ";
     if (error instanceof Error) {
       switch (error.message) {
         case "SALE_NOT_FOUND":
-          message = "Ù Ø§ØªÙˆØ±Ø© Ø§Ù„Ø¨ÙŠØ¹ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©";
+          message = "فاتورة البيع غير موجودة";
           break;
         case "SALE_NOT_COMPLETED":
-          message = "Ø§Ù„ÙØ§ØªÙˆØ±Ø© ØºÙŠØ± Ù…ÙƒØªÙ…Ù„Ø©";
+          message = "الفاتورة غير مكتملة";
           break;
         case "ALREADY_FULLY_RETURNED":
-          message = "ØªÙ… Ø¥Ø±Ø¬Ø§Ø¹ Ø§Ù„ÙØ§ØªÙˆØ±Ø© Ø¨Ø§Ù„ÙƒØ§Ù…Ù„";
+          message = "تم إرجاع الفاتورة بالكامل";
           break;
         case "NO_ITEMS_TO_RETURN":
-          message = "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£ØµÙ†Ø§Ù Ù„Ù„Ø¥Ø±Ø¬Ø§Ø¹";
+          message = "لا توجد أصناف للإرجاع";
           break;
         case "ITEM_NOT_FOUND":
-          message = "Ø³Ø·Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯";
+          message = "سطر غير موجود";
           break;
         case "QUANTITY_EXCEEDS_RETURNABLE":
-          message = "Ø§Ù„ÙƒÙ…ÙŠØ© Ø£ÙƒØ¨Ø± Ù…Ù† Ø§Ù„Ù…ØªØ§Ø­ Ù„Ù„Ø¥Ø±Ø¬Ø§Ø¹";
+          message = "الكمية أكبر من المتاح للإرجاع";
           break;
         case "PHONE_QTY_MUST_BE_ONE":
-          message = "Ù…Ø±ØªØ¬Ø¹ Ø§Ù„Ù…ÙˆØ¨Ø§ÙŠÙ„ â€” ÙƒÙ…ÙŠØ© 1 ÙÙ‚Ø·";
+          message = "مرتجع الموبايل — كمية 1 فقط";
           break;
         case "PHONE_DEVICE_ID_REQUIRED":
-          message = "Ù„Ø§ ÙŠÙˆØ¬Ø¯ IMEI/Ø¨Ø§Ø±ÙƒÙˆØ¯ Ø¹Ù„Ù‰ Ø³Ø·Ø± Ø§Ù„Ø¨ÙŠØ¹";
+          message = "لا يوجد IMEI/باركود على سطر البيع";
           break;
         case "PHONE_NOT_SOLD_OR_NOT_FOUND":
-          message = "Ø§Ù„Ø¬Ù‡Ø§Ø² ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ ÙƒÙ…Ø¨Ø§Ø¹ â€” ØªØ­Ù‚Ù‚ Ù…Ù† IMEI";
+          message = "الجهاز غير موجود كمباع — تحقق من IMEI";
           break;
         case "SALE_RETURN_LEGACY_AMBIGUOUS":
           message =
-            "Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø¥Ø±Ø¬Ø§Ø¹ Ù‡Ø°Ø§ Ø§Ù„Ø¨ÙŠØ¹ â€” Ù†ÙØ³ IMEI Ù„Ù‡ Ø£ÙƒØ«Ø± Ù…Ù† Ø¯ÙˆØ±Ø© Ù…Ø¨Ø§Ø¹Ø©. Ø±Ø§Ø¬Ø¹ Ø§Ù„Ø¯Ø¹Ù… Ø§Ù„ÙÙ†ÙŠ";
+            "لا يمكن إرجاع هذا البيع — نفس IMEI له أكثر من دورة مباعة. راجع الدعم الفني";
           break;
         case "PHONE_SERIAL_NOT_FOUND":
-          message = "Ø³Ø¬Ù„ Ø§Ù„Ø¬Ù‡Ø§Ø² ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯";
+          message = "سجل الجهاز غير موجود";
           break;
         case "ITEM_NO_PRODUCT":
-          message = "Ø§Ù„Ø³Ø·Ø± ØºÙŠØ± Ù…Ø±Ø¨ÙˆØ· Ø¨Ù…Ù†ØªØ¬";
+          message = "السطر غير مربوط بمنتج";
           break;
         case "RETURN_NUMBER_ALLOCATE_FAILED":
-          message = "ØªØ¹Ø°Ø± ØªØ®ØµÙŠØµ Ø±Ù‚Ù… Ø§Ù„Ù…Ø±ØªØ¬Ø¹";
+          message = "تعذر تخصيص رقم المرتجع";
           break;
         default:
           if (error.message.startsWith("IMEI_DUPLICATE:")) {
-            message = `Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ù„Ø¥Ø±Ø¬Ø§Ø¹ â€” ÙŠÙˆØ¬Ø¯ Ø¬Ù‡Ø§Ø² Ù†Ø´Ø· Ø¨Ù†ÙØ³ IMEI (${error.message.split(":")[1]})`;
+            message = `لا يمكن الإرجاع — يوجد جهاز نشط بنفس IMEI (${error.message.split(":")[1]})`;
           }
           break;
       }
