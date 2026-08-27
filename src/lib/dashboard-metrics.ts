@@ -17,7 +17,7 @@ export async function sumPurchaseReturnsSince(
       SELECT COALESCE(SUM(total), 0) AS total
       FROM purchase_returns
       WHERE branch_id = ${branchId}
-        AND return_date >= ${since.toISOString()}
+        AND return_date >= ${since}
     `;
     return Number(rows[0]?.total ?? 0);
   } catch {
@@ -56,7 +56,7 @@ export async function sumPurchaseReturnCashBreakdownSince(
         COALESCE(SUM(total), 0) AS total
       FROM purchase_returns
       WHERE branch_id = ${branchId}
-        AND return_date >= ${since.toISOString()}
+        AND return_date >= ${since}
     `;
     return {
       subtotal: Number(rows[0]?.subtotal ?? 0),
@@ -84,8 +84,8 @@ export async function sumPurchaseReturnCashBreakdownInRange(
         COALESCE(SUM(total), 0) AS total
       FROM purchase_returns
       WHERE branch_id = ${branchId}
-        AND return_date >= ${from.toISOString()}
-        AND return_date <= ${to.toISOString()}
+        AND return_date >= ${from}
+        AND return_date <= ${to}
     `;
     return {
       subtotal: Number(rows[0]?.subtotal ?? 0),
@@ -107,7 +107,7 @@ export async function sumSaleReturnsSince(
       SELECT COALESCE(SUM(total), 0) AS total
       FROM sale_returns
       WHERE branch_id = ${branchId}
-        AND return_date >= ${since.toISOString()}
+        AND return_date >= ${since}
     `;
     return Number(rows[0]?.total ?? 0);
   } catch {
@@ -126,8 +126,8 @@ export async function sumSaleReturnsInRange(
       SELECT COALESCE(SUM(total), 0) AS total
       FROM sale_returns
       WHERE branch_id = ${branchId}
-        AND return_date >= ${from.toISOString()}
-        AND return_date <= ${to.toISOString()}
+        AND return_date >= ${from}
+        AND return_date <= ${to}
     `;
     return Number(rows[0]?.total ?? 0);
   } catch {
