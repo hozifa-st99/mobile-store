@@ -104,7 +104,7 @@ export async function recordPurchaseItemCostAdjustments(
         INSERT INTO purchase_item_cost_adjustments (
           id, purchase_item_id, purchase_return_id, per_unit_increase, created_at
         ) VALUES (
-          ${id}, ${row.purchaseItemId}, ${purchaseReturnId}, ${rounded}, ${new Date().toISOString()}
+          ${id}, ${row.purchaseItemId}, ${purchaseReturnId}, ${rounded}, ${new Date()}
         )
       `;
     }

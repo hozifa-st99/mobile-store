@@ -73,7 +73,7 @@ export async function createSaleReturnWithItems(
   input: CreateSaleReturnInput
 ): Promise<CreatedSaleReturn> {
   const id = randomUUID();
-  const now = new Date().toISOString();
+  const now = new Date();
 
   await db.$executeRaw`
     INSERT INTO sale_returns (

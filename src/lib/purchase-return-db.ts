@@ -70,7 +70,7 @@ export async function createPurchaseReturnWithItems(
   input: CreatePurchaseReturnInput
 ): Promise<CreatedPurchaseReturn> {
   const id = randomUUID();
-  const now = new Date().toISOString();
+  const now = new Date();
 
   await db.$executeRaw`
     INSERT INTO purchase_returns (
