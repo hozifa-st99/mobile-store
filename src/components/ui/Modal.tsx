@@ -10,11 +10,20 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   titleHint?: string;
+  titleAddon?: ReactNode;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
 }
 
-export default function Modal({ open, onClose, title, titleHint, children, size = "md" }: ModalProps) {
+export default function Modal({
+  open,
+  onClose,
+  title,
+  titleHint,
+  titleAddon,
+  children,
+  size = "md",
+}: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -42,13 +51,16 @@ export default function Modal({ open, onClose, title, titleHint, children, size 
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-5 flex-shrink-0">
-          <h3 className="text-lg font-extrabold text-white inline-flex items-baseline gap-2 flex-wrap pe-3">
-            <span>{title}</span>
-            {titleHint ? (
-              <span className="text-xs font-normal text-muted">{titleHint}</span>
-            ) : null}
-          </h3>
+        <div className="flex items-center justify-between gap-3 px-6 py-5 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 pe-2">
+            <h3 className="text-lg font-extrabold text-white inline-flex items-baseline gap-2 flex-wrap">
+              <span>{title}</span>
+              {titleHint ? (
+                <span className="text-xs font-normal text-muted">{titleHint}</span>
+              ) : null}
+            </h3>
+            {titleAddon}
+          </div>
           <button
             type="button"
             onClick={onClose}

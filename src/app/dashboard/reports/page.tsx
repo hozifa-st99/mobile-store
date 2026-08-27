@@ -348,7 +348,20 @@ export default function ReportsPage() {
       <InventoryReportModal open={inventoryOpen} onClose={() => setInventoryOpen(false)} />
       <CustomersReportModal open={customersOpen} onClose={() => setCustomersOpen(false)} filter={filter} />
       <SuppliersReportModal open={suppliersOpen} onClose={() => setSuppliersOpen(false)} filter={filter} />
-      <SalesReportsModal open={salesReportsOpen} onClose={() => setSalesReportsOpen(false)} filter={filter} />
+      <SalesReportsModal
+        open={salesReportsOpen}
+        onClose={() => setSalesReportsOpen(false)}
+        filter={filter}
+        salesSummary={
+          s
+            ? {
+                grossTotal: s.salesGrossTotal,
+                returnsTotal: s.saleReturnsTotal,
+                netTotal: s.salesNetTotal,
+              }
+            : undefined
+        }
+      />
     </>
   );
 }

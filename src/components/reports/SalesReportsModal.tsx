@@ -30,11 +30,78 @@ interface CategoryRow {
   share: number;
 }
 
+interface SalesSummaryDisplay {
+  grossTotal: number;
+  returnsTotal: number;
+  netTotal: number;
+}
+
 interface SalesReportsModalProps {
   open: boolean;
   onClose: () => void;
   filter: ReportFilterState;
   initialTab?: "products" | "categories";
+  salesSummary?: SalesSummaryDisplay;
+}
+
+const RETURN_EMOJI = "↩️";
+
+function SalesSummaryCircles({ summary }: { summary: SalesSummaryDisplay }) {
+  const items = [
+    {
+      label: "إجمالي المبيعات",
+      value: `${formatCurrency(summary.grossTotal)} ج.م`,
+      emoji: em.salePrice,
+      ring: "ring-emerald-400/35",
+      bg: "bg-emerald-500/15",
+      iconBg: "bg-emerald-500/25 ring-emerald-400/30",
+      text: "text-emerald-200",
+      labelText: "text-emerald-300/90",
+    },
+    {
+      label: "مرتجعات المبيعات",
+      value: `${formatCurrency(summary.returnsTotal)} ج.م`,
+      emoji: RETURN_EMOJI,
+      ring: "ring-amber-400/35",
+      bg: "bg-amber-500/15",
+      iconBg: "bg-amber-500/25 ring-amber-400/30",
+      text: "text-amber-200",
+      labelText: "text-amber-300/90",
+    },
+    {
+      label: "صافي المبيعات",
+      value: `${formatCurrency(summary.netTotal)} ج.م`,
+      emoji: em.profitUp,
+      ring: "ring-sky-400/35",
+      bg: "bg-sky-500/15",
+      iconBg: "bg-sky-500/25 ring-sky-400/30",
+      text: "text-sky-200",
+      labelText: "text-sky-300/90",
+    },
+  ] as const;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          title={item.label}
+          className={`inline-flex items-center gap-2 rounded-full ps-1 pe-3 py-1 ring-1 ${item.ring} ${item.bg}`}
+        >
+          <span
+            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base ring-1 ${item.iconBg}`}
+            aria-hidden
+          >
+            {item.emoji}
+          </span>
+          <span className="flex flex-col min-w-0 leading-tight">
+            <span className={`text-[10px] font-bold ${item.labelText}`}>{item.label}</span>
+            <span className={`text-xs font-extrabold tabular-nums ${item.text}`}>{item.value}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 const highlightBlocks = [
@@ -120,6 +187,7 @@ export default function SalesReportsModal({
   onClose,
   filter,
   initialTab = "products",
+  salesSummary,
 }: SalesReportsModalProps) {
   const [tab, setTab] = useState<"products" | "categories">(initialTab);
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -185,7 +253,13 @@ export default function SalesReportsModal({
 
   return (
     <>
-    <Modal open={open} onClose={onClose} title="تقارير المبيعات" size="xl">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="تقارير المبيعات"
+      size="xl"
+      titleAddon={salesSummary ? <SalesSummaryCircles summary={salesSummary} /> : null}
+    >
       <div className="flex gap-2 mb-4">
         {(
           [
