@@ -4,6 +4,7 @@ import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { parseCashSource } from "@/lib/branch-vault";
 import { parseLedgerNotes } from "@/lib/credit-ledger-service";
 import { prisma } from "@/lib/prisma";
+import { purchaseDebtDisplayOutstanding } from "@/lib/purchase-payment-display";
 import { recordPurchaseDebtPayment } from "@/lib/purchase-payment-service";
 
 export async function POST(request: NextRequest) {
@@ -36,14 +37,21 @@ export async function POST(request: NextRequest) {
 
     const purchase = await prisma.purchase.findFirst({
       where: { id: purchaseId, branchId: auth.branchId, status: "completed" },
-      include: { supplier: { select: { nameAr: true } } },
+      include: {
+        supplier: { select: { nameAr: true } },
+        creditLedgerEntries: {
+          select: { creditAmount: true, paidAmount: true },
+          take: 1,
+        },
+      },
     });
 
     if (!purchase) {
       return NextResponse.json({ message: "الفاتورة غير موجودة" }, { status: 404 });
     }
 
-    const outstanding = Math.round((purchase.total - purchase.paidAmount) * 100) / 100;
+    const creditEntry = purchase.creditLedgerEntries[0] ?? null;
+    const outstanding = purchaseDebtDisplayOutstanding(purchase, creditEntry);
     if (outstanding <= 0.0001) {
       return NextResponse.json({ message: "لا يوجد مبلغ متبقٍ على هذه الفاتورة" }, { status: 400 });
     }

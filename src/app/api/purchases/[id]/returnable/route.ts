@@ -143,6 +143,14 @@ export async function GET(
     (i) => Math.abs(i.unitPriceBefore - i.unitPriceAfter) > 0.001
   );
 
+  const creditEntry = await prisma.creditLedgerEntry.findFirst({
+    where: { purchaseId: id },
+    select: { creditAmount: true, paidAmount: true },
+  });
+  const creditOutstanding = creditEntry
+    ? Math.max(0, Math.round((creditEntry.creditAmount - creditEntry.paidAmount) * 100) / 100)
+    : 0;
+
   return NextResponse.json({
     purchase: {
       id: purchase.id,
@@ -151,6 +159,8 @@ export async function GET(
       status: purchase.status,
       returnStatus,
       total: purchase.total,
+      paymentType: purchase.paymentType,
+      creditOutstanding,
       expenseLine,
       hasExpenses,
       supplier: purchase.supplier,

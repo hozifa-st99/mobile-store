@@ -12,6 +12,7 @@ import { apiJson } from "@/lib/api-client";
 import ReturnConfirmModal, {
   type ReturnConfirmRow,
 } from "@/components/returns/ReturnConfirmModal";
+import PurchaseReturnSettlementModal from "@/components/returns/PurchaseReturnSettlementModal";
 import { toast } from "@/lib/toast";
 import { runPendingOperation } from "@/store/pending-operation-store";
 import { scrollElementToPageTopAfterPaint } from "@/lib/scroll-to-element";
@@ -56,6 +57,8 @@ interface ReturnablePurchase {
   purchaseDate: string;
   total: number;
   returnStatus: string;
+  paymentType: string;
+  creditOutstanding: number;
   hasExpenses: boolean;
   expenseLine: string | null;
   supplier: { nameAr: string };
@@ -108,6 +111,7 @@ export default function PurchaseReturnsPage() {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [settlementOpen, setSettlementOpen] = useState(false);
   const [pendingFullReturn, setPendingFullReturn] = useState(false);
   const detailPanelRef = useRef<HTMLDivElement>(null);
 
@@ -331,6 +335,29 @@ export default function PurchaseReturnsPage() {
 
   const confirmCashReturnTotal = confirmRefundTotal + confirmExpensePreviewSplit.recovered;
 
+  const estimatedCreditReduction = useMemo(() => {
+    if (!returnablePurchase) return 0;
+    if (!["credit", "partial_credit"].includes(returnablePurchase.paymentType)) return 0;
+    return Math.min(confirmCashReturnTotal, returnablePurchase.creditOutstanding);
+  }, [returnablePurchase, confirmCashReturnTotal]);
+
+  const estimatedExpenseRecoveryCash = useMemo(() => {
+    const recovered = confirmExpensePreviewSplit.recovered;
+    if (recovered <= 0.0001) return 0;
+    const cashFromReturn = Math.max(
+      0,
+      Math.round((confirmCashReturnTotal - estimatedCreditReduction) * 100) / 100
+    );
+    return Math.min(recovered, cashFromReturn);
+  }, [confirmExpensePreviewSplit.recovered, confirmCashReturnTotal, estimatedCreditReduction]);
+
+  const estimatedCashSettleable = Math.max(
+    0,
+    Math.round(
+      (confirmCashReturnTotal - estimatedCreditReduction - estimatedExpenseRecoveryCash) * 100
+    ) / 100
+  );
+
   const confirmRows = useMemo((): ReturnConfirmRow[] => {
     if (!returnablePurchase) return [];
     const rows: ReturnConfirmRow[] = [
@@ -368,7 +395,10 @@ export default function PurchaseReturnsPage() {
     confirmCashReturnTotal,
   ]);
 
-  const buildReturnPayload = (fullReturn: boolean) => {
+  const buildReturnPayload = (
+    fullReturn: boolean,
+    settlement?: { shiftDepositAmount: number; receivableAmount: number }
+  ) => {
     const fullReturnExpense = returnableItems
       .filter((i) => i.canReturn)
       .reduce((s, i) => s + i.returnableQuantity * i.expensePerUnit, 0);
@@ -395,13 +425,20 @@ export default function PurchaseReturnsPage() {
     };
 
     return fullReturn
-      ? { ...baseBody, fullReturn: true }
+      ? {
+          ...baseBody,
+          fullReturn: true,
+          shiftDepositAmount: settlement?.shiftDepositAmount ?? 0,
+          receivableAmount: settlement?.receivableAmount ?? 0,
+        }
       : {
           ...baseBody,
           items: selectedLines.map((l) => ({
             purchaseItemId: l.purchaseItemId,
             quantity: l.quantity,
           })),
+          shiftDepositAmount: settlement?.shiftDepositAmount ?? 0,
+          receivableAmount: settlement?.receivableAmount ?? 0,
         };
   };
 
@@ -447,14 +484,17 @@ export default function PurchaseReturnsPage() {
     setConfirmOpen(true);
   };
 
-  const executeReturn = async () => {
+  const executeReturn = async (settlement?: {
+    shiftDepositAmount: number;
+    receivableAmount: number;
+  }) => {
     if (!selectedId) return;
 
     setSubmitting(true);
 
     try {
       await runPendingOperation(async () => {
-        const body = buildReturnPayload(pendingFullReturn);
+        const body = buildReturnPayload(pendingFullReturn, settlement);
 
         const { ok, data } = await apiJson<{
           message: string;
@@ -467,6 +507,7 @@ export default function PurchaseReturnsPage() {
 
         if (ok) {
           setConfirmOpen(false);
+          setSettlementOpen(false);
           const retNum = data.purchaseReturn?.returnNumber ?? "";
           const retTotal = data.purchaseReturn?.total;
           const successText = `تم تسجيل المرتجع ${retNum}${
@@ -489,11 +530,20 @@ export default function PurchaseReturnsPage() {
     }
   };
 
+  const handleConfirmReturn = () => {
+    if (estimatedCashSettleable > 0.0001) {
+      setConfirmOpen(false);
+      setSettlementOpen(true);
+      return;
+    }
+    void executeReturn({ shiftDepositAmount: 0, receivableAmount: 0 });
+  };
+
   return (
     <>
       <PageHeader
         title="مرتجع مشتريات"
-        subtitle="اختر فاتورة شراء وأرجعها كاملة أو جزئياً — يُخصم من المخزون ويُسترد المبلغ للخزنة"
+        subtitle="اختر فاتورة شراء وأرجعها كاملة أو جزئياً — يُخصم من المخزون ويُسوَّى المبلغ في الوردية أو كمستحق"
         action={{ label: "استعراض المشتريات", href: "/dashboard/purchases" }}
         showHomeButton
       />
@@ -983,11 +1033,23 @@ export default function PurchaseReturnsPage() {
       <ReturnConfirmModal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        onConfirm={() => void executeReturn()}
+        onConfirm={handleConfirmReturn}
         title={pendingFullReturn ? "تأكيد مرتجع كامل" : "تأكيد مرتجع جزئي"}
         rows={confirmRows}
         loading={submitting}
       />
+      {returnablePurchase && (
+        <PurchaseReturnSettlementModal
+          open={settlementOpen}
+          onClose={() => !submitting && setSettlementOpen(false)}
+          onConfirm={(values) => void executeReturn(values)}
+          loading={submitting}
+          returnTotal={confirmCashReturnTotal}
+          creditReduction={estimatedCreditReduction}
+          expenseRecoveryCash={estimatedExpenseRecoveryCash}
+          invoiceNumber={returnablePurchase.invoiceNumber}
+        />
+      )}
     </>
   );
 }

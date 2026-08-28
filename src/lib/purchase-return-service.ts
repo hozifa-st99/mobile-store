@@ -28,6 +28,12 @@ import {
   deleteDeviceSerialById,
   findDeviceSerialByPurchaseItemId,
 } from "@/lib/product-serial-service";
+import { recordPurchaseReturnCreditReduction } from "@/lib/purchase-payment-service";
+import {
+  applyPurchaseReturnSettlement,
+  computePurchaseReturnGoodsCashSettleable,
+  validatePurchaseReturnSettlement,
+} from "@/lib/purchase-return-settlement";
 
 type Db = Prisma.TransactionClient;
 
@@ -45,6 +51,8 @@ export interface ProcessReturnInput {
   items?: ReturnLineInput[];
   expenseHandling?: PurchaseReturnExpenseHandling;
   expenseRecoveredAmount?: number;
+  shiftDepositAmount?: number;
+  receivableAmount?: number;
 }
 
 async function validatePhonePurchaseLineSerial(
@@ -463,8 +471,58 @@ export async function processPurchaseReturn(tx: Db, input: ProcessReturnInput) {
 
   const newStatus = computePurchaseReturnStatus(statusItems);
 
+  const returnRecordedAt = new Date();
+  const creditReductionAmount = await recordPurchaseReturnCreditReduction(tx, {
+    branchId: input.branchId,
+    purchaseId: purchase.id,
+    paymentType: purchase.paymentType,
+    userId: input.userId ?? null,
+    returnNumber,
+    returnTotal,
+    returnDate: returnRecordedAt,
+    notes: input.notes?.trim() || null,
+  });
+
+  const cashSettleable = computePurchaseReturnGoodsCashSettleable(
+    returnTotal,
+    creditReductionAmount,
+    expenseSplit.recovered
+  );
+  const settlement = validatePurchaseReturnSettlement(
+    cashSettleable,
+    input.shiftDepositAmount ?? 0,
+    input.receivableAmount ?? 0
+  );
+
+  await tx.purchaseReturn.update({
+    where: { id: purchaseReturn.id },
+    data: {
+      creditReductionAmount,
+      shiftDepositAmount: settlement.shiftDepositAmount,
+      receivableAmount: settlement.receivableAmount,
+    },
+  });
+
+  if (settlement.receivableAmount > 0.0001) {
+    await applyPurchaseReturnSettlement(tx, {
+      branchId: input.branchId,
+      purchaseId: purchase.id,
+      supplierId: purchase.supplierId,
+      purchaseReturnId: purchaseReturn.id,
+      returnNumber,
+      receivableAmount: settlement.receivableAmount,
+      notes: input.notes?.trim() || null,
+    });
+  }
+
   return {
-    purchaseReturn,
+    purchaseReturn: {
+      ...purchaseReturn,
+      creditReductionAmount,
+      shiftDepositAmount: settlement.shiftDepositAmount,
+      receivableAmount: settlement.receivableAmount,
+      cashSettleable,
+    },
     returnStatus: newStatus,
     expenseAmount: totalExpenseShare,
     expenseRecoveredAmount: expenseSplit.recovered,

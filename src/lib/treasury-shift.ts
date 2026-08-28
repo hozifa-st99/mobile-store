@@ -347,6 +347,7 @@ export interface TreasuryShiftTotalsByType {
   saleReturns: number;
   purchases: number;
   purchaseReturns: number;
+  receivableCollections: number;
   expenseRecovery: number;
   expenses: number;
 }
@@ -377,6 +378,7 @@ function accumulateTotalsByType(
     saleReturns: 0,
     purchases: 0,
     purchaseReturns: 0,
+    receivableCollections: 0,
     expenseRecovery: 0,
     expenses: 0,
   };
@@ -398,6 +400,9 @@ function accumulateTotalsByType(
       case "purchase_return":
         totals.purchaseReturns += entry.amount;
         break;
+      case "purchase_receivable_collection":
+        totals.receivableCollections += entry.amount;
+        break;
       case "purchase_return_expense_recovery":
         totals.expenseRecovery += entry.amount;
         break;
@@ -412,6 +417,7 @@ function accumulateTotalsByType(
     saleReturns: roundMoney(totals.saleReturns),
     purchases: roundMoney(totals.purchases),
     purchaseReturns: roundMoney(totals.purchaseReturns),
+    receivableCollections: roundMoney(totals.receivableCollections),
     expenseRecovery: roundMoney(totals.expenseRecovery),
     expenses: roundMoney(totals.expenses),
   };

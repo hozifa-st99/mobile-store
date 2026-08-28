@@ -65,6 +65,8 @@ model Branch {
   vaultMovements BranchVaultMovement[]
   creditLedgerEntries CreditLedgerEntry[]
   branchEmployees   BranchEmployee[]
+  supplierReceivables PurchaseSupplierReceivable[]
+  receivableCollections PurchaseReceivableCollection[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -99,6 +101,7 @@ model User {
   vaultMovementsCreated BranchVaultMovement[] @relation("BranchVaultMovementCreator")
   salesCreated      Sale[]     @relation("SaleCreator")
   purchasesCreated  Purchase[] @relation("PurchaseCreator")
+  receivableCollectionsCreated PurchaseReceivableCollection[] @relation("PurchaseReceivableCollectionCreator")
 
   @@index([companyId])
   @@map("users")
@@ -493,6 +496,7 @@ model Supplier {
   company   Company    @relation(fields: [companyId], references: [id])
   purchases Purchase[]
   creditLedgerEntries CreditLedgerEntry[]
+  supplierReceivables PurchaseSupplierReceivable[]
   customer  Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
@@ -529,6 +533,7 @@ model Purchase {
   items     PurchaseItem[]
   returns   PurchaseReturn[]
   creditLedgerEntries CreditLedgerEntry[]
+  supplierReceivables PurchaseSupplierReceivable[]
 
   @@unique([branchId, invoiceNumber])
   @@index([branchId])
@@ -579,6 +584,9 @@ model PurchaseReturn {
   expenseHandling String? @map("expense_handling")
   expenseAmount   Float   @default(0) @map("expense_amount")
   expenseRecoveredAmount Float @default(0) @map("expense_recovered_amount")
+  creditReductionAmount Float @default(0) @map("credit_reduction_amount")
+  shiftDepositAmount    Float @default(0) @map("shift_deposit_amount")
+  receivableAmount      Float @default(0) @map("receivable_amount")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -588,6 +596,7 @@ model PurchaseReturn {
   items    PurchaseReturnItem[]
   expenses Expense[]
   costAdjustments PurchaseItemCostAdjustment[]
+  supplierReceivable PurchaseSupplierReceivable?
 
   @@unique([branchId, returnNumber])
   @@index([branchId])
@@ -611,6 +620,49 @@ model PurchaseReturnItem {
 
   @@index([purchaseReturnId])
   @@map("purchase_return_items")
+}
+
+model PurchaseSupplierReceivable {
+  id               String   @id @default(uuid())
+  branchId         String   @map("branch_id")
+  purchaseId       String   @map("purchase_id")
+  purchaseReturnId String   @unique @map("purchase_return_id")
+  supplierId       String   @map("supplier_id")
+  amount           Float
+  collectedAmount  Float    @default(0) @map("collected_amount")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  branch         Branch         @relation(fields: [branchId], references: [id])
+  purchase       Purchase       @relation(fields: [purchaseId], references: [id])
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  collections    PurchaseReceivableCollection[]
+
+  @@index([branchId])
+  @@index([purchaseId])
+  @@index([supplierId])
+  @@map("purchase_supplier_receivables")
+}
+
+model PurchaseReceivableCollection {
+  id              String   @id @default(uuid())
+  receivableId    String   @map("receivable_id")
+  branchId        String   @map("branch_id")
+  amount          Float
+  collectedAt     DateTime @default(now()) @map("collected_at")
+  notes           String?
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  receivable PurchaseSupplierReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+  branch     Branch                     @relation(fields: [branchId], references: [id])
+  createdBy  User?                      @relation("PurchaseReceivableCollectionCreator", fields: [createdByUserId], references: [id])
+
+  @@index([receivableId])
+  @@index([branchId])
+  @@map("purchase_receivable_collections")
 }
 
 // تعديل تكلفة سطر الفاتورة بعد مرتجع — الفاتورة الأصلية ثابتة

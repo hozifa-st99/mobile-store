@@ -17,6 +17,19 @@ export function purchaseOutstanding(total: number, paidAmount: number) {
   return roundPurchaseMoney(Math.max(0, total - paidAmount));
 }
 
+/** متبقي الأجل في شاشة مديونيات المشتريات — من سجل الأجل إن وُجد */
+export function purchaseDebtDisplayOutstanding(
+  purchase: { total: number; paidAmount: number },
+  creditEntry?: { creditAmount: number; paidAmount: number } | null
+) {
+  if (creditEntry) {
+    return roundPurchaseMoney(
+      Math.max(0, creditEntry.creditAmount - creditEntry.paidAmount)
+    );
+  }
+  return purchaseOutstanding(purchase.total, purchase.paidAmount);
+}
+
 export function purchaseSettlementLabel(
   paymentType: string,
   total: number,

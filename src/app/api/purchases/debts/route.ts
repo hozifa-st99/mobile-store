@@ -5,12 +5,14 @@ import { prisma } from "@/lib/prisma";
 import {
   SUPPLIER_KIND_INDIVIDUAL_CUSTOMER,
   SUPPLIER_KIND_WHOLESALE,
-} from "@/lib/supplier-kind";import {
+} from "@/lib/supplier-kind";
+import {
   CASH_SOURCE_LABELS,
   PURCHASE_PAYMENT_TYPE_LABELS,
-  purchaseOutstanding,
+  purchaseDebtDisplayOutstanding,
   roundPurchaseMoney,
 } from "@/lib/purchase-payment-display";
+import { receivableOutstanding } from "@/lib/purchase-return-settlement";
 
 function mapDebtRow(p: {
   id: string;
@@ -23,9 +25,10 @@ function mapDebtRow(p: {
   cashSource: string | null;
   invoiceCashPaid: number;
   supplier: { id: string; nameAr: string; phone: string | null; supplierKind: string };
-  creditLedgerEntries: { id: string }[];
+  creditLedgerEntries: { id: string; creditAmount: number; paidAmount: number }[];
 }) {
-  const outstanding = purchaseOutstanding(p.total, p.paidAmount);
+  const creditEntry = p.creditLedgerEntries[0] ?? null;
+  const outstanding = purchaseDebtDisplayOutstanding(p, creditEntry);
   return {
     id: p.id,
     invoiceNumber: p.invoiceNumber,
@@ -70,7 +73,10 @@ export async function GET(request: NextRequest) {
     },
     include: {
       supplier: { select: { id: true, nameAr: true, phone: true, supplierKind: true } },
-      creditLedgerEntries: { select: { id: true }, take: 1 },
+      creditLedgerEntries: {
+        select: { id: true, creditAmount: true, paidAmount: true },
+        take: 1,
+      },
     },
     orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
   });
@@ -112,13 +118,77 @@ export async function GET(request: NextRequest) {
     ).values()
   ).sort((a, b) => a.nameAr.localeCompare(b.nameAr, "ar"));
 
+  const receivableRecords = await prisma.purchaseSupplierReceivable.findMany({
+    where: {
+      branchId: auth.branchId,
+      ...(supplierKindFilter && {
+        supplier: { supplierKind: supplierKindFilter },
+      }),
+    },
+    include: {
+      supplier: { select: { id: true, nameAr: true, phone: true, supplierKind: true } },
+      purchase: { select: { invoiceNumber: true, purchaseDate: true } },
+      purchaseReturn: { select: { returnNumber: true, returnDate: true } },
+    },
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  let receivableRows = receivableRecords.map((r) => ({
+    id: r.id,
+    purchaseId: r.purchaseId,
+    invoiceNumber: r.purchase.invoiceNumber,
+    returnNumber: r.purchaseReturn.returnNumber,
+    returnDate: r.purchaseReturn.returnDate.toISOString(),
+    purchaseDate: r.purchase.purchaseDate.toISOString(),
+    supplierId: r.supplier.id,
+    supplierName: r.supplier.nameAr,
+    supplierPhone: r.supplier.phone,
+    amount: r.amount,
+    collectedAmount: r.collectedAmount,
+    outstanding: receivableOutstanding(r.amount, r.collectedAmount),
+    notes: r.notes,
+  }));
+
+  if (supplierId) {
+    receivableRows = receivableRows.filter((r) => r.supplierId === supplierId);
+  }
+
+  if (search) {
+    receivableRows = receivableRows.filter(
+      (r) =>
+        r.invoiceNumber.includes(search) ||
+        r.returnNumber.includes(search) ||
+        r.supplierName.includes(search) ||
+        (r.supplierPhone?.includes(search) ?? false)
+    );
+  }
+
+  const outstandingReceivableRows = receivableRows.filter((r) => r.outstanding > 0.0001);
+  const collectedReceivableRows = receivableRows.filter((r) => r.outstanding <= 0.0001);
+  const receivableTotals = outstandingReceivableRows.reduce(
+    (acc, row) => {
+      acc.amount += row.amount;
+      acc.collectedAmount += row.collectedAmount;
+      acc.outstanding += row.outstanding;
+      return acc;
+    },
+    { amount: 0, collectedAmount: 0, outstanding: 0 }
+  );
+
   return NextResponse.json({
     outstandingRows,
     settledRows,
+    outstandingReceivableRows,
+    collectedReceivableRows,
     totals: {
       totalAmount: roundPurchaseMoney(outstandingTotals.totalAmount),
       paidAmount: roundPurchaseMoney(outstandingTotals.paidAmount),
       outstanding: roundPurchaseMoney(outstandingTotals.outstanding),
+    },
+    receivableTotals: {
+      amount: roundPurchaseMoney(receivableTotals.amount),
+      collectedAmount: roundPurchaseMoney(receivableTotals.collectedAmount),
+      outstanding: roundPurchaseMoney(receivableTotals.outstanding),
     },
     supplierOptions,
   });

@@ -56,6 +56,10 @@ export async function POST(request: NextRequest) {
               : undefined,
           expenseRecoveredAmount:
             body.expenseRecoveredAmount != null ? Number(body.expenseRecoveredAmount) : undefined,
+          shiftDepositAmount:
+            body.shiftDepositAmount != null ? Number(body.shiftDepositAmount) : undefined,
+          receivableAmount:
+            body.receivableAmount != null ? Number(body.receivableAmount) : undefined,
           items: Array.isArray(body.items)
             ? body.items.map((row: { purchaseItemId?: string; quantity?: number }) => ({
                 purchaseItemId: String(row.purchaseItemId || ""),
@@ -118,6 +122,12 @@ export async function POST(request: NextRequest) {
         case "NO_REMAINING_FOR_REDISTRIBUTE":
           message =
             "لا توجد أصناف متبقية — اختر «نقل للمصروفات اليومية» أو أرجع جزءاً من الفاتورة فقط";
+          break;
+        case "SETTLEMENT_MISMATCH":
+          message = "مجموع التوريد للوردية والمستحق عند المورد يجب أن يساوي المبلغ القابل للتسوية";
+          break;
+        case "SETTLEMENT_NOT_NEEDED":
+          message = "لا يوجد مبلغ نقدي للتسوية على هذا المرتجع";
           break;
         default:
           if (

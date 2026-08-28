@@ -28,6 +28,8 @@ async function clearTransactionalData() {
     await tx.sale.deleteMany();
 
     await tx.purchaseItemCostAdjustment.deleteMany();
+    await tx.purchaseReceivableCollection.deleteMany();
+    await tx.purchaseSupplierReceivable.deleteMany();
     await tx.purchaseReturnItem.deleteMany();
     await tx.purchaseReturn.deleteMany();
 

@@ -2,6 +2,10 @@ import type { Prisma } from "@prisma/client";
 
 import { compareNewestDocumentFirst } from "@/lib/document-list-sort";
 import { prisma } from "@/lib/prisma";
+import {
+  computePurchaseReturnExpenseRecoveryCash,
+  computePurchaseReturnCashFromReturn,
+} from "@/lib/purchase-return-settlement";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -11,6 +15,7 @@ export type TreasuryTransactionType =
   | "purchase"
   | "purchase_debt_payment"
   | "purchase_return"
+  | "purchase_receivable_collection"
   | "purchase_return_expense_recovery"
   | "expense"
   | "open_shift_deposit";
@@ -83,8 +88,15 @@ export function summarizeTreasuryTransactions(
 
 /** يبني كل حركات الخزنة بدون حد — للوردية والسجل الكامل */
 export async function buildAllTreasuryTransactions(branchId: string): Promise<TreasuryTransaction[]> {
-  const [sales, purchases, purchaseDebtPayments, expenses, purchaseReturns, saleReturns] =
-    await Promise.all([
+  const [
+    sales,
+    purchases,
+    purchaseDebtPayments,
+    expenses,
+    purchaseReturns,
+    receivableCollections,
+    saleReturns,
+  ] = await Promise.all([
     prisma.sale.findMany({
       where: { branchId, status: "completed" },
       select: {
@@ -156,10 +168,28 @@ export async function buildAllTreasuryTransactions(branchId: string): Promise<Tr
         returnNumber: true,
         subtotal: true,
         total: true,
+        shiftDepositAmount: true,
         expenseRecoveredAmount: true,
+        creditReductionAmount: true,
         returnDate: true,
         createdAt: true,
         purchase: { select: { id: true, invoiceNumber: true } },
+      },
+    }),
+    prisma.purchaseReceivableCollection.findMany({
+      where: { branchId },
+      select: {
+        id: true,
+        amount: true,
+        collectedAt: true,
+        createdAt: true,
+        receivable: {
+          select: {
+            purchaseReturn: { select: { returnNumber: true } },
+            purchase: { select: { id: true, invoiceNumber: true } },
+            supplier: { select: { nameAr: true } },
+          },
+        },
       },
     }),
     prisma.saleReturn.findMany({
@@ -256,15 +286,23 @@ export async function buildAllTreasuryTransactions(branchId: string): Promise<Tr
   }
 
   for (const r of purchaseReturns) {
-    const refundAmount = r.expenseRecoveredAmount > 0 ? r.subtotal : r.total;
-    if (refundAmount > 0) {
+    const cashFromReturn = computePurchaseReturnCashFromReturn(
+      r.total,
+      r.creditReductionAmount
+    );
+    const expenseRecoveryCash = computePurchaseReturnExpenseRecoveryCash(
+      r.expenseRecoveredAmount,
+      cashFromReturn
+    );
+
+    if (r.shiftDepositAmount > 0.0001) {
       rows.push({
-        id: `${r.id}-refund`,
+        id: `${r.id}-shift-deposit`,
         type: "purchase_return",
-        typeLabel: "مرتجع مشتريات",
+        typeLabel: "توريد مرتجع مشتريات",
         direction: "in",
-        amount: refundAmount,
-        signedAmount: signed("in", refundAmount),
+        amount: r.shiftDepositAmount,
+        signedAmount: signed("in", r.shiftDepositAmount),
         date: r.returnDate.toISOString(),
         createdAt: r.createdAt.toISOString(),
         documentNumber: r.returnNumber,
@@ -273,21 +311,38 @@ export async function buildAllTreasuryTransactions(branchId: string): Promise<Tr
       });
     }
 
-    if (r.expenseRecoveredAmount > 0) {
+    if (expenseRecoveryCash > 0.0001) {
       rows.push({
         id: `${r.id}-expense-recovery`,
         type: "purchase_return_expense_recovery",
         typeLabel: "استرداد مصاريف مشتريات",
         direction: "in",
-        amount: r.expenseRecoveredAmount,
-        signedAmount: signed("in", r.expenseRecoveredAmount),
+        amount: expenseRecoveryCash,
+        signedAmount: signed("in", expenseRecoveryCash),
         date: r.returnDate.toISOString(),
         createdAt: r.createdAt.toISOString(),
         documentNumber: r.returnNumber,
-        description: `توريد مصاريف فاتورة من المورد · ${formatAmount(r.expenseRecoveredAmount)} ج.م`,
+        description: `توريد مصاريف فاتورة من المورد · ${formatAmount(expenseRecoveryCash)} ج.م`,
         detailUrl: `/dashboard/purchases/${r.purchase.id}`,
       });
     }
+  }
+
+  for (const collection of receivableCollections) {
+    const receivable = collection.receivable;
+    rows.push({
+      id: collection.id,
+      type: "purchase_receivable_collection",
+      typeLabel: "تحصيل مستحق مورد",
+      direction: "in",
+      amount: collection.amount,
+      signedAmount: signed("in", collection.amount),
+      date: collection.collectedAt.toISOString(),
+      createdAt: collection.createdAt.toISOString(),
+      documentNumber: receivable.purchaseReturn.returnNumber,
+      description: `تحصيل من ${receivable.supplier.nameAr} · فاتورة ${receivable.purchase.invoiceNumber}`,
+      detailUrl: `/dashboard/purchases/${receivable.purchase.id}`,
+    });
   }
 
   for (const r of saleReturns) {
@@ -312,8 +367,16 @@ export async function buildAllTreasuryTransactions(branchId: string): Promise<Tr
 
 /** رصيد الخزنة = وارد − صادر (مطابق لبنود الشاشة) */
 export async function computeTreasuryBalance(db: Db, branchId: string): Promise<number> {
-  const [sales, purchases, purchaseDebtPayments, expenses, purchaseReturns, saleReturns] =
-    await Promise.all([
+  const [
+    sales,
+    purchases,
+    purchaseDebtPayments,
+    expenses,
+    purchaseReturns,
+    purchaseReturnDeposits,
+    receivableCollections,
+    saleReturns,
+  ] = await Promise.all([
     db.sale.aggregate({
       where: { branchId, status: "completed" },
       _sum: { total: true },
@@ -340,9 +403,21 @@ export async function computeTreasuryBalance(db: Db, branchId: string): Promise<
       where: { branchId },
       _sum: { amount: true },
     }),
+    db.purchaseReturn.findMany({
+      where: { branchId },
+      select: {
+        total: true,
+        creditReductionAmount: true,
+        expenseRecoveredAmount: true,
+      },
+    }),
     db.purchaseReturn.aggregate({
       where: { branchId },
-      _sum: { total: true },
+      _sum: { shiftDepositAmount: true },
+    }),
+    db.purchaseReceivableCollection.aggregate({
+      where: { branchId },
+      _sum: { amount: true },
     }),
     db.saleReturn.aggregate({
       where: { branchId },
@@ -350,11 +425,25 @@ export async function computeTreasuryBalance(db: Db, branchId: string): Promise<
     }),
   ]);
 
+  let purchaseReturnExpenseRecovery = 0;
+  for (const r of purchaseReturns) {
+    const cashFromReturn = computePurchaseReturnCashFromReturn(
+      r.total,
+      r.creditReductionAmount
+    );
+    purchaseReturnExpenseRecovery += computePurchaseReturnExpenseRecoveryCash(
+      r.expenseRecoveredAmount,
+      cashFromReturn
+    );
+  }
+
   const balance =
     (sales._sum.total || 0) -
     (purchases._sum.invoiceCashPaid || 0) -
     (purchaseDebtPayments._sum.amount || 0) +
-    (purchaseReturns._sum.total || 0) -
+    (purchaseReturnDeposits._sum.shiftDepositAmount || 0) +
+    purchaseReturnExpenseRecovery +
+    (receivableCollections._sum.amount || 0) -
     (expenses._sum.amount || 0) -
     (saleReturns._sum.total || 0);
 

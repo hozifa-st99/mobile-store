@@ -183,3 +183,62 @@ export async function recordPurchaseDebtPayment(
     });
   }
 }
+
+export async function recordPurchaseReturnCreditReduction(
+  tx: Tx,
+  params: {
+    branchId: string;
+    purchaseId: string;
+    paymentType: string;
+    userId?: string | null;
+    returnNumber: string;
+    returnTotal: number;
+    returnDate: Date;
+    notes?: string | null;
+  }
+): Promise<number> {
+  if (!["credit", "partial_credit"].includes(params.paymentType)) return 0;
+  if (params.returnTotal <= 0.0001) return 0;
+
+  const entry = await tx.creditLedgerEntry.findFirst({
+    where: { purchaseId: params.purchaseId },
+    select: { id: true, creditAmount: true, paidAmount: true },
+  });
+  if (!entry) return 0;
+
+  const creditOutstanding =
+    Math.round((entry.creditAmount - entry.paidAmount) * 100) / 100;
+  if (creditOutstanding <= 0.0001) return 0;
+
+  const reduction = Math.min(params.returnTotal, creditOutstanding);
+  if (reduction <= 0.0001) return 0;
+
+  const trimmedNotes = params.notes?.trim() || null;
+  const movementNotes =
+    trimmedNotes != null
+      ? `مرتجع ${params.returnNumber} — ${trimmedNotes}`
+      : `مرتجع مشتريات ${params.returnNumber}`;
+
+  await tx.creditLedgerPayment.create({
+    data: {
+      entryId: entry.id,
+      movementType: "purchase_return",
+      amount: reduction,
+      paidAt: params.returnDate,
+      branchId: params.branchId,
+      notes: movementNotes,
+      createdByUserId: params.userId ?? null,
+    },
+  });
+
+  await tx.creditLedgerEntry.update({
+    where: { id: entry.id },
+    data: {
+      creditAmount: Math.round((entry.creditAmount - reduction) * 100) / 100,
+    },
+  });
+
+  await syncEntryPaidAmountFromMovements(tx, entry.id);
+
+  return reduction;
+}

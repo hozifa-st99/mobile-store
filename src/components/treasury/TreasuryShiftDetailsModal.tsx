@@ -16,6 +16,7 @@ interface TreasuryShiftTotalsByType {
   saleReturns: number;
   purchases: number;
   purchaseReturns: number;
+  receivableCollections: number;
   expenseRecovery: number;
   expenses: number;
 }
@@ -64,6 +65,7 @@ const typeBadgeClass: Record<string, string> = {
   sale_return: "bg-red-500/15 text-red-400 border-red-500/30",
   purchase: "bg-primary/15 text-primary-light border-primary/30",
   purchase_return: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+  purchase_receivable_collection: "bg-teal-500/15 text-teal-300 border-teal-500/30",
   purchase_return_expense_recovery: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   expense: "bg-accent-orange/15 text-accent-orange border-accent-orange/30",
 };
@@ -144,6 +146,7 @@ function buildNetCashBreakdown(details: TreasuryShiftDetails) {
   const inPart = buildPlusBreakdown([
     { label: "مبيعات", value: t.sales },
     { label: "مرتجعات مشتريات", value: t.purchaseReturns },
+    { label: "تحصيل مستحقات", value: t.receivableCollections },
     { label: "استرداد مصاريف", value: t.expenseRecovery },
   ]);
   const outPart = buildPlusBreakdown([
@@ -207,6 +210,7 @@ function FullTotalsSummary({ details }: { details: TreasuryShiftDetails }) {
   const totalInBreakdown = buildPlusBreakdown([
     { label: "مبيعات", value: t.sales },
     { label: "مرتجعات مشتريات", value: t.purchaseReturns },
+    { label: "تحصيل مستحقات", value: t.receivableCollections },
     { label: "استرداد مصاريف", value: t.expenseRecovery },
   ]);
 
@@ -238,6 +242,7 @@ function FullTotalsSummary({ details }: { details: TreasuryShiftDetails }) {
         <div className="grid grid-cols-2 gap-2">
           <TotalsCell label="مشتريات" value={t.purchases} accent="text-primary-light" />
           <TotalsCell label="مرتجعات مشتريات" value={t.purchaseReturns} accent="text-cyan-300" />
+          <TotalsCell label="تحصيل مستحقات" value={t.receivableCollections} accent="text-teal-300" />
         </div>
 
         <div className="grid grid-cols-2 gap-2">

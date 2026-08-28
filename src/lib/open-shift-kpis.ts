@@ -56,6 +56,7 @@ function aggregatePendingRows(pending: TreasuryTransaction[]) {
   let shiftExpenses = 0;
   let shiftSaleReturnsTotal = 0;
   let shiftPurchaseReturnSubtotal = 0;
+  let shiftPurchaseReceivableCollections = 0;
   let shiftPurchaseExpenseRecovered = 0;
   let shiftPurchaseDebtPaymentsTotal = 0;
   let shiftSalesInvoicesCount = 0;
@@ -91,6 +92,10 @@ function aggregatePendingRows(pending: TreasuryTransaction[]) {
         shiftPurchaseReturnSubtotal += row.amount;
         purchaseReturnNumbers.add(row.documentNumber);
         break;
+      case "purchase_receivable_collection":
+        shiftPurchaseReceivableCollections += row.amount;
+        purchaseReturnNumbers.add(row.documentNumber);
+        break;
       case "purchase_return_expense_recovery":
         shiftPurchaseExpenseRecovered += row.amount;
         purchaseReturnNumbers.add(row.documentNumber);
@@ -99,7 +104,12 @@ function aggregatePendingRows(pending: TreasuryTransaction[]) {
   }
 
   const shiftPurchaseReturnsTotal =
-    Math.round((shiftPurchaseReturnSubtotal + shiftPurchaseExpenseRecovered) * 100) / 100;
+    Math.round(
+      (shiftPurchaseReturnSubtotal +
+        shiftPurchaseReceivableCollections +
+        shiftPurchaseExpenseRecovered) *
+        100
+    ) / 100;
 
   return {
     shiftSales: Math.round(shiftSales * 100) / 100,

@@ -36,6 +36,22 @@ interface DebtRow {
   paymentTypeLabel: string;
 }
 
+interface ReceivableRow {
+  id: string;
+  purchaseId: string;
+  invoiceNumber: string;
+  returnNumber: string;
+  returnDate: string;
+  purchaseDate: string;
+  supplierId: string;
+  supplierName: string;
+  supplierPhone: string | null;
+  amount: number;
+  collectedAmount: number;
+  outstanding: number;
+  notes: string | null;
+}
+
 interface SupplierOption {
   id: string;
   nameAr: string;
@@ -44,7 +60,7 @@ interface SupplierOption {
 
 interface PaymentScheduleRow {
   seq: number;
-  phase: "invoice" | "settlement";
+  phase: "invoice" | "settlement" | "return" | "collection";
   label: string;
   amount: number;
   paidAt: string;
@@ -200,18 +216,26 @@ function DebtTable({
 export default function PurchaseDebtsPage() {
   const [outstandingRows, setOutstandingRows] = useState<DebtRow[]>([]);
   const [settledRows, setSettledRows] = useState<DebtRow[]>([]);
+  const [outstandingReceivableRows, setOutstandingReceivableRows] = useState<ReceivableRow[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
   const [totals, setTotals] = useState({ totalAmount: 0, paidAmount: 0, outstanding: 0 });
+  const [receivableTotals, setReceivableTotals] = useState({
+    amount: 0,
+    collectedAmount: 0,
+    outstanding: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [debtTab, setDebtTab] = useState<DebtTab>(SUPPLIER_KIND_WHOLESALE);
   const [supplierId, setSupplierId] = useState("");
   const [search, setSearch] = useState("");
 
   const [payModalOpen, setPayModalOpen] = useState(false);
+  const [moneyModalTab, setMoneyModalTab] = useState<"pay" | "collect">("pay");
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsResponse | null>(null);
   const [selectedRow, setSelectedRow] = useState<DebtRow | null>(null);
+  const [selectedReceivable, setSelectedReceivable] = useState<ReceivableRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [payCashSource, setPayCashSource] = useState<"shift" | "vault">("shift");
   const [payNotes, setPayNotes] = useState("");
@@ -230,13 +254,19 @@ export default function PurchaseDebtsPage() {
     const { ok, data } = await apiJson<{
       outstandingRows: DebtRow[];
       settledRows: DebtRow[];
+      outstandingReceivableRows: ReceivableRow[];
       totals: typeof totals;
+      receivableTotals: typeof receivableTotals;
       supplierOptions: SupplierOption[];
     }>(`/api/purchases/debts${q ? `?${q}` : ""}`);
     if (ok) {
       setOutstandingRows(data.outstandingRows || []);
       setSettledRows(data.settledRows || []);
+      setOutstandingReceivableRows(data.outstandingReceivableRows || []);
       setTotals(data.totals || { totalAmount: 0, paidAmount: 0, outstanding: 0 });
+      setReceivableTotals(
+        data.receivableTotals || { amount: 0, collectedAmount: 0, outstanding: 0 }
+      );
       setSupplierOptions(data.supplierOptions || []);
     }
     setLoading(false);
@@ -252,8 +282,19 @@ export default function PurchaseDebtsPage() {
 
   const openPayModal = (row: DebtRow) => {
     setSelectedRow(row);
+    setSelectedReceivable(null);
+    setMoneyModalTab("pay");
     setPayAmount(String(row.outstanding));
     setPayCashSource("shift");
+    setPayNotes("");
+    setPayModalOpen(true);
+  };
+
+  const openCollectModal = (row: ReceivableRow) => {
+    setSelectedReceivable(row);
+    setSelectedRow(null);
+    setMoneyModalTab("collect");
+    setPayAmount(String(row.outstanding));
     setPayNotes("");
     setPayModalOpen(true);
   };
@@ -275,6 +316,47 @@ export default function PurchaseDebtsPage() {
   };
 
   const submitPayment = async () => {
+    if (moneyModalTab === "collect") {
+      if (!selectedReceivable) return;
+      const amount = Number(payAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error("أدخل مبلغ تحصيل صحيح");
+        return;
+      }
+      if (amount > selectedReceivable.outstanding + 0.0001) {
+        toast.error("المبلغ يتجاوز المتبقي");
+        return;
+      }
+
+      setPayLoading(true);
+      try {
+        const { ok, data } = await runPendingOperation(() =>
+          apiJson<{ message?: string }>("/api/purchases/debts/collect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              receivableId: selectedReceivable.id,
+              amount,
+              notes: payNotes.trim() || undefined,
+            }),
+          })
+        );
+
+        if (ok) {
+          toast.success(data.message || "تم تسجيل التحصيل");
+          setPayModalOpen(false);
+          setSelectedReceivable(null);
+          void loadDebts();
+          return;
+        }
+
+        toast.error(data.message || "تعذّر تسجيل التحصيل");
+      } finally {
+        setPayLoading(false);
+      }
+      return;
+    }
+
     if (!selectedRow) return;
     const amount = Number(payAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -369,7 +451,7 @@ export default function PurchaseDebtsPage() {
         <KpiCard
           variant="sales"
           delay={80}
-          title="المسدّد (مفتوحة)"
+          title="المسدّد (علينا)"
           value={totals.paidAmount}
           suffix="ج.م"
           subtitle="ما تم سداده حتى الآن"
@@ -378,13 +460,45 @@ export default function PurchaseDebtsPage() {
         <KpiCard
           variant="expenses"
           delay={160}
-          title="المتبقي (مديونية)"
+          title="المتبقي (علينا)"
           value={totals.outstanding}
           suffix="ج.م"
-          subtitle="المبلغ المستحق على الفرع"
+          subtitle="مديونية على الفرع"
           emoji={em.issue}
         />
       </div>
+
+      {receivableTotals.outstanding > 0.0001 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          <KpiCard
+            variant="sales"
+            delay={0}
+            title="مستحقات لنا (مرتجعات)"
+            value={receivableTotals.amount}
+            suffix="ج.م"
+            subtitle="إجمالي المسجّل لنا عند المورد"
+            emoji="📥"
+          />
+          <KpiCard
+            variant="purchases"
+            delay={80}
+            title="المحصّل"
+            value={receivableTotals.collectedAmount}
+            suffix="ج.م"
+            subtitle="دخل الوردية من التحصيل"
+            emoji="💵"
+          />
+          <KpiCard
+            variant="expenses"
+            delay={160}
+            title="المتبقي (لينا)"
+            value={receivableTotals.outstanding}
+            suffix="ج.م"
+            subtitle="لم يُحصَّل بعد"
+            emoji="⏳"
+          />
+        </div>
+      )}
 
       <div className="glass-card p-4 mb-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -439,6 +553,60 @@ export default function PurchaseDebtsPage() {
         />
       </div>
 
+      {outstandingReceivableRows.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-cyan-950/20 to-background-input/10 overflow-hidden">
+          <div className="px-4 pt-4 pb-3 border-b border-cyan-500/15 bg-cyan-500/[0.06]">
+            <h2 className="text-sm font-bold text-cyan-100">مستحقات لنا عند المورد</h2>
+            <p className="text-xs text-cyan-200/70 mt-1">من مرتجعات مشتريات — يُحصَّل إلى الوردية</p>
+          </div>
+          <div className={cn("overflow-auto", debtTableScrollClass)}>
+            <table className="w-full min-w-[980px] border-collapse">
+              <thead className="sticky top-0 z-10 bg-cyan-950/90 backdrop-blur-md">
+                <tr className="text-xs text-muted-dark border-b border-border">
+                  <th className="text-right p-4 font-medium">المرتجع</th>
+                  <th className="text-right p-4 font-medium">الفاتورة</th>
+                  <th className="text-right p-4 font-medium">{partyColumnLabel}</th>
+                  <th className="text-right p-4 font-medium">المبلغ</th>
+                  <th className="text-right p-4 font-medium">المحصّل</th>
+                  <th className="text-right p-4 font-medium">المتبقي</th>
+                  <th className="text-center p-4 font-medium">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outstandingReceivableRows.map((row) => (
+                  <tr key={row.id} className="border-b border-border/50 hover:bg-white/[0.02]">
+                    <td className="p-4 text-sm font-medium text-cyan-200">{row.returnNumber}</td>
+                    <td className="p-4">
+                      <Link
+                        href={`/dashboard/purchases/${row.purchaseId}`}
+                        className="text-primary-light hover:underline font-medium"
+                      >
+                        {row.invoiceNumber}
+                      </Link>
+                    </td>
+                    <td className="p-4 text-sm">{row.supplierName}</td>
+                    <td className="p-4 tabular-nums">{formatAmountExact(row.amount)}</td>
+                    <td className="p-4 tabular-nums text-accent-green">
+                      {formatAmountExact(row.collectedAmount)}
+                    </td>
+                    <td className="p-4 tabular-nums text-cyan-300 font-bold">
+                      {formatAmountExact(row.outstanding)}
+                    </td>
+                    <td className="p-4 text-center">
+                      <ActionEmoji
+                        emoji="💵"
+                        title="تسجيل تحصيل"
+                        onClick={() => openCollectModal(row)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 overflow-hidden shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)]">
         <button
           type="button"
@@ -482,61 +650,119 @@ export default function PurchaseDebtsPage() {
       <Modal
         open={payModalOpen}
         onClose={() => !payLoading && setPayModalOpen(false)}
-        title="تسجيل سداد"
+        title={moneyModalTab === "collect" ? "تسجيل تحصيل" : "تسجيل سداد"}
       >
-        {selectedRow && (
+        {(selectedRow || selectedReceivable) && (
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={!selectedRow}
+                onClick={() => setMoneyModalTab("pay")}
+                className={cn(
+                  "flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors",
+                  moneyModalTab === "pay"
+                    ? "border-accent-green bg-accent-green/15 text-white"
+                    : "border-border text-muted"
+                )}
+              >
+                سداد (علينا)
+              </button>
+              <button
+                type="button"
+                disabled={!selectedReceivable}
+                onClick={() => setMoneyModalTab("collect")}
+                className={cn(
+                  "flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors",
+                  moneyModalTab === "collect"
+                    ? "border-cyan-400 bg-cyan-500/15 text-white"
+                    : "border-border text-muted"
+                )}
+              >
+                تحصيل (لينا)
+              </button>
+            </div>
+
             <div className="text-sm text-muted">
-              فاتورة <span className="text-white font-bold">{selectedRow.invoiceNumber}</span> —{" "}
-              {selectedRow.supplierName}
+              {moneyModalTab === "collect" && selectedReceivable ? (
+                <>
+                  مرتجع{" "}
+                  <span className="text-white font-bold">{selectedReceivable.returnNumber}</span> —{" "}
+                  {selectedReceivable.supplierName}
+                </>
+              ) : selectedRow ? (
+                <>
+                  فاتورة <span className="text-white font-bold">{selectedRow.invoiceNumber}</span> —{" "}
+                  {selectedRow.supplierName}
+                </>
+              ) : null}
             </div>
             <p className="text-sm">
               المتبقي:{" "}
               <span className="font-bold text-accent-orange tabular-nums">
-                {formatCurrency(selectedRow.outstanding)} ج.م
+                {formatCurrency(
+                  moneyModalTab === "collect"
+                    ? selectedReceivable?.outstanding ?? 0
+                    : selectedRow?.outstanding ?? 0
+                )}{" "}
+                ج.م
               </span>
             </p>
 
             <div>
-              <label className="block text-xs text-muted mb-1.5">مبلغ السداد</label>
+              <label className="block text-xs text-muted mb-1.5">
+                {moneyModalTab === "collect" ? "مبلغ التحصيل" : "مبلغ السداد"}
+              </label>
               <input
                 type="number"
                 min={0.01}
                 step="0.01"
-                max={selectedRow.outstanding}
+                max={
+                  moneyModalTab === "collect"
+                    ? selectedReceivable?.outstanding
+                    : selectedRow?.outstanding
+                }
                 value={payAmount}
                 onChange={(e) => setPayAmount(e.target.value)}
                 className="glass-input"
               />
             </div>
 
-            <div>
-              <label className="block text-xs text-muted mb-2">مصدر الدفع</label>
-              <div className="grid grid-cols-1 gap-2">
-                {(
-                  [
-                    { value: "shift", label: "من الوردية (الخزنة الحالية)" },
-                    { value: "vault", label: "من خزنة الفرع" },
-                  ] as const
-                ).map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer ${
-                      payCashSource === opt.value
-                        ? "border-accent-green bg-accent-green/10"
-                        : "border-border"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      checked={payCashSource === opt.value}
-                      onChange={() => setPayCashSource(opt.value)}
-                    />
-                    <span className="text-sm">{opt.label}</span>
-                  </label>
-                ))}
+            {moneyModalTab === "pay" && (
+              <div>
+                <label className="block text-xs text-muted mb-2">مصدر الدفع</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {(
+                    [
+                      { value: "shift", label: "من الوردية (الخزنة الحالية)" },
+                      { value: "vault", label: "من خزنة الفرع" },
+                    ] as const
+                  ).map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer ${
+                        payCashSource === opt.value
+                          ? "border-accent-green bg-accent-green/10"
+                          : "border-border"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        checked={payCashSource === opt.value}
+                        onChange={() => setPayCashSource(opt.value)}
+                      />
+                      <span className="text-sm">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {moneyModalTab === "collect" && (
+              <p className="text-xs text-cyan-200/80 bg-cyan-500/10 border border-cyan-500/25 rounded-xl px-3 py-2">
+                يُسجَّل التحصيل كوارد في الوردية (خزنة اليومية).
+              </p>
+            )}
 
             <div>
               <label className="block text-xs text-muted mb-1.5">ملاحظات (اختياري)</label>
@@ -554,7 +780,11 @@ export default function PurchaseDebtsPage() {
                 onClick={() => void submitPayment()}
                 className="btn-primary flex-1 disabled:opacity-50"
               >
-                {payLoading ? "جاري الحفظ..." : "تسجيل السداد"}
+                {payLoading
+                  ? "جاري الحفظ..."
+                  : moneyModalTab === "collect"
+                    ? "تسجيل التحصيل"
+                    : "تسجيل السداد"}
               </button>
               <button
                 type="button"
@@ -676,7 +906,11 @@ export default function PurchaseDebtsPage() {
                               className={
                                 row.phase === "invoice"
                                   ? "text-primary-light"
-                                  : "text-accent-green"
+                                  : row.phase === "return"
+                                    ? "text-amber-300"
+                                    : row.phase === "collection"
+                                      ? "text-teal-300"
+                                      : "text-accent-green"
                               }
                             >
                               {row.label}
@@ -688,7 +922,15 @@ export default function PurchaseDebtsPage() {
                               {formatDocumentTime(row.paidAt)}
                             </div>
                           </td>
-                          <td className="p-3 tabular-nums font-semibold text-accent-green">
+                          <td
+                            className={`p-3 tabular-nums font-semibold ${
+                              row.phase === "return"
+                                ? "text-amber-300"
+                                : row.phase === "collection"
+                                  ? "text-teal-300"
+                                  : "text-accent-green"
+                            }`}
+                          >
                             {formatAmountExact(row.amount)} ج.م
                           </td>
                           <td className="p-3 text-sm text-muted">
