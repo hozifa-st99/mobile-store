@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import {
-  readEffectiveUnitPricesAfter,
-  readInvoiceScopedEffectiveUnitPrices,
-} from "@/lib/purchase-item-cost-adjustments";
+import { readEffectiveUnitPricesAfter } from "@/lib/purchase-item-cost-adjustments";
 import { parseImeisSnapshot } from "@/lib/purchase-return-number";
 import {
   getSerialEffectiveRetailPrice,
@@ -254,18 +251,10 @@ async function loadAccessoryLines(
     }),
   ]);
 
-  const effectivePrices = await readInvoiceScopedEffectiveUnitPrices(
-    prisma,
-    purchaseItems.map((item) => ({
-      id: item.id,
-      unitPrice: item.unitPrice,
-    }))
-  );
-
   const lines: (AccessoryPurchaseLine & { createdAt: string })[] = [];
 
   for (const item of purchaseItems) {
-    const unitPrice = effectivePrices[item.id] ?? item.unitPrice;
+    const unitPrice = item.unitPrice;
     lines.push({
       id: `purchase-${item.id}`,
       source: "purchase",
