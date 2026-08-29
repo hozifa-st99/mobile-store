@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { readEffectiveUnitPricesAfter } from "@/lib/purchase-item-cost-adjustments";
 import { parseImeisSnapshot } from "@/lib/purchase-return-number";
 import {
   getSerialEffectiveRetailPrice,
@@ -167,9 +166,13 @@ function mapPhoneDocumentLine(
   const { status, statusLabel } = deriveLineStatus(serials);
   const lineRetail = lineRetailPrice(item.retailPrice, inventoryRetailPrice);
   const primarySerial = serials.length === 1 ? serials[0]! : null;
+  const currentSerial =
+    serials.find((serial) => serial.status === "available" && serial.unitCost > 0.001) ??
+    serials.find((serial) => serial.unitCost > 0.001) ??
+    null;
 
   const unitPrice = roundMoney(
-    primarySerial && primarySerial.unitCost > 0.001 ? primarySerial.unitCost : documentUnitPrice
+    currentSerial && currentSerial.unitCost > 0.001 ? currentSerial.unitCost : documentUnitPrice
   );
   const retailPrice = primarySerial
     ? getSerialEffectiveRetailPrice(
@@ -365,21 +368,11 @@ async function loadPhoneSerials(
     }),
   ]);
 
-  const effectivePrices = await readEffectiveUnitPricesAfter(
-    prisma,
-    purchaseItems.map((item) => ({
-      id: item.id,
-      unitPrice: item.unitPrice,
-      productId: item.productId,
-    })),
-    branchId
-  );
-
   const lines: PhoneSerialLineDraft[] = [];
 
   for (const item of purchaseItems) {
     const purchase = item.purchase;
-    const unitPrice = effectivePrices[item.id] ?? item.unitPrice;
+    const unitPrice = item.unitPrice;
     const row = mapPhoneDocumentLine(
       `purchase-${item.id}`,
       item,
