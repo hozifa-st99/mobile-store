@@ -257,13 +257,15 @@ export async function POST(request: NextRequest) {
               throw new Error("INSUFFICIENT_STOCK");
             }
           }
-          unitCost = await resolveSaleUnitCost(
-            tx,
-            auth.branchId,
-            productId,
-            deviceIds,
-            inv.purchasePrice
-          );
+          unitCost = isPhone
+            ? await resolveSaleUnitCost(
+                tx,
+                auth.branchId,
+                productId,
+                deviceIds,
+                inv.purchasePrice
+              )
+            : Math.round((inv.purchasePrice || 0) * 100) / 100;
         }
         resolvedItems.push({
           ...item,
