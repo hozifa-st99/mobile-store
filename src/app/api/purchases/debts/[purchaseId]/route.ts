@@ -18,38 +18,43 @@ export interface PurchasePaymentScheduleRow {
   cashSourceLabel: string | null;
   notes: string | null;
   recordedByName: string | null;
-  runningPaidTotal: number;
+  debtDelta: number;
+  receivableDelta: number;
+  runningDebt: number;
+  runningReceivable: number;
+  runningNetBalance: number;
 }
 
-type LedgerMovement = {
-  id: string;
-  movementType: string;
-  amount: number;
-  paidAt: Date;
-  cashSource: string | null;
-  notes: string | null;
-  createdAt: Date;
-  createdBy: { fullNameAr: string; username: string } | null;
-};
+type ScheduleDraft = Omit<
+  PurchasePaymentScheduleRow,
+  "seq" | "runningDebt" | "runningReceivable" | "runningNetBalance"
+> & { sortTs: number; sortPriority: number; createdAt: number };
 
-function movementSortKey(movement: LedgerMovement) {
-  const ts = movement.paidAt.getTime() || movement.createdAt.getTime();
-  const priority =
-    movement.movementType === "purchase_return"
-      ? 2
-      : movement.movementType === "payment"
-        ? 3
-        : 1;
-  return { ts, priority };
+function finalizeSchedule(drafts: ScheduleDraft[]): PurchasePaymentScheduleRow[] {
+  let runningDebt = 0;
+  let runningReceivable = 0;
+  return drafts.map((draft, index) => {
+    runningDebt = roundPurchaseMoney(Math.max(0, runningDebt + draft.debtDelta));
+    runningReceivable = roundPurchaseMoney(
+      Math.max(0, runningReceivable + draft.receivableDelta)
+    );
+    return {
+      seq: index + 1,
+      phase: draft.phase,
+      label: draft.label,
+      amount: draft.amount,
+      paidAt: draft.paidAt,
+      cashSourceLabel: draft.cashSourceLabel,
+      notes: draft.notes,
+      recordedByName: draft.recordedByName,
+      debtDelta: draft.debtDelta,
+      receivableDelta: draft.receivableDelta,
+      runningDebt,
+      runningReceivable,
+      runningNetBalance: roundPurchaseMoney(runningDebt - runningReceivable),
+    };
+  });
 }
-
-type ScheduleCandidate = {
-  sortTs: number;
-  sortPriority: number;
-  createdAt: number;
-  countsTowardSettled: boolean;
-  row: PurchasePaymentScheduleRow;
-};
 
 export async function GET(
   _request: NextRequest,
@@ -70,7 +75,10 @@ export async function GET(
           returnDate: true,
           subtotal: true,
           total: true,
+          creditReductionAmount: true,
           shiftDepositAmount: true,
+          receivableAmount: true,
+          createdAt: true,
         },
         orderBy: { returnDate: "asc" },
       },
@@ -80,7 +88,7 @@ export async function GET(
           creditAmount: true,
           paidAmount: true,
           payments: {
-            where: { movementType: { in: ["payment", "purchase_return"] } },
+            where: { movementType: "payment" },
             orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
             select: {
               id: true,
@@ -151,149 +159,159 @@ export async function GET(
   }
 
   initialPaymentAtInvoice = roundPurchaseMoney(initialPaymentAtInvoice);
+  const creditOnInvoice = roundPurchaseMoney(purchase.total - initialPaymentAtInvoice);
 
-  const schedule: PurchasePaymentScheduleRow[] = [];
-  let runningSettled = initialPaymentAtInvoice;
-  let seq = 0;
+  const invoiceTs = purchase.purchaseDate.getTime();
+  const drafts: ScheduleDraft[] = [];
 
-  seq += 1;
-  schedule.push({
-    seq,
+  drafts.push({
+    sortTs: invoiceTs,
+    sortPriority: 0,
+    createdAt: invoiceTs,
     phase: "invoice",
     label: "الدفع عند الفاتورة",
     amount: initialPaymentAtInvoice,
     paidAt: purchase.purchaseDate.toISOString(),
     cashSourceLabel: initialPaymentAtInvoice > 0 ? initialCashSourceLabel : null,
-    notes: initialPaymentAtInvoice > 0 ? null : "لم يُدفع مبلغ نقدي عند إنشاء الفاتورة",
+    notes:
+      initialPaymentAtInvoice > 0
+        ? null
+        : "لم يُدفع مبلغ نقدي عند إنشاء الفاتورة",
     recordedByName: null,
-    runningPaidTotal: runningSettled,
+    debtDelta: 0,
+    receivableDelta: 0,
   });
 
-  const entry = purchase.creditLedgerEntries[0];
-  const ledgerMovements = [...(entry?.payments ?? [])].sort((a, b) => {
-    const ka = movementSortKey(a);
-    const kb = movementSortKey(b);
-    if (ka.ts !== kb.ts) return ka.ts - kb.ts;
-    if (ka.priority !== kb.priority) return ka.priority - kb.priority;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
-
-  const candidates: ScheduleCandidate[] = [];
-
-  for (const ret of purchase.returns) {
-    if (ret.shiftDepositAmount <= 0.0001) continue;
-    candidates.push({
-      sortTs: ret.returnDate.getTime(),
-      sortPriority: 2,
-      createdAt: ret.returnDate.getTime(),
-      countsTowardSettled: false,
-      row: {
-        seq: 0,
-        phase: "return",
-        label: "توريد مرتجع للوردية",
-        amount: ret.shiftDepositAmount,
-        paidAt: ret.returnDate.toISOString(),
-        cashSourceLabel: "وردية",
-        notes: `مرتجع ${ret.returnNumber}`,
-        recordedByName: null,
-        runningPaidTotal: 0,
-      },
+  if (creditOnInvoice > 0.0001) {
+    drafts.push({
+      sortTs: invoiceTs,
+      sortPriority: 1,
+      createdAt: invoiceTs + 1,
+      phase: "invoice",
+      label: "فتح الأجل",
+      amount: creditOnInvoice,
+      paidAt: purchase.purchaseDate.toISOString(),
+      cashSourceLabel: null,
+      notes: PURCHASE_PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType,
+      recordedByName: null,
+      debtDelta: creditOnInvoice,
+      receivableDelta: 0,
     });
   }
 
-  for (const movement of ledgerMovements) {
-    const recordedByName =
-      movement.createdBy?.fullNameAr || movement.createdBy?.username || null;
+  const entry = purchase.creditLedgerEntries[0];
+  const ledgerPayments = [...(entry?.payments ?? [])];
 
-    if (movement.movementType === "purchase_return") {
-      candidates.push({
-        sortTs: movement.paidAt.getTime(),
+  for (const ret of purchase.returns) {
+    const retTs = ret.returnDate.getTime();
+    const retNote = `مرتجع مشتريات · ${ret.returnNumber}`;
+
+    if (ret.creditReductionAmount > 0.0001) {
+      drafts.push({
+        sortTs: retTs,
         sortPriority: 2,
-        createdAt: movement.createdAt.getTime(),
-        countsTowardSettled: true,
-        row: {
-          seq: 0,
-          phase: "return",
-          label: "مرتجع مشتريات (خصم أجل)",
-          amount: movement.amount,
-          paidAt: movement.paidAt.toISOString(),
-          cashSourceLabel: null,
-          notes: movement.notes,
-          recordedByName,
-          runningPaidTotal: 0,
-        },
+        createdAt: ret.createdAt.getTime(),
+        phase: "return",
+        label: "مرتجع مشتريات (خصم أجل)",
+        amount: roundPurchaseMoney(ret.creditReductionAmount),
+        paidAt: ret.returnDate.toISOString(),
+        cashSourceLabel: null,
+        notes: retNote,
+        recordedByName: null,
+        debtDelta: roundPurchaseMoney(-ret.creditReductionAmount),
+        receivableDelta: 0,
       });
-      continue;
     }
 
-    candidates.push({
+    if (ret.receivableAmount > 0.0001) {
+      drafts.push({
+        sortTs: retTs,
+        sortPriority: 3,
+        createdAt: ret.createdAt.getTime() + 1,
+        phase: "return",
+        label: "مرتجع (مستحق لنا)",
+        amount: roundPurchaseMoney(ret.receivableAmount),
+        paidAt: ret.returnDate.toISOString(),
+        cashSourceLabel: null,
+        notes: retNote,
+        recordedByName: null,
+        debtDelta: 0,
+        receivableDelta: roundPurchaseMoney(ret.receivableAmount),
+      });
+    }
+
+    if (ret.shiftDepositAmount > 0.0001) {
+      drafts.push({
+        sortTs: retTs,
+        sortPriority: 4,
+        createdAt: ret.createdAt.getTime() + 2,
+        phase: "return",
+        label: "توريد مرتجع للوردية",
+        amount: roundPurchaseMoney(ret.shiftDepositAmount),
+        paidAt: ret.returnDate.toISOString(),
+        cashSourceLabel: "وردية",
+        notes: `${retNote} — لا يؤثر على رصيد الأجل`,
+        recordedByName: null,
+        debtDelta: 0,
+        receivableDelta: 0,
+      });
+    }
+  }
+
+  let settlementIndex = 0;
+  for (const movement of ledgerPayments) {
+    settlementIndex += 1;
+    const recordedByName =
+      movement.createdBy?.fullNameAr || movement.createdBy?.username || null;
+    drafts.push({
       sortTs: movement.paidAt.getTime(),
-      sortPriority: 3,
+      sortPriority: 5,
       createdAt: movement.createdAt.getTime(),
-      countsTowardSettled: true,
-      row: {
-        seq: 0,
-        phase: "settlement",
-        label: "سداد أجل",
-        amount: movement.amount,
-        paidAt: movement.paidAt.toISOString(),
-        cashSourceLabel: movement.cashSource
-          ? CASH_SOURCE_LABELS[movement.cashSource] ?? movement.cashSource
-          : null,
-        notes: movement.notes,
-        recordedByName,
-        runningPaidTotal: 0,
-      },
+      phase: "settlement",
+      label: `سداد أجل (${settlementIndex})`,
+      amount: roundPurchaseMoney(movement.amount),
+      paidAt: movement.paidAt.toISOString(),
+      cashSourceLabel: movement.cashSource
+        ? CASH_SOURCE_LABELS[movement.cashSource] ?? movement.cashSource
+        : null,
+      notes: movement.notes,
+      recordedByName,
+      debtDelta: roundPurchaseMoney(-movement.amount),
+      receivableDelta: 0,
     });
   }
 
   for (const collection of receivableCollections) {
-    candidates.push({
+    const recordedByName =
+      collection.createdBy?.fullNameAr || collection.createdBy?.username || null;
+    drafts.push({
       sortTs: collection.collectedAt.getTime(),
-      sortPriority: 4,
+      sortPriority: 6,
       createdAt: collection.createdAt.getTime(),
-      countsTowardSettled: false,
-      row: {
-        seq: 0,
-        phase: "collection",
-        label: "تحصيل مستحق مورد",
-        amount: collection.amount,
-        paidAt: collection.collectedAt.toISOString(),
-        cashSourceLabel: "وردية",
-        notes:
-          collection.notes ||
-          `رقم المرتجع ${collection.receivable.purchaseReturn.returnNumber}`,
-        recordedByName:
-          collection.createdBy?.fullNameAr || collection.createdBy?.username || null,
-        runningPaidTotal: 0,
-      },
+      phase: "collection",
+      label: "تحصيل مستحق مورد",
+      amount: roundPurchaseMoney(collection.amount),
+      paidAt: collection.collectedAt.toISOString(),
+      cashSourceLabel: "وردية",
+      notes:
+        collection.notes ||
+        `مرتجع مشتريات · ${collection.receivable.purchaseReturn.returnNumber}`,
+      recordedByName,
+      debtDelta: 0,
+      receivableDelta: roundPurchaseMoney(-collection.amount),
     });
   }
 
-  candidates.sort((a, b) => {
+  drafts.sort((a, b) => {
     if (a.sortTs !== b.sortTs) return a.sortTs - b.sortTs;
     if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
     return a.createdAt - b.createdAt;
   });
 
-  let settlementIndex = 0;
-  for (const candidate of candidates) {
-    seq += 1;
-    if (candidate.row.phase === "settlement") {
-      settlementIndex += 1;
-      runningSettled = roundPurchaseMoney(runningSettled + candidate.row.amount);
-      candidate.row.label = `سداد أجل (${settlementIndex})`;
-    } else if (candidate.countsTowardSettled) {
-      runningSettled = roundPurchaseMoney(runningSettled + candidate.row.amount);
-    }
-    candidate.row.runningPaidTotal = runningSettled;
-    candidate.row.seq = seq;
-    schedule.push(candidate.row);
-  }
+  const schedule = finalizeSchedule(drafts);
 
   const creditEntry = entry ?? null;
   const outstanding = purchaseDebtDisplayOutstanding(purchase, creditEntry);
-  const creditOnInvoice = roundPurchaseMoney(purchase.total - initialPaymentAtInvoice);
   const laterPaymentsTotal = roundPurchaseMoney(
     schedule.filter((row) => row.phase === "settlement").reduce((sum, row) => sum + row.amount, 0)
   );

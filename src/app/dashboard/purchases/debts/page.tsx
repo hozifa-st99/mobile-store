@@ -66,7 +66,11 @@ interface PaymentScheduleRow {
   cashSourceLabel: string | null;
   notes: string | null;
   recordedByName: string | null;
-  runningPaidTotal: number;
+  debtDelta: number;
+  receivableDelta: number;
+  runningDebt: number;
+  runningReceivable: number;
+  runningNetBalance: number;
 }
 
 interface PaymentDetailsResponse {
@@ -93,6 +97,43 @@ interface PaymentDetailsResponse {
     };
   };
   schedule: PaymentScheduleRow[];
+}
+
+function ScheduleSignedCell({
+  value,
+  positiveClass,
+  negativeClass,
+}: {
+  value: number;
+  positiveClass: string;
+  negativeClass: string;
+}) {
+  if (Math.abs(value) <= 0.001) return <span className="text-muted">—</span>;
+  const cls = value > 0 ? positiveClass : negativeClass;
+  const prefix = value > 0 ? "+" : "−";
+  return (
+    <span className={cls}>
+      {prefix}
+      {formatAmountExact(Math.abs(value))}
+    </span>
+  );
+}
+
+function ScheduleNetCell({ value }: { value: number }) {
+  if (Math.abs(value) <= 0.001) {
+    return <span className="text-muted tabular-nums">—</span>;
+  }
+  const isAlaina = value > 0;
+  return (
+    <span
+      className={cn(
+        "tabular-nums font-semibold",
+        isAlaina ? "text-amber-300" : "text-violet-300"
+      )}
+    >
+      {formatAmountExact(Math.abs(value))} {isAlaina ? "علينا" : "لنا"}
+    </span>
+  );
 }
 
 function RemainingCell({ row }: { row: DebtRow }) {
@@ -1039,18 +1080,19 @@ export default function PurchaseDebtsPage() {
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-white mb-3">جدول الدفعات</h3>
+              <h3 className="text-sm font-semibold text-white mb-3">جدول حركات الفاتورة</h3>
               <div className="glass-card overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px]">
+                  <table className="w-full min-w-[920px]">
                     <thead>
                       <tr className="text-xs text-muted-dark border-b border-border bg-background-input/30">
                         <th className="text-right p-3 font-medium w-12">#</th>
                         <th className="text-right p-3 font-medium">الحركة</th>
                         <th className="text-right p-3 font-medium">التاريخ</th>
                         <th className="text-right p-3 font-medium">المبلغ</th>
-                        <th className="text-right p-3 font-medium">المصدر</th>
-                        <th className="text-right p-3 font-medium">المدفوع تراكمياً</th>
+                        <th className="text-right p-3 font-medium">⚠️ علينا</th>
+                        <th className="text-right p-3 font-medium">📥 لنا</th>
+                        <th className="text-right p-3 font-medium">الفاتورة تراكمي</th>
                         <th className="text-right p-3 font-medium">ملاحظات</th>
                       </tr>
                     </thead>
@@ -1075,6 +1117,11 @@ export default function PurchaseDebtsPage() {
                             >
                               {row.label}
                             </span>
+                            {row.cashSourceLabel ? (
+                              <span className="block text-[10px] text-muted mt-0.5">
+                                {row.cashSourceLabel}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="p-3 text-sm text-muted leading-snug">
                             <div className="whitespace-nowrap">{formatDocumentDate(row.paidAt)}</div>
@@ -1082,26 +1129,31 @@ export default function PurchaseDebtsPage() {
                               {formatDocumentTime(row.paidAt)}
                             </div>
                           </td>
-                          <td
-                            className={`p-3 tabular-nums font-semibold ${
-                              row.phase === "return"
-                                ? "text-amber-300"
-                                : row.phase === "collection"
-                                  ? "text-teal-300"
-                                  : "text-accent-green"
-                            }`}
-                          >
+                          <td className="p-3 tabular-nums font-semibold text-white">
                             {formatAmountExact(row.amount)} ج.م
                           </td>
-                          <td className="p-3 text-sm text-muted">
-                            {row.cashSourceLabel || "—"}
+                          <td className="p-3 tabular-nums">
+                            <ScheduleSignedCell
+                              value={row.debtDelta}
+                              positiveClass="text-amber-300"
+                              negativeClass="text-emerald-300"
+                            />
                           </td>
-                          <td className="p-3 tabular-nums text-sm font-medium text-primary-light">
-                            {formatAmountExact(row.runningPaidTotal)} ج.م
+                          <td className="p-3 tabular-nums">
+                            <ScheduleSignedCell
+                              value={row.receivableDelta}
+                              positiveClass="text-cyan-300"
+                              negativeClass="text-teal-300"
+                            />
                           </td>
-                          <td className="p-3 text-xs text-muted max-w-[180px]">
+                          <td className="p-3">
+                            <ScheduleNetCell value={row.runningNetBalance} />
+                          </td>
+                          <td className="p-3 text-xs text-muted max-w-[200px]">
                             {row.recordedByName ? (
-                              <span className="block mb-0.5">بواسطة: {row.recordedByName}</span>
+                              <span className="block mb-0.5 text-muted-dark">
+                                بواسطة: {row.recordedByName}
+                              </span>
                             ) : null}
                             {row.notes || "—"}
                           </td>
@@ -1109,18 +1161,42 @@ export default function PurchaseDebtsPage() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-background-input/20 text-sm font-bold">
-                        <td colSpan={3} className="p-3 text-right">
-                          إجمالي المسدّد
+                      <tr className="bg-background-input/20 border-t border-border/60">
+                        <td colSpan={4} className="p-3 text-sm font-bold text-right text-muted">
+                          الإجمالي الحالي
                         </td>
-                        <td className="p-3 tabular-nums text-accent-green">
-                          {formatAmountExact(paymentDetails.purchase.paidAmount)} ج.م
+                        <td className="p-3 tabular-nums font-bold text-amber-300">
+                          {formatAmountExact(
+                            paymentDetails.schedule.at(-1)?.runningDebt ??
+                              paymentDetails.purchase.outstanding
+                          )}{" "}
+                          ج.م
                         </td>
-                        <td colSpan={3} />
+                        <td className="p-3 tabular-nums font-bold text-cyan-300">
+                          {formatAmountExact(
+                            paymentDetails.schedule.at(-1)?.runningReceivable ??
+                              paymentDetails.purchase.receivableOutstanding
+                          )}{" "}
+                          ج.م
+                        </td>
+                        <td colSpan={2} />
                       </tr>
                     </tfoot>
                   </table>
                 </div>
+                {paymentDetails.purchase.returnsSummary.count > 0 ? (
+                  <div className="p-4 border-t border-border/40 flex justify-end">
+                    <div className="inline-flex flex-col items-center justify-center min-w-[9rem] px-5 py-4 rounded-full border border-white/15 bg-white/[0.04] backdrop-blur-md shadow-[0_8px_32px_-12px_rgba(0,0,0,0.45)]">
+                      <p className="text-[10px] text-muted mb-1 text-center">
+                        الإجمالي بعد المرتجعات
+                      </p>
+                      <p className="text-xl font-bold tabular-nums text-white">
+                        {formatCurrency(paymentDetails.purchase.returnsSummary.totalAfterReturns)}{" "}
+                        <span className="text-sm font-normal text-muted">ج.م</span>
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
