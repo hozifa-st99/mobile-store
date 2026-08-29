@@ -30,6 +30,26 @@ export async function readPerUnitIncreaseByItemIds(
   }
 }
 
+/** عرض فقط: سعر سطر الفاتورة + توزيعات مرتجعات نفس السطر — بدون سعر المخزون */
+export async function readInvoiceScopedEffectiveUnitPrices(
+  db: Db,
+  items: { id: string; unitPrice: number }[]
+): Promise<Record<string, number>> {
+  if (items.length === 0) return {};
+
+  const increaseMap = await readPerUnitIncreaseByItemIds(
+    db,
+    items.map((item) => item.id)
+  );
+
+  const map: Record<string, number> = {};
+  for (const item of items) {
+    const increase = increaseMap[item.id] ?? 0;
+    map[item.id] = Math.round((item.unitPrice + increase) * 100) / 100;
+  }
+  return map;
+}
+
 /** السعر الفعلي «بعد المصروف» = سعر الفاتورة الأصلي + توزيعات المرتجعات */
 export async function readEffectiveUnitPricesAfter(
   db: Db,

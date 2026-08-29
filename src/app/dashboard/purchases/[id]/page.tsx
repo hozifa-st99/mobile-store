@@ -14,7 +14,6 @@ import { em } from "@/components/ui/TableEmoji";
 import {
   buildLatestPurchaseItemRows,
   buildSavedPurchaseItemRows,
-  latestTableShowsExpenseColumns,
   purchaseItemsHaveExpenses,
   shouldShowInvoiceExpenseBreakdown,
   sumPurchaseItemsAfter,
@@ -169,7 +168,6 @@ export default function PurchaseDetailPage() {
     [purchase, showExpenseBreakdown, returnedImeis]
   );
   const showLatestPicture = returns.length > 0;
-  const latestHasExpenses = latestTableShowsExpenseColumns(latestRows);
 
   if (loading) {
     return (
@@ -397,8 +395,12 @@ export default function PurchaseDetailPage() {
                   rows={latestRows}
                   invoiceNumber={purchase.invoiceNumber}
                   heading="الحالة الأخيرة"
-                  caption="البنود المتبقية بعد المرتجعات وتوزيع المصروف"
-                  hasExpenses={latestHasExpenses}
+                  caption={
+                    showExpenseBreakdown
+                      ? "البنود المتبقية بعد المرتجعات وتوزيع مصروف هذه الفاتورة"
+                      : "البنود المتبقية بعد مرتجعات هذه الفاتورة"
+                  }
+                  hasExpenses={showExpenseBreakdown}
                   readOnly
                 />
               ) : (

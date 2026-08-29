@@ -161,9 +161,7 @@ export function buildLatestPurchaseItemRows(
       const invoiceAfter = item.unitPrice;
       const latestAfter = item.effectiveUnitPrice ?? invoiceAfter;
       const hasInvoiceExpense = showBreakdown && lineHasInvoiceExpense(item);
-      const hasReturnRedistribute = Math.abs(latestAfter - invoiceAfter) > 0.001;
-      const showAfter = hasInvoiceExpense || hasReturnRedistribute;
-      const before = hasInvoiceExpense ? item.unitPriceBefore! : invoiceAfter;
+      const before = hasInvoiceExpense ? item.unitPriceBefore! : latestAfter;
 
       const name = item.description.split(" · ")[0]?.trim() || item.description;
       const detailsParts = item.description.split(" · ").slice(1);
@@ -185,19 +183,15 @@ export function buildLatestPurchaseItemRows(
         details: extraDetails.join(" · ") || "—",
         quantity: remainingQty,
         unitPrice: before,
-        unitPriceAfter: showAfter ? latestAfter : undefined,
-        expenseShare: showAfter ? (latestAfter - before) * remainingQty : undefined,
+        unitPriceAfter: hasInvoiceExpense ? latestAfter : undefined,
+        expenseShare: hasInvoiceExpense ? (latestAfter - before) * remainingQty : undefined,
         retailPrice: item.retailPrice,
         total: before * remainingQty,
-        totalAfter: showAfter ? latestAfter * remainingQty : undefined,
+        totalAfter: hasInvoiceExpense ? latestAfter * remainingQty : undefined,
         barcode: item.barcode || "—",
         imeis: isPhone ? remainingImeis : [],
         condition: conditionLabel(item),
       };
     })
     .filter((row): row is InvoiceLineRow => row != null);
-}
-
-export function latestTableShowsExpenseColumns(rows: InvoiceLineRow[]): boolean {
-  return rows.some((row) => row.unitPriceAfter != null);
 }

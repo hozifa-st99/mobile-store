@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { readUnitPriceBeforeByItemIds } from "@/lib/purchase-item-price-before";
-import { readEffectiveUnitPricesAfter } from "@/lib/purchase-item-cost-adjustments";
+import { readInvoiceScopedEffectiveUnitPrices } from "@/lib/purchase-item-cost-adjustments";
 import { splitExpenseNotes } from "@/lib/purchase-invoice-notes";
 import { resolveLineReturnPricing } from "@/lib/purchase-return-expense";
 import {
@@ -47,14 +47,12 @@ export async function GET(
   const itemIds = purchase.items.map((item) => item.id);
   const beforeMap = await readUnitPriceBeforeByItemIds(prisma, itemIds);
   const [effectiveAfterMap, returnedQtyMap] = await Promise.all([
-    readEffectiveUnitPricesAfter(
+    readInvoiceScopedEffectiveUnitPrices(
       prisma,
       purchase.items.map((item) => ({
         id: item.id,
         unitPrice: item.unitPrice,
-        productId: item.productId,
-      })),
-      auth.branchId
+      }))
     ),
     readReturnedQuantitiesByItemIds(prisma, itemIds),
   ]);
