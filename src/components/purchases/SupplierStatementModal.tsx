@@ -129,6 +129,25 @@ function formatTransactionAmount(entry: SupplierStatementData["entries"][number]
   return formatSignedDelta(entry.transactionAmount, "text-emerald-300", "text-rose-300");
 }
 
+function statementMovementClass(type: string) {
+  switch (type) {
+    case "purchase":
+      return "text-primary-light";
+    case "payment":
+      return "text-accent-green";
+    case "return_credit":
+      return "text-amber-300";
+    case "return_shift":
+      return "text-orange-300";
+    case "return_receivable":
+      return "text-violet-300";
+    case "collection":
+      return "text-teal-300";
+    default:
+      return "text-white";
+  }
+}
+
 export default function SupplierStatementModal({
   open,
   onClose,
@@ -254,7 +273,9 @@ export default function SupplierStatementModal({
                           {formatDocumentTime(entry.date)}
                         </div>
                       </td>
-                      <td className="p-3 text-sm font-medium">{entry.typeLabel}</td>
+                      <td className={cn("p-3 text-sm font-medium", statementMovementClass(entry.type))}>
+                        {entry.typeLabel}
+                      </td>
                       <td className="p-3 text-sm">{entry.reference}</td>
                       <td className="p-3 tabular-nums font-medium">
                         {formatTransactionAmount(entry)}
