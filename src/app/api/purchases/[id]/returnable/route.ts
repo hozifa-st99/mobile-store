@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { readPurchaseItemReturnFields, readPurchaseReturnStatus } from "@/lib/purchase-item-return-fields";
 import { readUnitPriceBeforeByItemIds } from "@/lib/purchase-item-price-before";
-import { readEffectiveUnitPricesAfter } from "@/lib/purchase-item-cost-adjustments";
+import { readInvoiceScopedEffectiveUnitPrices } from "@/lib/purchase-item-cost-adjustments";
 import { splitExpenseNotes } from "@/lib/purchase-invoice-notes";
 import {
   resolveLineReturnPricing,
@@ -44,14 +44,12 @@ export async function GET(
     prisma,
     purchase.items.map((i) => i.id)
   );
-  const effectiveAfterMap = await readEffectiveUnitPricesAfter(
+  const effectiveAfterMap = await readInvoiceScopedEffectiveUnitPrices(
     prisma,
     purchase.items.map((i) => ({
       id: i.id,
       unitPrice: i.unitPrice,
-      productId: i.productId,
-    })),
-    auth.branchId
+    }))
   );
   const { expenseLine } = splitExpenseNotes(purchase.notes);
   const pricingItems = purchase.items.map((i) => ({
