@@ -33,6 +33,7 @@ import {
   computePurchaseReturnGoodsCashSettleable,
   validatePurchaseReturnSettlement,
 } from "@/lib/purchase-return-settlement";
+import { computeWeightedAverageAfterPurchaseReturn } from "@/lib/weighted-average-cost";
 
 type Db = Prisma.TransactionClient;
 
@@ -125,10 +126,12 @@ async function redistributeExpenseToRemaining(
   remainingAfterReturn: {
     purchaseItemId: string;
     productId: string;
+    productType: string | null;
     remainingQty: number;
     unitPriceBefore: number;
     currentUnitPriceAfter: number;
-  }[]
+  }[],
+  returnedLayers: { productId: string; quantity: number; unitCost: number }[]
 ): Promise<void> {
   if (amount <= 0.001 || remainingAfterReturn.length === 0) return;
 
@@ -144,27 +147,68 @@ async function redistributeExpenseToRemaining(
   );
 
   const adjustments: { purchaseItemId: string; perUnitIncrease: number }[] = [];
+  const extraByProduct = new Map<string, number>();
 
   for (const row of remainingAfterReturn) {
     const extra = allocMap.get(row.purchaseItemId) ?? 0;
     if (extra <= 0) continue;
     const perUnit = extra / row.remainingQty;
-    const newUnitPrice = Math.round((row.currentUnitPriceAfter + perUnit) * 100) / 100;
-
     adjustments.push({ purchaseItemId: row.purchaseItemId, perUnitIncrease: perUnit });
+    extraByProduct.set(row.productId, (extraByProduct.get(row.productId) ?? 0) + extra);
+  }
+
+  await recordPurchaseItemCostAdjustments(tx, purchaseReturnId, adjustments);
+
+  const returnedByProduct = new Map<string, { quantity: number; value: number }>();
+  for (const layer of returnedLayers) {
+    const prev = returnedByProduct.get(layer.productId) ?? { quantity: 0, value: 0 };
+    returnedByProduct.set(layer.productId, {
+      quantity: prev.quantity + layer.quantity,
+      value: prev.value + layer.quantity * layer.unitCost,
+    });
+  }
+
+  const accessoryProductIds = new Set(
+    remainingAfterReturn
+      .filter((row) => row.productType !== "phone")
+      .map((row) => row.productId)
+  );
+
+  for (const [productId, extra] of extraByProduct) {
+    if (!accessoryProductIds.has(productId)) continue;
+
+    const inventory = await tx.branchInventory.findUnique({
+      where: {
+        branchId_productId: {
+          branchId,
+          productId,
+        },
+      },
+      select: { quantity: true, purchasePrice: true },
+    });
+    if (!inventory || inventory.quantity <= 0) continue;
+
+    const returned = returnedByProduct.get(productId) ?? { quantity: 0, value: 0 };
+    const returnedUnitCost =
+      returned.quantity > 0 ? returned.value / returned.quantity : 0;
+    const purchasePrice = computeWeightedAverageAfterPurchaseReturn({
+      quantityBeforeReturn: inventory.quantity + returned.quantity,
+      currentAverageCost: inventory.purchasePrice,
+      returnedQuantity: returned.quantity,
+      returnedUnitCost,
+      redistributedExpense: extra,
+    });
 
     await tx.branchInventory.update({
       where: {
         branchId_productId: {
           branchId,
-          productId: row.productId,
+          productId,
         },
       },
-      data: { purchasePrice: newUnitPrice },
+      data: { purchasePrice },
     });
   }
-
-  await recordPurchaseItemCostAdjustments(tx, purchaseReturnId, adjustments);
 }
 
 export async function processPurchaseReturn(tx: Db, input: ProcessReturnInput) {
@@ -346,12 +390,30 @@ export async function processPurchaseReturn(tx: Db, input: ProcessReturnInput) {
       return {
         purchaseItemId: item.id,
         productId: item.productId,
+        productType: item.product?.type ?? null,
         remainingQty,
         unitPriceBefore: linePricing.unitPriceBefore,
         currentUnitPriceAfter,
       };
     })
     .filter((r) => r.remainingQty > 0 && r.productId);
+
+  const layerCostByItemId = new Map(
+    purchase.items.map((item) => {
+      const priorIncrease = priorPerUnitIncrease[item.id] ?? 0;
+      return [
+        item.id,
+        Math.round((item.unitPrice + priorIncrease) * 100) / 100,
+      ] as const;
+    })
+  );
+  const returnedLayers = lines
+    .filter((line) => line.productId)
+    .map((line) => ({
+      productId: line.productId!,
+      quantity: line.quantity,
+      unitCost: layerCostByItemId.get(line.purchaseItemId) ?? 0,
+    }));
 
   const hasRemainingItems = remainingAfterReturn.length > 0;
 
@@ -432,10 +494,12 @@ export async function processPurchaseReturn(tx: Db, input: ProcessReturnInput) {
       remainingAfterReturn.map((r) => ({
         purchaseItemId: r.purchaseItemId,
         productId: r.productId!,
+        productType: r.productType,
         remainingQty: r.remainingQty,
         unitPriceBefore: r.unitPriceBefore,
         currentUnitPriceAfter: r.currentUnitPriceAfter,
-      }))
+      })),
+      returnedLayers
     );
   }
 

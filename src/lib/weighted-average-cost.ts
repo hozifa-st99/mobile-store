@@ -16,3 +16,27 @@ export function computeWeightedAverageCost(
   const totalQty = currentQty + incomingQty;
   return Math.round((totalValue / totalQty) * 100) / 100;
 }
+
+/**
+ * متوسط المخزون بعد مرتجع مشتريات + توزيع مصروف على الباقي.
+ * الكمية هنا قبل خصم المرتجع. سعر المرتجع = سعر دفعة الفاتورة (بعد مصروفها السابق).
+ */
+export function computeWeightedAverageAfterPurchaseReturn(input: {
+  quantityBeforeReturn: number;
+  currentAverageCost: number;
+  returnedQuantity: number;
+  returnedUnitCost: number;
+  redistributedExpense: number;
+}): number {
+  const remainingQty = input.quantityBeforeReturn - input.returnedQuantity;
+  if (remainingQty <= 0) {
+    return Math.round(Math.max(0, input.currentAverageCost) * 100) / 100;
+  }
+
+  const stockValue =
+    input.quantityBeforeReturn * input.currentAverageCost -
+    input.returnedQuantity * input.returnedUnitCost +
+    input.redistributedExpense;
+
+  return Math.round(Math.max(0, stockValue / remainingQty) * 100) / 100;
+}
