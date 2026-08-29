@@ -23,6 +23,13 @@ import {
 } from "@/lib/supplier-kind";
 
 type DebtTab = typeof SUPPLIER_KIND_WHOLESALE | typeof SUPPLIER_KIND_INDIVIDUAL_CUSTOMER;
+type BalanceFilter = "all" | "alaina" | "linna";
+
+function matchesBalanceFilter(row: DebtRow, filter: BalanceFilter) {
+  if (filter === "all") return true;
+  if (filter === "alaina") return row.outstanding > 0.0001;
+  return row.receivableOutstanding > 0.0001;
+}
 
 interface InvoiceReceivableLine {
   id: string;
@@ -404,6 +411,7 @@ export default function PurchaseDebtsPage() {
   const [debtTab, setDebtTab] = useState<DebtTab>(SUPPLIER_KIND_WHOLESALE);
   const [supplierId, setSupplierId] = useState("");
   const [search, setSearch] = useState("");
+  const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>("all");
 
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [moneyModalTab, setMoneyModalTab] = useState<"pay" | "collect">("pay");
@@ -614,6 +622,13 @@ export default function PurchaseDebtsPage() {
       ? "رقم الفاتورة أو العميل..."
       : "رقم الفاتورة أو المورد...";
 
+  const filteredOutstandingRows = outstandingRows.filter((row) =>
+    matchesBalanceFilter(row, balanceFilter)
+  );
+  const filteredSettledRows = settledRows.filter((row) =>
+    matchesBalanceFilter(row, balanceFilter)
+  );
+
   return (
     <>
       <PageHeader
@@ -749,6 +764,36 @@ export default function PurchaseDebtsPage() {
             />
           </div>
         </div>
+        <div className="mt-3 pt-3 border-t border-border/40">
+          <p className="text-xs text-muted mb-2">فلتر المتبقي (عرض فقط)</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: "all" as const, label: "الكل" },
+                { id: "alaina" as const, label: "علينا" },
+                { id: "linna" as const, label: "لنا" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setBalanceFilter(opt.id)}
+                className={cn(
+                  "px-3 py-2 rounded-xl text-xs font-semibold border transition-colors",
+                  balanceFilter === opt.id
+                    ? opt.id === "alaina"
+                      ? "border-amber-400/40 bg-amber-500/15 text-amber-100"
+                      : opt.id === "linna"
+                        ? "border-violet-400/40 bg-violet-500/15 text-violet-100"
+                        : "border-primary/40 bg-primary/15 text-white"
+                    : "border-border text-muted hover:text-white hover:border-primary/30"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {supplierId ? (
           <div className="mt-3 pt-3 border-t border-border/40 flex flex-wrap items-center gap-3">
             <p className="text-xs text-muted flex-1 min-w-[200px]">
@@ -777,9 +822,15 @@ export default function PurchaseDebtsPage() {
           </p>
         </div>
         <InvoiceDebtTable
-          rows={outstandingRows}
+          rows={filteredOutstandingRows}
           loading={loading}
-          emptyMessage="لا توجد مديونيات أو مستحقات مفتوحة"
+          emptyMessage={
+            balanceFilter === "all"
+              ? "لا توجد مديونيات أو مستحقات مفتوحة"
+              : balanceFilter === "alaina"
+                ? "لا توجد فواتير بمتبقي علينا"
+                : "لا توجد فواتير بمتبقي لنا"
+          }
           onMoney={openMoneyModal}
           onDetails={(row) => void openDetailsModal(row)}
           showMoneyAction
@@ -802,7 +853,7 @@ export default function PurchaseDebtsPage() {
             <p className="text-xs text-emerald-200/70 mt-1">
               {settledOpen
                 ? "اضغط السهم لإخفاء الجدول"
-                : `اضغط السهم لعرض الجدول · ${settledRows.length} فاتورة`}
+                : `اضغط السهم لعرض الجدول · ${filteredSettledRows.length} فاتورة`}
             </p>
           </div>
           <span
@@ -817,9 +868,13 @@ export default function PurchaseDebtsPage() {
         </button>
         {settledOpen ? (
           <InvoiceDebtTable
-            rows={settledRows}
+            rows={filteredSettledRows}
             loading={loading}
-            emptyMessage="لا توجد فواتير مسدّدة بعد"
+            emptyMessage={
+              balanceFilter === "all"
+                ? "لا توجد فواتير مسدّدة بعد"
+                : "لا توجد فواتير مسدّدة مطابقة للفلتر"
+            }
             onDetails={(row) => void openDetailsModal(row)}
             stickyHeader
             scrollMaxHeight={debtTableScrollClass}

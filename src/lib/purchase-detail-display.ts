@@ -1,5 +1,13 @@
 import type { InvoiceLineRow } from "@/lib/purchase-line-display";
+import { roundPurchaseMoney } from "@/lib/purchase-payment-display";
 import { parseImeisSnapshot } from "@/lib/purchase-return-number";
+
+export interface PurchaseTotalsForDisplay {
+  subtotal: number;
+  discount: number;
+  taxAmount: number;
+  total: number;
+}
 
 export interface SavedPurchaseItem {
   id: string;
@@ -31,19 +39,40 @@ function conditionLabel(item: SavedPurchaseItem): string {
   return "جديد";
 }
 
-export function purchaseItemsHaveExpenses(items: SavedPurchaseItem[]): boolean {
-  return items.some((item) => {
-    const before = item.unitPriceBefore ?? item.unitPrice;
-    const after = item.effectiveUnitPrice ?? item.unitPrice;
-    return Math.abs(before - after) > 0.001;
-  });
+/** مصروف مسجّل على الفاتورة — من unit_price_before فقط، مش من سعر المخزون */
+function lineHasInvoiceExpense(item: SavedPurchaseItem): boolean {
+  return (
+    item.unitPriceBefore != null &&
+    Math.abs(item.unitPriceBefore - item.unitPrice) > 0.001
+  );
 }
 
-export function buildSavedPurchaseItemRows(items: SavedPurchaseItem[]): InvoiceLineRow[] {
+export function purchaseItemsHaveExpenses(items: SavedPurchaseItem[]): boolean {
+  return items.some(lineHasInvoiceExpense);
+}
+
+/** تفصيل المصروف يظهر فقط لو أسعار السطور متطابقة مع الإجمالي المحفوظ */
+export function shouldShowInvoiceExpenseBreakdown(
+  items: SavedPurchaseItem[],
+  purchase: PurchaseTotalsForDisplay
+): boolean {
+  if (!purchaseItemsHaveExpenses(items)) return false;
+  const after = roundPurchaseMoney(sumPurchaseItemsAfter(items));
+  const expectedTotal = roundPurchaseMoney(after - purchase.discount + purchase.taxAmount);
+  const subtotalOk = Math.abs(after - roundPurchaseMoney(purchase.subtotal)) <= 0.02;
+  const totalOk = Math.abs(expectedTotal - roundPurchaseMoney(purchase.total)) <= 0.02;
+  return subtotalOk && totalOk;
+}
+
+export function buildSavedPurchaseItemRows(
+  items: SavedPurchaseItem[],
+  options?: { showExpenseBreakdown?: boolean }
+): InvoiceLineRow[] {
+  const showBreakdown = options?.showExpenseBreakdown ?? true;
   return items.map((item) => {
-    const before = item.unitPriceBefore ?? item.unitPrice;
-    const after = item.effectiveUnitPrice ?? item.unitPrice;
-    const hasExpenseLine = Math.abs(before - after) > 0.001;
+    const hasExpenseLine = showBreakdown && lineHasInvoiceExpense(item);
+    const before = hasExpenseLine ? item.unitPriceBefore! : item.unitPrice;
+    const after = item.unitPrice;
 
     const imeis = parseImeisSnapshot(item.imeisSnapshot);
     const isPhone = imeis.length > 0;
@@ -85,8 +114,5 @@ export function sumPurchaseItemsBefore(items: SavedPurchaseItem[]): number {
 }
 
 export function sumPurchaseItemsAfter(items: SavedPurchaseItem[]): number {
-  return items.reduce(
-    (s, item) => s + (item.effectiveUnitPrice ?? item.unitPrice) * item.quantity,
-    0
-  );
+  return items.reduce((s, item) => s + item.unitPrice * item.quantity, 0);
 }

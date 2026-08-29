@@ -14,6 +14,7 @@ import { em } from "@/components/ui/TableEmoji";
 import {
   buildSavedPurchaseItemRows,
   purchaseItemsHaveExpenses,
+  shouldShowInvoiceExpenseBreakdown,
   sumPurchaseItemsAfter,
   sumPurchaseItemsBefore,
 } from "@/lib/purchase-detail-display";
@@ -134,10 +135,18 @@ export default function PurchaseDetailPage() {
     });
   }, [id]);
 
-  const hasExpenses = purchase ? purchaseItemsHaveExpenses(purchase.items) : false;
+  const hasRegisteredExpense = purchase
+    ? purchaseItemsHaveExpenses(purchase.items)
+    : false;
+  const showExpenseBreakdown = purchase
+    ? shouldShowInvoiceExpenseBreakdown(purchase.items, purchase)
+    : false;
   const tableRows = useMemo(
-    () => (purchase ? buildSavedPurchaseItemRows(purchase.items) : []),
-    [purchase]
+    () =>
+      purchase
+        ? buildSavedPurchaseItemRows(purchase.items, { showExpenseBreakdown })
+        : [],
+    [purchase, showExpenseBreakdown]
   );
 
   if (loading) {
@@ -168,7 +177,7 @@ export default function PurchaseDetailPage() {
 
   const subtotalBefore = sumPurchaseItemsBefore(purchase.items);
   const subtotalAfter = sumPurchaseItemsAfter(purchase.items);
-  const expenseAmount = hasExpenses ? subtotalAfter - subtotalBefore : 0;
+  const expenseAmount = showExpenseBreakdown ? subtotalAfter - subtotalBefore : 0;
   const { userNotes, expenseLine } = splitExpenseNotes(purchase.notes);
 
   return (
@@ -260,7 +269,7 @@ export default function PurchaseDetailPage() {
               <p className="text-sm text-muted whitespace-pre-wrap">{userNotes}</p>
             </div>
           )}
-          {expenseLine && (
+          {expenseLine && hasRegisteredExpense && (
             <div className="pt-2 border-t border-border/50">
               <p className="text-xs text-accent-orange mb-1">مصاريف الفاتورة</p>
               <p className="text-sm text-accent-orange/90">{expenseLine.replace("مصاريف الفاتورة:", "").trim()}</p>
@@ -271,7 +280,7 @@ export default function PurchaseDetailPage() {
         <div className="glass-card p-5 space-y-3">
           <h2 className="text-sm font-bold text-white">الإجماليات</h2>
           <div className="space-y-2 text-sm">
-            {hasExpenses ? (
+            {showExpenseBreakdown ? (
               <>
                 <div className="flex justify-between text-muted">
                   <span>إجمالي الأصناف قبل المصروف</span>
@@ -341,7 +350,7 @@ export default function PurchaseDetailPage() {
       <PurchaseInvoiceLinesTable
         rows={tableRows}
         invoiceNumber={purchase.invoiceNumber}
-        hasExpenses={hasExpenses}
+        hasExpenses={showExpenseBreakdown}
         readOnly
       />
 
