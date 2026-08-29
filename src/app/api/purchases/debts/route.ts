@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
 
   const outstandingReceivableRows = receivableRows.filter((r) => r.outstanding > 0.0001);
   const collectedReceivableRows = receivableRows.filter((r) => r.outstanding <= 0.0001);
-  const receivableTotals = outstandingReceivableRows.reduce(
+  const receivableTotalsAll = receivableRows.reduce(
     (acc, row) => {
       acc.amount += row.amount;
       acc.collectedAmount += row.collectedAmount;
@@ -186,9 +186,9 @@ export async function GET(request: NextRequest) {
       outstanding: roundPurchaseMoney(outstandingTotals.outstanding),
     },
     receivableTotals: {
-      amount: roundPurchaseMoney(receivableTotals.amount),
-      collectedAmount: roundPurchaseMoney(receivableTotals.collectedAmount),
-      outstanding: roundPurchaseMoney(receivableTotals.outstanding),
+      amount: roundPurchaseMoney(receivableTotalsAll.amount),
+      collectedAmount: roundPurchaseMoney(receivableTotalsAll.collectedAmount),
+      outstanding: roundPurchaseMoney(receivableTotalsAll.outstanding),
     },
     supplierOptions,
   });

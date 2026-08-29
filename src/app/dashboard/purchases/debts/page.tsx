@@ -5,6 +5,9 @@ import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
 import KpiCard from "@/components/dashboard/KpiCard";
+import SupplierStatementModal, {
+  type SupplierStatementData,
+} from "@/components/purchases/SupplierStatementModal";
 import Modal from "@/components/ui/Modal";
 import DocumentDateTimeStack from "@/components/ui/DocumentDateTimeStack";
 import { ActionEmoji, CellEmoji, ThEmoji, em } from "@/components/ui/TableEmoji";
@@ -81,8 +84,256 @@ interface PaymentDetailsResponse {
     creditOnInvoice: number;
     initialPaymentAtInvoice: number;
     laterPaymentsTotal: number;
+    returnsSummary: {
+      count: number;
+      totalAmount: number;
+      totalAfterReturns: number;
+    };
+    receivableOutstanding: number;
+    netBalance: {
+      direction: "linna" | "alaina" | "balanced";
+      amount: number;
+      label: string;
+    };
   };
   schedule: PaymentScheduleRow[];
+}
+
+type UnifiedOutstandingRow =
+  | ({ kind: "debt" } & DebtRow)
+  | ({ kind: "receivable" } & ReceivableRow);
+
+function GlassAccentKpiCard({
+  emoji,
+  label,
+  value,
+  suffix,
+  borderClass,
+  bgClass,
+  valueClass = "text-white",
+}: {
+  emoji: string;
+  label: string;
+  value: number;
+  suffix?: string;
+  borderClass: string;
+  bgClass: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className={cn("glass-card p-4 border rounded-2xl", borderClass, bgClass)}>
+      <p className="text-xs text-muted mb-1 inline-flex items-center gap-1.5">
+        <span aria-hidden>{emoji}</span>
+        {label}
+      </p>
+      <p className={cn("text-2xl font-bold tabular-nums", valueClass)}>
+        {formatAmountExact(value)}
+        {suffix ? <span className="text-sm font-normal text-muted mr-1">{suffix}</span> : null}
+      </p>
+    </div>
+  );
+}
+
+function UnifiedOutstandingTable({
+  debtRows,
+  receivableRows,
+  loading,
+  emptyMessage,
+  onPay,
+  onCollect,
+  onDetails,
+  onStatement,
+  stickyHeader = false,
+  scrollMaxHeight,
+  headRowClassName,
+  partyColumnLabel = "المورد",
+}: {
+  debtRows: DebtRow[];
+  receivableRows: ReceivableRow[];
+  loading: boolean;
+  emptyMessage: string;
+  onPay?: (row: DebtRow) => void;
+  onCollect?: (row: ReceivableRow) => void;
+  onDetails: (row: DebtRow) => void;
+  onStatement: (supplierId: string) => void;
+  stickyHeader?: boolean;
+  scrollMaxHeight?: string;
+  headRowClassName?: string;
+  partyColumnLabel?: string;
+}) {
+  const unifiedRows: UnifiedOutstandingRow[] = [
+    ...debtRows.map((row) => ({ kind: "debt" as const, ...row })),
+    ...receivableRows.map((row) => ({ kind: "receivable" as const, ...row })),
+  ].sort((a, b) => {
+    const dateA =
+      a.kind === "debt" ? new Date(a.purchaseDate).getTime() : new Date(a.returnDate).getTime();
+    const dateB =
+      b.kind === "debt" ? new Date(b.purchaseDate).getTime() : new Date(b.returnDate).getTime();
+    return dateB - dateA;
+  });
+
+  const viewportClass = scrollMaxHeight
+    ? cn("overflow-auto", scrollMaxHeight)
+    : "overflow-x-auto";
+
+  return (
+    <div className={viewportClass}>
+      <table className="w-full min-w-[1100px] border-collapse">
+        <thead className={stickyHeader ? "sticky top-0 z-10" : undefined}>
+          <tr
+            className={cn(
+              "text-xs text-muted-dark border-b border-border",
+              stickyHeader
+                ? "bg-background-input/95 backdrop-blur-md shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]"
+                : "bg-background-input/30",
+              headRowClassName
+            )}
+          >
+            <ThEmoji emoji={em.invoice} className="text-right p-4 font-medium">
+              الفاتورة / المرتجع
+            </ThEmoji>
+            <ThEmoji emoji="📅" className="text-right p-4 font-medium">
+              التاريخ
+            </ThEmoji>
+            <ThEmoji emoji={em.supplier} className="text-right p-4 font-medium">
+              {partyColumnLabel}
+            </ThEmoji>
+            <ThEmoji emoji="💳" className="text-right p-4 font-medium">
+              النوع
+            </ThEmoji>
+            <ThEmoji emoji="💰" className="text-right p-4 font-medium">
+              الإجمالي
+            </ThEmoji>
+            <ThEmoji emoji="✅" className="text-right p-4 font-medium">
+              المسدّد علينا
+            </ThEmoji>
+            <ThEmoji emoji="💵" className="text-right p-4 font-medium">
+              المحصّل لنا
+            </ThEmoji>
+            <ThEmoji emoji="⚠️" className="text-right p-4 font-medium">
+              المتبقي
+            </ThEmoji>
+            <ThEmoji emoji={em.actions} className="text-center p-4 font-medium">
+              إجراء
+            </ThEmoji>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={9} className="p-8 text-center text-muted">
+                جاري التحميل...
+              </td>
+            </tr>
+          ) : unifiedRows.length === 0 ? (
+            <tr>
+              <td colSpan={9} className="p-8 text-center text-muted">
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            unifiedRows.map((row) => {
+              if (row.kind === "debt") {
+                return (
+                  <tr key={`debt-${row.id}`} className="border-b border-border/50 hover:bg-white/[0.02]">
+                    <td className="p-4">
+                      <Link
+                        href={`/dashboard/purchases/${row.id}`}
+                        className="text-primary-light hover:underline font-medium"
+                      >
+                        {row.invoiceNumber}
+                      </Link>
+                    </td>
+                    <td className="p-4">
+                      <DocumentDateTimeStack value={row.purchaseDate} />
+                    </td>
+                    <td className="p-4 text-sm">{row.supplierName}</td>
+                    <td className="p-4 text-sm">{row.paymentTypeLabel}</td>
+                    <td className="p-4 tabular-nums">{formatAmountExact(row.total)}</td>
+                    <td className="p-4 tabular-nums text-accent-green">
+                      {formatAmountExact(row.paidAmount)}
+                    </td>
+                    <td className="p-4 tabular-nums text-muted">—</td>
+                    <td className="p-4 tabular-nums text-accent-orange font-bold">
+                      <span className="text-[10px] text-amber-200/70 block mb-0.5">علينا</span>
+                      {formatAmountExact(row.outstanding)}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        {row.outstanding > 0.0001 && onPay && (
+                          <ActionEmoji emoji="💵" title="تسجيل سداد" onClick={() => onPay(row)} />
+                        )}
+                        <ActionEmoji
+                          emoji={em.view}
+                          title="تفاصيل السداد"
+                          onClick={() => onDetails(row)}
+                          className="text-muted hover:text-white hover:border-primary/30"
+                        />
+                        <ActionEmoji
+                          emoji="📊"
+                          title="كشف حساب المورد"
+                          onClick={() => onStatement(row.supplierId)}
+                          className="text-muted hover:text-cyan-300 hover:border-cyan-500/30"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr
+                  key={`recv-${row.id}`}
+                  className="border-b border-border/50 hover:bg-white/[0.02] bg-cyan-500/[0.03]"
+                >
+                  <td className="p-4">
+                    <p className="font-medium text-cyan-200">{row.returnNumber}</p>
+                    <Link
+                      href={`/dashboard/purchases/${row.purchaseId}`}
+                      className="text-xs text-primary-light/80 hover:underline"
+                    >
+                      {row.invoiceNumber}
+                    </Link>
+                  </td>
+                  <td className="p-4">
+                    <DocumentDateTimeStack value={row.returnDate} />
+                  </td>
+                  <td className="p-4 text-sm">{row.supplierName}</td>
+                  <td className="p-4 text-sm text-cyan-200">مستحق لنا</td>
+                  <td className="p-4 tabular-nums">{formatAmountExact(row.amount)}</td>
+                  <td className="p-4 tabular-nums text-muted">—</td>
+                  <td className="p-4 tabular-nums text-accent-green">
+                    {formatAmountExact(row.collectedAmount)}
+                  </td>
+                  <td className="p-4 tabular-nums text-cyan-300 font-bold">
+                    <span className="text-[10px] text-cyan-200/70 block mb-0.5">لينا</span>
+                    {formatAmountExact(row.outstanding)}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center justify-center gap-2">
+                      {row.outstanding > 0.0001 && onCollect && (
+                        <ActionEmoji
+                          emoji="💵"
+                          title="تسجيل تحصيل"
+                          onClick={() => onCollect(row)}
+                        />
+                      )}
+                      <ActionEmoji
+                        emoji="📊"
+                        title="كشف حساب المورد"
+                        onClick={() => onStatement(row.supplierId)}
+                        className="text-muted hover:text-cyan-300 hover:border-cyan-500/30"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function DebtTable({
@@ -91,6 +342,7 @@ function DebtTable({
   emptyMessage,
   onPay,
   onDetails,
+  onStatement,
   showPayAction,
   stickyHeader = false,
   scrollMaxHeight,
@@ -102,6 +354,7 @@ function DebtTable({
   emptyMessage: string;
   onPay?: (row: DebtRow) => void;
   onDetails: (row: DebtRow) => void;
+  onStatement?: (supplierId: string) => void;
   showPayAction: boolean;
   stickyHeader?: boolean;
   scrollMaxHeight?: string;
@@ -202,6 +455,14 @@ function DebtTable({
                       onClick={() => onDetails(row)}
                       className="text-muted hover:text-white hover:border-primary/30"
                     />
+                    {onStatement && (
+                      <ActionEmoji
+                        emoji="📊"
+                        title="كشف حساب المورد"
+                        onClick={() => onStatement(row.supplierId)}
+                        className="text-muted hover:text-cyan-300 hover:border-cyan-500/30"
+                      />
+                    )}
                   </div>
                 </td>
               </tr>
@@ -241,8 +502,26 @@ export default function PurchaseDebtsPage() {
   const [payNotes, setPayNotes] = useState("");
   const [payLoading, setPayLoading] = useState(false);
   const [settledOpen, setSettledOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
+  const [statementLoading, setStatementLoading] = useState(false);
+  const [statementData, setStatementData] = useState<SupplierStatementData | null>(null);
 
   const debtTableScrollClass = "max-h-[min(28rem,calc(100vh-20rem))] min-h-[10rem]";
+
+  const openSupplierStatement = async (supplierIdToLoad: string) => {
+    setStatementOpen(true);
+    setStatementLoading(true);
+    setStatementData(null);
+    const { ok, data } = await apiJson<SupplierStatementData>(
+      `/api/purchases/debts/supplier-statement?supplierId=${encodeURIComponent(supplierIdToLoad)}`
+    );
+    setStatementLoading(false);
+    if (ok) {
+      setStatementData(data);
+    } else {
+      toast.error((data as { message?: string }).message || "تعذّر تحميل كشف الحساب");
+    }
+  };
 
   const loadDebts = useCallback(async () => {
     setLoading(true);
@@ -468,34 +747,36 @@ export default function PurchaseDebtsPage() {
         />
       </div>
 
-      {receivableTotals.outstanding > 0.0001 && (
+      {(receivableTotals.amount > 0.0001 ||
+        receivableTotals.collectedAmount > 0.0001 ||
+        receivableTotals.outstanding > 0.0001) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-          <KpiCard
-            variant="sales"
-            delay={0}
-            title="مستحقات لنا (مرتجعات)"
+          <GlassAccentKpiCard
+            emoji="📥"
+            label="مستحقات لنا (مرتجعات)"
             value={receivableTotals.amount}
             suffix="ج.م"
-            subtitle="إجمالي المسجّل لنا عند المورد"
-            emoji="📥"
+            borderClass="border-cyan-400/25"
+            bgClass="bg-cyan-500/5"
+            valueClass="text-cyan-300"
           />
-          <KpiCard
-            variant="purchases"
-            delay={80}
-            title="المحصّل"
+          <GlassAccentKpiCard
+            emoji="💵"
+            label="المحصّل"
             value={receivableTotals.collectedAmount}
             suffix="ج.م"
-            subtitle="دخل الوردية من التحصيل"
-            emoji="💵"
+            borderClass="border-teal-400/25"
+            bgClass="bg-teal-500/5"
+            valueClass="text-teal-300"
           />
-          <KpiCard
-            variant="expenses"
-            delay={160}
-            title="المتبقي (لينا)"
+          <GlassAccentKpiCard
+            emoji="⏳"
+            label="المتبقي (لينا)"
             value={receivableTotals.outstanding}
             suffix="ج.م"
-            subtitle="لم يُحصَّل بعد"
-            emoji="⏳"
+            borderClass="border-accent-orange/25"
+            bgClass="bg-accent-orange/5"
+            valueClass="text-accent-orange"
           />
         </div>
       )}
@@ -535,77 +816,25 @@ export default function PurchaseDebtsPage() {
           <h2 className="text-sm font-bold text-amber-100">مديونيات قائمة</h2>
           <p className="text-xs text-amber-200/70 mt-1">
             {debtTab === SUPPLIER_KIND_INDIVIDUAL_CUSTOMER
-              ? "فواتير شراء من عملاء — مبلغ متبقٍ"
-              : "فواتير لها مبلغ متبقٍ على المورد"}
+              ? "فواتير شراء من عملاء — مديونيات ومستحقات لنا"
+              : "فواتير لها مبلغ متبقٍ أو مستحقات لنا عند المورد"}
           </p>
         </div>
-        <DebtTable
-          rows={outstandingRows}
+        <UnifiedOutstandingTable
+          debtRows={outstandingRows}
+          receivableRows={outstandingReceivableRows}
           loading={loading}
-          emptyMessage="لا توجد مديونيات مفتوحة"
+          emptyMessage="لا توجد مديونيات أو مستحقات مفتوحة"
           onPay={openPayModal}
+          onCollect={openCollectModal}
           onDetails={(row) => void openDetailsModal(row)}
-          showPayAction
+          onStatement={(id) => void openSupplierStatement(id)}
           stickyHeader
           scrollMaxHeight={debtTableScrollClass}
           headRowClassName="bg-amber-950/90"
           partyColumnLabel={partyColumnLabel}
         />
       </div>
-
-      {outstandingReceivableRows.length > 0 && (
-        <div className="mb-5 rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-cyan-950/20 to-background-input/10 overflow-hidden">
-          <div className="px-4 pt-4 pb-3 border-b border-cyan-500/15 bg-cyan-500/[0.06]">
-            <h2 className="text-sm font-bold text-cyan-100">مستحقات لنا عند المورد</h2>
-            <p className="text-xs text-cyan-200/70 mt-1">من مرتجعات مشتريات — يُحصَّل إلى الوردية</p>
-          </div>
-          <div className={cn("overflow-auto", debtTableScrollClass)}>
-            <table className="w-full min-w-[980px] border-collapse">
-              <thead className="sticky top-0 z-10 bg-cyan-950/90 backdrop-blur-md">
-                <tr className="text-xs text-muted-dark border-b border-border">
-                  <th className="text-right p-4 font-medium">المرتجع</th>
-                  <th className="text-right p-4 font-medium">الفاتورة</th>
-                  <th className="text-right p-4 font-medium">{partyColumnLabel}</th>
-                  <th className="text-right p-4 font-medium">المبلغ</th>
-                  <th className="text-right p-4 font-medium">المحصّل</th>
-                  <th className="text-right p-4 font-medium">المتبقي</th>
-                  <th className="text-center p-4 font-medium">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {outstandingReceivableRows.map((row) => (
-                  <tr key={row.id} className="border-b border-border/50 hover:bg-white/[0.02]">
-                    <td className="p-4 text-sm font-medium text-cyan-200">{row.returnNumber}</td>
-                    <td className="p-4">
-                      <Link
-                        href={`/dashboard/purchases/${row.purchaseId}`}
-                        className="text-primary-light hover:underline font-medium"
-                      >
-                        {row.invoiceNumber}
-                      </Link>
-                    </td>
-                    <td className="p-4 text-sm">{row.supplierName}</td>
-                    <td className="p-4 tabular-nums">{formatAmountExact(row.amount)}</td>
-                    <td className="p-4 tabular-nums text-accent-green">
-                      {formatAmountExact(row.collectedAmount)}
-                    </td>
-                    <td className="p-4 tabular-nums text-cyan-300 font-bold">
-                      {formatAmountExact(row.outstanding)}
-                    </td>
-                    <td className="p-4 text-center">
-                      <ActionEmoji
-                        emoji="💵"
-                        title="تسجيل تحصيل"
-                        onClick={() => openCollectModal(row)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 overflow-hidden shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)]">
         <button
@@ -638,6 +867,7 @@ export default function PurchaseDebtsPage() {
             loading={loading}
             emptyMessage="لا توجد فواتير مسدّدة بعد"
             onDetails={(row) => void openDetailsModal(row)}
+            onStatement={(id) => void openSupplierStatement(id)}
             showPayAction={false}
             stickyHeader
             scrollMaxHeight={debtTableScrollClass}
@@ -841,6 +1071,29 @@ export default function PurchaseDebtsPage() {
                   </p>
                 </div>
               </div>
+
+              {paymentDetails.purchase.returnsSummary.count > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-3 pt-3 border-t border-border/40">
+                  <div>
+                    <p className="text-[11px] text-muted mb-1">عدد المرتجعات</p>
+                    <p className="text-base font-bold tabular-nums text-white">
+                      {paymentDetails.purchase.returnsSummary.count}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-amber-200/90 mb-1">إجمالي مبلغ المرتجعات</p>
+                    <p className="text-base font-bold tabular-nums text-amber-300">
+                      {formatCurrency(paymentDetails.purchase.returnsSummary.totalAmount)} ج.م
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-primary-light/90 mb-1">الإجمالي بعد المرتجعات</p>
+                    <p className="text-base font-bold tabular-nums text-white">
+                      {formatCurrency(paymentDetails.purchase.returnsSummary.totalAfterReturns)} ج.م
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -852,29 +1105,42 @@ export default function PurchaseDebtsPage() {
               </div>
               <div
                 className={`rounded-xl border p-4 ${
-                  paymentDetails.purchase.outstanding > 0.0001
-                    ? "border-red-500/35 bg-red-500/10"
-                    : "border-emerald-500/35 bg-emerald-500/10"
+                  paymentDetails.purchase.netBalance.direction === "linna"
+                    ? "border-cyan-500/35 bg-cyan-500/10"
+                    : paymentDetails.purchase.netBalance.direction === "alaina"
+                      ? "border-red-500/35 bg-red-500/10"
+                      : "border-emerald-500/35 bg-emerald-500/10"
                 }`}
               >
                 <p
                   className={`text-[11px] mb-1.5 ${
-                    paymentDetails.purchase.outstanding > 0.0001
-                      ? "text-red-200/90"
-                      : "text-emerald-200/90"
+                    paymentDetails.purchase.netBalance.direction === "linna"
+                      ? "text-cyan-200/90"
+                      : paymentDetails.purchase.netBalance.direction === "alaina"
+                        ? "text-red-200/90"
+                        : "text-emerald-200/90"
                   }`}
                 >
-                  المتبقي الآن
+                  المتبقي الآن ({paymentDetails.purchase.netBalance.label})
                 </p>
                 <p
                   className={`text-lg font-bold tabular-nums ${
-                    paymentDetails.purchase.outstanding > 0.0001
-                      ? "text-red-300"
-                      : "text-emerald-300"
+                    paymentDetails.purchase.netBalance.direction === "linna"
+                      ? "text-cyan-300"
+                      : paymentDetails.purchase.netBalance.direction === "alaina"
+                        ? "text-red-300"
+                        : "text-emerald-300"
                   }`}
                 >
-                  {formatCurrency(paymentDetails.purchase.outstanding)} ج.م
+                  {formatCurrency(paymentDetails.purchase.netBalance.amount)} ج.م
                 </p>
+                {paymentDetails.purchase.receivableOutstanding > 0.001 &&
+                paymentDetails.purchase.outstanding > 0.001 ? (
+                  <p className="text-[10px] text-muted mt-2">
+                    علينا {formatCurrency(paymentDetails.purchase.outstanding)} · لنا{" "}
+                    {formatCurrency(paymentDetails.purchase.receivableOutstanding)}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -968,6 +1234,13 @@ export default function PurchaseDebtsPage() {
           <p className="text-sm text-muted py-8 text-center">تعذّر تحميل التفاصيل</p>
         )}
       </Modal>
+
+      <SupplierStatementModal
+        open={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        loading={statementLoading}
+        data={statementData}
+      />
     </>
   );
 }

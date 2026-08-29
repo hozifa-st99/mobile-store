@@ -8,6 +8,7 @@ import { resolveLineReturnPricing } from "@/lib/purchase-return-expense";
 import { readPurchaseReturnStatus } from "@/lib/purchase-item-return-fields";
 import { attachInvoiceCreators } from "@/lib/invoice-creator-server";
 import { purchaseDebtDisplayOutstanding } from "@/lib/purchase-payment-display";
+import { describePurchaseReturnSettlement } from "@/lib/purchase-return-settlement-labels";
 
 const expenseHandlingLabels: Record<string, string> = {
   redistribute: "توزيع على الباقي",
@@ -61,11 +62,12 @@ export async function GET(
   }));
 
   let returnStatus: string = "none";
-  type PurchaseReturnRow = Awaited<
+  let returns: Awaited<
     ReturnType<
       typeof prisma.purchaseReturn.findMany<{
         include: {
           user: { select: { fullNameAr: true; username: true } };
+          supplierReceivable: { select: { amount: true; collectedAmount: true } };
           items: {
             select: {
               id: true;
@@ -79,8 +81,7 @@ export async function GET(
         };
       }>
     >
-  >[number];
-  let returns: PurchaseReturnRow[] = [];
+  > = [];
 
   try {
     const [returnStatusMap, returnRows] = await Promise.all([
@@ -89,6 +90,7 @@ export async function GET(
         where: { purchaseId: purchase.id, branchId: auth.branchId },
         include: {
           user: { select: { fullNameAr: true, username: true } },
+          supplierReceivable: { select: { amount: true, collectedAmount: true } },
           items: {
             select: {
               id: true,
@@ -140,20 +142,37 @@ export async function GET(
         };
       }),
     },
-    returns: returns.map((r) => ({
-      id: r.id,
-      returnNumber: r.returnNumber,
-      returnDate: r.returnDate,
-      subtotal: r.subtotal,
-      total: r.total,
-      notes: r.notes,
-      expenseHandling: r.expenseHandling
-        ? expenseHandlingLabels[r.expenseHandling] ?? r.expenseHandling
-        : null,
-      expenseAmount: r.expenseAmount,
-      expenseRecoveredAmount: r.expenseRecoveredAmount,
-      userName: r.user?.fullNameAr || r.user?.username || null,
-      items: r.items,
-    })),
+    returns: returns.map((r) => {
+      const collectedAmount = r.supplierReceivable?.collectedAmount ?? 0;
+      const settlementLines = describePurchaseReturnSettlement({
+        total: r.total,
+        creditReductionAmount: r.creditReductionAmount,
+        shiftDepositAmount: r.shiftDepositAmount,
+        receivableAmount: r.receivableAmount,
+        expenseRecoveredAmount: r.expenseRecoveredAmount,
+        expenseHandling: r.expenseHandling,
+        collectedAmount: r.supplierReceivable ? collectedAmount : undefined,
+      });
+      return {
+        id: r.id,
+        returnNumber: r.returnNumber,
+        returnDate: r.returnDate,
+        subtotal: r.subtotal,
+        total: r.total,
+        notes: r.notes,
+        expenseHandling: r.expenseHandling
+          ? expenseHandlingLabels[r.expenseHandling] ?? r.expenseHandling
+          : null,
+        expenseAmount: r.expenseAmount,
+        expenseRecoveredAmount: r.expenseRecoveredAmount,
+        creditReductionAmount: r.creditReductionAmount,
+        shiftDepositAmount: r.shiftDepositAmount,
+        receivableAmount: r.receivableAmount,
+        collectedAmount,
+        settlementLines,
+        userName: r.user?.fullNameAr || r.user?.username || null,
+        items: r.items,
+      };
+    }),
   });
 }

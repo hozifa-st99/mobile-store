@@ -15,8 +15,19 @@ function roundAmount(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export async function createExpenseDocument(
-  db: Db,
+function validateExpenseLines(lines: ExpenseLineInput[]) {
+  if (!lines.length) throw new Error("NO_LINES");
+  for (const line of lines) {
+    if (!line.category || !line.description?.trim() || !Number.isFinite(line.amount)) {
+      throw new Error("INVALID_LINE");
+    }
+    if (line.amount <= 0) throw new Error("INVALID_AMOUNT");
+  }
+}
+
+/** Creates expense document + lines on an existing transaction client (no nested $transaction). */
+export async function createExpenseDocumentInTransaction(
+  tx: Prisma.TransactionClient,
   branchId: string,
   input: {
     paymentMethod?: string;
@@ -26,53 +37,58 @@ export async function createExpenseDocument(
     purchaseReturnId?: string | null;
   }
 ) {
-  if (!input.lines.length) throw new Error("NO_LINES");
-
-  for (const line of input.lines) {
-    if (!line.category || !line.description?.trim() || !Number.isFinite(line.amount)) {
-      throw new Error("INVALID_LINE");
-    }
-    if (line.amount <= 0) throw new Error("INVALID_AMOUNT");
-  }
+  validateExpenseLines(input.lines);
 
   const expenseDate = input.expenseDate ?? new Date();
   const paymentMethod = input.paymentMethod || "cash";
+  const invoiceNumber = await allocateExpenseInvoiceNumber(tx, branchId);
+  const document = await tx.expenseDocument.create({
+    data: {
+      branchId,
+      invoiceNumber,
+      paymentMethod,
+      expenseDate,
+      notes: input.notes?.trim() || null,
+    },
+  });
 
-  return db.$transaction(async (tx) => {
-    const invoiceNumber = await allocateExpenseInvoiceNumber(tx, branchId);
-    const document = await tx.expenseDocument.create({
+  const expenses = [];
+  for (let index = 0; index < input.lines.length; index++) {
+    const line = input.lines[index];
+    const expense = await tx.expense.create({
       data: {
         branchId,
+        documentId: document.id,
         invoiceNumber,
-        paymentMethod,
+        lineNumber: index + 1,
+        category: line.category,
+        description: line.description.trim(),
+        amount: roundAmount(Number(line.amount)),
         expenseDate,
+        paymentMethod,
         notes: input.notes?.trim() || null,
+        purchaseReturnId: input.purchaseReturnId || null,
       },
     });
+    expenses.push(expense);
+  }
 
-    const expenses = [];
-    for (let index = 0; index < input.lines.length; index++) {
-      const line = input.lines[index];
-      const expense = await tx.expense.create({
-        data: {
-          branchId,
-          documentId: document.id,
-          invoiceNumber,
-          lineNumber: index + 1,
-          category: line.category,
-          description: line.description.trim(),
-          amount: roundAmount(Number(line.amount)),
-          expenseDate,
-          paymentMethod,
-          notes: input.notes?.trim() || null,
-          purchaseReturnId: input.purchaseReturnId || null,
-        },
-      });
-      expenses.push(expense);
-    }
+  return { document, expenses, invoiceNumber };
+}
 
-    return { document, expenses, invoiceNumber };
-  });
+export async function createExpenseDocument(
+  db: typeof prisma,
+  branchId: string,
+  input: {
+    paymentMethod?: string;
+    expenseDate?: Date;
+    notes?: string | null;
+    lines: ExpenseLineInput[];
+    purchaseReturnId?: string | null;
+  }
+) {
+  validateExpenseLines(input.lines);
+  return db.$transaction(async (tx) => createExpenseDocumentInTransaction(tx, branchId, input));
 }
 
 export async function deleteExpenseLine(

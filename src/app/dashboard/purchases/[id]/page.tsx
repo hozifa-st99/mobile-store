@@ -72,6 +72,11 @@ interface PurchaseReturnLog {
   expenseHandling: string | null;
   expenseAmount: number;
   expenseRecoveredAmount: number;
+  creditReductionAmount: number;
+  shiftDepositAmount: number;
+  receivableAmount: number;
+  collectedAmount: number;
+  settlementLines: string[];
   userName: string | null;
   items: {
     id: string;
@@ -350,17 +355,27 @@ export default function PurchaseDetailPage() {
                 className="rounded-xl border border-border/60 bg-background-input/30 p-4 space-y-3"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="flex-1 min-w-[200px]">
                     <p className="font-semibold text-primary-light">{ret.returnNumber}</p>
                     <p className="text-xs text-muted mt-1">
                       {new Date(ret.returnDate).toLocaleString("ar-EG", {
+                        timeZone: "Africa/Cairo",
                         dateStyle: "medium",
                         timeStyle: "short",
                       })}
                       {ret.userName ? ` · ${ret.userName}` : ""}
                     </p>
+                    {ret.settlementLines.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {ret.settlementLines.map((line) => (
+                          <p key={line} className="text-xs text-cyan-200/90">
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-left">
+                  <div className="text-left shrink-0">
                     <p className="text-xs text-muted">مبلغ المرتجع</p>
                     <p className="font-bold text-accent-green tabular-nums">
                       {formatCurrency(ret.total)} ج.م

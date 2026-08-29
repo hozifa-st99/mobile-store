@@ -1,5 +1,4 @@
 import type { Prisma } from "@prisma/client";
-import { randomUUID } from "crypto";
 import {
   computePurchaseReturnStatus,
   readPurchaseItemReturnFields,
@@ -13,7 +12,7 @@ import {
   type PurchaseReturnExpenseHandling,
 } from "@/lib/purchase-return-expense";
 import { allocatePurchaseReturnNumber } from "@/lib/purchase-return-number-server";
-import { createExpenseDocument } from "@/lib/expense-service";
+import { createExpenseDocumentInTransaction } from "@/lib/expense-service";
 import { createPurchaseReturnWithItems } from "@/lib/purchase-return-db";
 import {
   readPerUnitIncreaseByItemIds,
@@ -104,28 +103,18 @@ async function createReturnDailyExpense(
   const description = `من مصاريف فاتورة مشتريات ${invoiceNumber}`;
   const rounded = Math.round(amount * 100) / 100;
 
-  try {
-    await createExpenseDocument(tx, branchId, {
-      paymentMethod: "cash",
-      notes: expenseLine || `مرتجع ${returnNumber}`,
-      purchaseReturnId,
-      lines: [
-        {
-          category: "مصاريف مشتريات",
-          description,
-          amount: rounded,
-        },
-      ],
-    });
-  } catch {
-    const now = new Date();
-    await tx.$executeRaw`
-      INSERT INTO expenses (id, branch_id, category, description, amount, expense_date, payment_method, notes, purchase_return_id, created_at, line_number)
-      VALUES (${randomUUID()}, ${branchId}, ${"مصاريف مشتريات"}, ${description},
-        ${rounded}, ${now}, ${"cash"},
-        ${expenseLine || `مرتجع ${returnNumber}`}, ${purchaseReturnId}, ${now}, ${1})
-    `;
-  }
+  await createExpenseDocumentInTransaction(tx, branchId, {
+    paymentMethod: "cash",
+    notes: expenseLine || `مرتجع ${returnNumber}`,
+    purchaseReturnId,
+    lines: [
+      {
+        category: "مصاريف مشتريات",
+        description,
+        amount: rounded,
+      },
+    ],
+  });
 }
 
 async function redistributeExpenseToRemaining(

@@ -67,6 +67,7 @@ export async function GET(
         select: {
           returnNumber: true,
           returnDate: true,
+          total: true,
           shiftDepositAmount: true,
         },
         orderBy: { returnDate: "asc" },
@@ -112,6 +113,11 @@ export async function GET(
       createdBy: { select: { fullNameAr: true, username: true } },
       receivable: { select: { purchaseReturn: { select: { returnNumber: true } } } },
     },
+  });
+
+  const purchaseReceivables = await prisma.purchaseSupplierReceivable.findMany({
+    where: { branchId: auth.branchId, purchaseId },
+    select: { amount: true, collectedAmount: true },
   });
 
   if (!["credit", "partial_credit"].includes(purchase.paymentType)) {
@@ -286,6 +292,32 @@ export async function GET(
     schedule.filter((row) => row.phase === "settlement").reduce((sum, row) => sum + row.amount, 0)
   );
 
+  const returnsTotal = roundPurchaseMoney(
+    purchase.returns.reduce((sum, ret) => sum + ret.total, 0)
+  );
+  const totalAfterReturns = roundPurchaseMoney(Math.max(0, purchase.total - returnsTotal));
+  const receivableOutstandingOnPurchase = roundPurchaseMoney(
+    purchaseReceivables.reduce(
+      (sum, row) =>
+        sum + Math.max(0, roundPurchaseMoney(row.amount - row.collectedAmount)),
+      0
+    )
+  );
+
+  let netDirection: "linna" | "alaina" | "balanced" = "balanced";
+  let netAmount = 0;
+  let netLabel = "متزن";
+
+  if (receivableOutstandingOnPurchase > outstanding + 0.0001) {
+    netDirection = "linna";
+    netAmount = roundPurchaseMoney(receivableOutstandingOnPurchase - outstanding);
+    netLabel = "لنا";
+  } else if (outstanding > receivableOutstandingOnPurchase + 0.0001) {
+    netDirection = "alaina";
+    netAmount = roundPurchaseMoney(outstanding - receivableOutstandingOnPurchase);
+    netLabel = "علينا";
+  }
+
   return NextResponse.json({
     purchase: {
       id: purchase.id,
@@ -300,6 +332,17 @@ export async function GET(
       creditOnInvoice,
       initialPaymentAtInvoice,
       laterPaymentsTotal,
+      returnsSummary: {
+        count: purchase.returns.length,
+        totalAmount: returnsTotal,
+        totalAfterReturns,
+      },
+      receivableOutstanding: receivableOutstandingOnPurchase,
+      netBalance: {
+        direction: netDirection,
+        amount: netAmount,
+        label: netLabel,
+      },
     },
     schedule,
   });
