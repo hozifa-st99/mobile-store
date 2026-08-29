@@ -23,9 +23,11 @@ export interface SupplierStatementData {
     type: string;
     typeLabel: string;
     reference: string;
-    debit: number;
-    credit: number;
-    balance: number;
+    debtDelta: number;
+    receivableDelta: number;
+    runningDebt: number;
+    runningReceivable: number;
+    netBalance: number;
     notes: string | null;
   }[];
 }
@@ -56,6 +58,18 @@ function GlassSummaryCard({
   );
 }
 
+function formatSignedDelta(value: number, positiveClass: string, negativeClass: string) {
+  if (Math.abs(value) <= 0.001) return "—";
+  const cls = value > 0 ? positiveClass : negativeClass;
+  const prefix = value > 0 ? "+" : "−";
+  return (
+    <span className={cls}>
+      {prefix}
+      {formatAmountExact(Math.abs(value))}
+    </span>
+  );
+}
+
 export default function SupplierStatementModal({
   open,
   onClose,
@@ -70,9 +84,9 @@ export default function SupplierStatementModal({
   const netCard =
     data?.summary.netDirection === "linna"
       ? {
-          border: "border-cyan-400/30",
-          bg: "bg-cyan-500/5",
-          value: "text-cyan-300",
+          border: "border-violet-400/40",
+          bg: "bg-violet-500/10",
+          value: "text-violet-300",
         }
       : data?.summary.netDirection === "alaina"
         ? {
@@ -85,6 +99,8 @@ export default function SupplierStatementModal({
             bg: "bg-emerald-500/5",
             value: "text-emerald-300",
           };
+
+  const lastEntry = data?.entries[data.entries.length - 1];
 
   return (
     <Modal open={open} onClose={onClose} title="كشف حساب المورد" size="xl">
@@ -102,22 +118,14 @@ export default function SupplierStatementModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <GlassSummaryCard
               emoji="🧾"
-              label="إجمالي فواتير الأجل"
+              label="إجمالي فواتير الأجل (افتتاح)"
               value={`${formatCurrency(data.summary.totalCreditPurchases)} ج.م`}
               borderClass="border-primary/30"
               bgClass="bg-primary/5"
             />
             <GlassSummaryCard
-              emoji="✅"
-              label="المسدّد (علينا)"
-              value={`${formatCurrency(data.summary.totalPaidOnUs)} ج.م`}
-              borderClass="border-emerald-400/25"
-              bgClass="bg-emerald-500/5"
-              valueClass="text-emerald-300"
-            />
-            <GlassSummaryCard
               emoji="⚠️"
-              label="مديونية علينا"
+              label="مديونية علينا (حالياً)"
               value={`${formatCurrency(data.summary.debtOutstanding)} ج.م`}
               borderClass="border-amber-400/25"
               bgClass="bg-amber-500/5"
@@ -125,15 +133,15 @@ export default function SupplierStatementModal({
             />
             <GlassSummaryCard
               emoji="📥"
-              label="مستحقات لنا"
-              value={`${formatCurrency(data.summary.totalReceivable)} ج.م`}
+              label="مستحقات لنا (حالياً)"
+              value={`${formatCurrency(data.summary.receivableOutstanding)} ج.م`}
               borderClass="border-cyan-400/25"
               bgClass="bg-cyan-500/5"
               valueClass="text-cyan-300"
             />
             <GlassSummaryCard
               emoji="💵"
-              label="المحصّل"
+              label="إجمالي المحصّل"
               value={`${formatCurrency(data.summary.totalCollected)} ج.م`}
               borderClass="border-teal-400/25"
               bgClass="bg-teal-500/5"
@@ -147,19 +155,33 @@ export default function SupplierStatementModal({
               bgClass={netCard.bg}
               valueClass={netCard.value}
             />
+            {lastEntry ? (
+              <GlassSummaryCard
+                emoji="⚖️"
+                label="آخر رصيد في الجدول"
+                value={`${formatCurrency(Math.abs(lastEntry.netBalance))} ج.م ${lastEntry.netBalance > 0.001 ? "علينا" : lastEntry.netBalance < -0.001 ? "لنا" : ""}`}
+                borderClass={netCard.border}
+                bgClass={netCard.bg}
+                valueClass={netCard.value}
+              />
+            ) : null}
           </div>
+
+          <p className="text-[11px] text-muted px-1">
+            الرصيد = مديونية علينا − مستحقات لنا. توريد الوردية حركة نقدية فقط ولا يغيّر الرصيد.
+          </p>
 
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto max-h-[min(28rem,60vh)]">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[980px]">
                 <thead className="sticky top-0 z-10 bg-background-input/95 backdrop-blur-md">
                   <tr className="text-xs text-muted-dark border-b border-border">
                     <th className="text-right p-3 font-medium">التاريخ</th>
                     <th className="text-right p-3 font-medium">الحركة</th>
                     <th className="text-right p-3 font-medium">المرجع</th>
-                    <th className="text-right p-3 font-medium">علينا</th>
-                    <th className="text-right p-3 font-medium">لنا</th>
-                    <th className="text-right p-3 font-medium">الرصيد</th>
+                    <th className="text-right p-3 font-medium">علينا (Δ)</th>
+                    <th className="text-right p-3 font-medium">لنا (Δ)</th>
+                    <th className="text-right p-3 font-medium">صافي الرصيد</th>
                     <th className="text-right p-3 font-medium">ملاحظات</th>
                   </tr>
                 </thead>
@@ -174,26 +196,34 @@ export default function SupplierStatementModal({
                       </td>
                       <td className="p-3 text-sm font-medium">{entry.typeLabel}</td>
                       <td className="p-3 text-sm">{entry.reference}</td>
-                      <td className="p-3 tabular-nums text-amber-300">
-                        {entry.debit > 0.001 ? formatAmountExact(entry.debit) : "—"}
+                      <td className="p-3 tabular-nums">
+                        {formatSignedDelta(entry.debtDelta, "text-amber-300", "text-emerald-300")}
                       </td>
-                      <td className="p-3 tabular-nums text-cyan-300">
-                        {entry.credit > 0.001 ? formatAmountExact(entry.credit) : "—"}
+                      <td className="p-3 tabular-nums">
+                        {formatSignedDelta(
+                          entry.receivableDelta,
+                          "text-cyan-300",
+                          "text-teal-300"
+                        )}
                       </td>
                       <td
                         className={cn(
                           "p-3 tabular-nums font-semibold",
-                          entry.balance > 0.001
+                          entry.netBalance > 0.001
                             ? "text-amber-300"
-                            : entry.balance < -0.001
-                              ? "text-cyan-300"
+                            : entry.netBalance < -0.001
+                              ? "text-violet-300"
                               : "text-muted"
                         )}
                       >
-                        {formatAmountExact(Math.abs(entry.balance))}
-                        {entry.balance > 0.001 ? " علينا" : entry.balance < -0.001 ? " لنا" : ""}
+                        {formatAmountExact(Math.abs(entry.netBalance))}
+                        {entry.netBalance > 0.001
+                          ? " علينا"
+                          : entry.netBalance < -0.001
+                            ? " لنا"
+                            : ""}
                       </td>
-                      <td className="p-3 text-xs text-muted max-w-[160px]">{entry.notes || "—"}</td>
+                      <td className="p-3 text-xs text-muted max-w-[180px]">{entry.notes || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -7,28 +7,46 @@ import {
   SUPPLIER_KIND_WHOLESALE,
 } from "@/lib/supplier-kind";
 import {
-  CASH_SOURCE_LABELS,
   PURCHASE_PAYMENT_TYPE_LABELS,
   purchaseDebtDisplayOutstanding,
   roundPurchaseMoney,
 } from "@/lib/purchase-payment-display";
 import { receivableOutstanding } from "@/lib/purchase-return-settlement";
 
-function mapDebtRow(p: {
-  id: string;
-  invoiceNumber: string;
-  purchaseDate: Date;
-  dueDate: Date | null;
-  total: number;
-  paidAmount: number;
-  paymentType: string;
-  cashSource: string | null;
-  invoiceCashPaid: number;
-  supplier: { id: string; nameAr: string; phone: string | null; supplierKind: string };
-  creditLedgerEntries: { id: string; creditAmount: number; paidAmount: number }[];
-}) {
+function mapDebtRow(
+  p: {
+    id: string;
+    invoiceNumber: string;
+    purchaseDate: Date;
+    dueDate: Date | null;
+    total: number;
+    paidAmount: number;
+    paymentType: string;
+    cashSource: string | null;
+    invoiceCashPaid: number;
+    supplier: { id: string; nameAr: string; phone: string | null; supplierKind: string };
+    creditLedgerEntries: { id: string; creditAmount: number; paidAmount: number }[];
+  },
+  receivables: {
+    id: string;
+    returnNumber: string;
+    amount: number;
+    collectedAmount: number;
+    outstanding: number;
+  }[]
+) {
   const creditEntry = p.creditLedgerEntries[0] ?? null;
   const outstanding = purchaseDebtDisplayOutstanding(p, creditEntry);
+  const receivableAmount = roundPurchaseMoney(
+    receivables.reduce((sum, row) => sum + row.amount, 0)
+  );
+  const receivableCollected = roundPurchaseMoney(
+    receivables.reduce((sum, row) => sum + row.collectedAmount, 0)
+  );
+  const receivableOutstandingTotal = roundPurchaseMoney(
+    receivables.reduce((sum, row) => sum + row.outstanding, 0)
+  );
+
   return {
     id: p.id,
     invoiceNumber: p.invoiceNumber,
@@ -40,10 +58,21 @@ function mapDebtRow(p: {
     total: p.total,
     paidAmount: p.paidAmount,
     outstanding,
+    receivableAmount,
+    receivableCollected,
+    receivableOutstanding: receivableOutstandingTotal,
+    receivables,
     paymentType: p.paymentType,
     paymentTypeLabel: PURCHASE_PAYMENT_TYPE_LABELS[p.paymentType] || p.paymentType,
     creditLedgerEntryId: p.creditLedgerEntries[0]?.id ?? null,
   };
+}
+
+function isPurchaseFullySettled(row: {
+  outstanding: number;
+  receivableOutstanding: number;
+}) {
+  return row.outstanding <= 0.0001 && row.receivableOutstanding <= 0.0001;
 }
 
 export async function GET(request: NextRequest) {
@@ -62,26 +91,66 @@ export async function GET(request: NextRequest) {
         ? SUPPLIER_KIND_WHOLESALE
         : null;
 
-  const purchases = await prisma.purchase.findMany({
-    where: {
-      branchId: auth.branchId,
-      status: "completed",
-      paymentType: { in: ["credit", "partial_credit"] },
-      ...(supplierKindFilter && {
-        supplier: { supplierKind: supplierKindFilter },
-      }),
-    },
-    include: {
-      supplier: { select: { id: true, nameAr: true, phone: true, supplierKind: true } },
-      creditLedgerEntries: {
-        select: { id: true, creditAmount: true, paidAmount: true },
-        take: 1,
+  const [purchases, receivableRecords] = await Promise.all([
+    prisma.purchase.findMany({
+      where: {
+        branchId: auth.branchId,
+        status: "completed",
+        paymentType: { in: ["credit", "partial_credit"] },
+        ...(supplierKindFilter && {
+          supplier: { supplierKind: supplierKindFilter },
+        }),
       },
-    },
-    orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
-  });
+      include: {
+        supplier: { select: { id: true, nameAr: true, phone: true, supplierKind: true } },
+        creditLedgerEntries: {
+          select: { id: true, creditAmount: true, paidAmount: true },
+          take: 1,
+        },
+      },
+      orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.purchaseSupplierReceivable.findMany({
+      where: {
+        branchId: auth.branchId,
+        ...(supplierKindFilter && {
+          supplier: { supplierKind: supplierKindFilter },
+        }),
+      },
+      include: {
+        purchaseReturn: { select: { returnNumber: true } },
+      },
+      orderBy: [{ createdAt: "asc" }],
+    }),
+  ]);
 
-  let rows = purchases.map(mapDebtRow);
+  const receivablesByPurchase = new Map<
+    string,
+    {
+      id: string;
+      returnNumber: string;
+      amount: number;
+      collectedAmount: number;
+      outstanding: number;
+    }[]
+  >();
+
+  for (const record of receivableRecords) {
+    const line = {
+      id: record.id,
+      returnNumber: record.purchaseReturn.returnNumber,
+      amount: record.amount,
+      collectedAmount: record.collectedAmount,
+      outstanding: receivableOutstanding(record.amount, record.collectedAmount),
+    };
+    const list = receivablesByPurchase.get(record.purchaseId) ?? [];
+    list.push(line);
+    receivablesByPurchase.set(record.purchaseId, list);
+  }
+
+  let rows = purchases.map((purchase) =>
+    mapDebtRow(purchase, receivablesByPurchase.get(purchase.id) ?? [])
+  );
 
   if (supplierId) {
     rows = rows.filter((r) => r.supplierId === supplierId);
@@ -92,12 +161,13 @@ export async function GET(request: NextRequest) {
       (r) =>
         r.invoiceNumber.includes(search) ||
         r.supplierName.includes(search) ||
-        (r.supplierPhone?.includes(search) ?? false)
+        (r.supplierPhone?.includes(search) ?? false) ||
+        r.receivables.some((recv) => recv.returnNumber.includes(search))
     );
   }
 
-  const outstandingRows = rows.filter((r) => r.outstanding > 0.0001);
-  const settledRows = rows.filter((r) => r.outstanding <= 0.0001);
+  const outstandingRows = rows.filter((r) => !isPurchaseFullySettled(r));
+  const settledRows = rows.filter((r) => isPurchaseFullySettled(r));
 
   const outstandingTotals = outstandingRows.reduce(
     (acc, row) => {
@@ -109,6 +179,16 @@ export async function GET(request: NextRequest) {
     { totalAmount: 0, paidAmount: 0, outstanding: 0 }
   );
 
+  const receivableTotalsAll = rows.reduce(
+    (acc, row) => {
+      acc.amount += row.receivableAmount;
+      acc.collectedAmount += row.receivableCollected;
+      acc.outstanding += row.receivableOutstanding;
+      return acc;
+    },
+    { amount: 0, collectedAmount: 0, outstanding: 0 }
+  );
+
   const supplierOptions = Array.from(
     new Map(
       rows.map((r) => [
@@ -118,68 +198,9 @@ export async function GET(request: NextRequest) {
     ).values()
   ).sort((a, b) => a.nameAr.localeCompare(b.nameAr, "ar"));
 
-  const receivableRecords = await prisma.purchaseSupplierReceivable.findMany({
-    where: {
-      branchId: auth.branchId,
-      ...(supplierKindFilter && {
-        supplier: { supplierKind: supplierKindFilter },
-      }),
-    },
-    include: {
-      supplier: { select: { id: true, nameAr: true, phone: true, supplierKind: true } },
-      purchase: { select: { invoiceNumber: true, purchaseDate: true } },
-      purchaseReturn: { select: { returnNumber: true, returnDate: true } },
-    },
-    orderBy: [{ createdAt: "desc" }],
-  });
-
-  let receivableRows = receivableRecords.map((r) => ({
-    id: r.id,
-    purchaseId: r.purchaseId,
-    invoiceNumber: r.purchase.invoiceNumber,
-    returnNumber: r.purchaseReturn.returnNumber,
-    returnDate: r.purchaseReturn.returnDate.toISOString(),
-    purchaseDate: r.purchase.purchaseDate.toISOString(),
-    supplierId: r.supplier.id,
-    supplierName: r.supplier.nameAr,
-    supplierPhone: r.supplier.phone,
-    amount: r.amount,
-    collectedAmount: r.collectedAmount,
-    outstanding: receivableOutstanding(r.amount, r.collectedAmount),
-    notes: r.notes,
-  }));
-
-  if (supplierId) {
-    receivableRows = receivableRows.filter((r) => r.supplierId === supplierId);
-  }
-
-  if (search) {
-    receivableRows = receivableRows.filter(
-      (r) =>
-        r.invoiceNumber.includes(search) ||
-        r.returnNumber.includes(search) ||
-        r.supplierName.includes(search) ||
-        (r.supplierPhone?.includes(search) ?? false)
-    );
-  }
-
-  const outstandingReceivableRows = receivableRows.filter((r) => r.outstanding > 0.0001);
-  const collectedReceivableRows = receivableRows.filter((r) => r.outstanding <= 0.0001);
-  const receivableTotalsAll = receivableRows.reduce(
-    (acc, row) => {
-      acc.amount += row.amount;
-      acc.collectedAmount += row.collectedAmount;
-      acc.outstanding += row.outstanding;
-      return acc;
-    },
-    { amount: 0, collectedAmount: 0, outstanding: 0 }
-  );
-
   return NextResponse.json({
     outstandingRows,
     settledRows,
-    outstandingReceivableRows,
-    collectedReceivableRows,
     totals: {
       totalAmount: roundPurchaseMoney(outstandingTotals.totalAmount),
       paidAmount: roundPurchaseMoney(outstandingTotals.paidAmount),

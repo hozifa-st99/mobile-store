@@ -21,9 +21,13 @@ export interface SupplierStatementEntry {
   type: StatementEntryType;
   typeLabel: string;
   reference: string;
-  debit: number;
-  credit: number;
-  balance: number;
+  /** زيادة في مديونيتنا (+) أو خصم (−) */
+  debtDelta: number;
+  /** زيادة في مستحقاتنا (+) أو تحصيل (−) */
+  receivableDelta: number;
+  runningDebt: number;
+  runningReceivable: number;
+  netBalance: number;
   notes: string | null;
 }
 
@@ -47,12 +51,26 @@ const TYPE_LABELS: Record<StatementEntryType, string> = {
   purchase: "فاتورة أجل",
   payment: "سداد",
   return_credit: "مرتجع (خصم أجل)",
-  return_shift: "مرتجع (وردية)",
+  return_shift: "مرتجع (توريد وردية)",
   return_receivable: "مرتجع (مستحق لنا)",
   collection: "تحصيل مستحق",
 };
 
-type RawEntry = Omit<SupplierStatementEntry, "balance">;
+type RawEntry = Omit<
+  SupplierStatementEntry,
+  "runningDebt" | "runningReceivable" | "netBalance"
+> & { sortPriority: number };
+
+function originalCreditAmount(
+  creditEntry: { creditAmount: number } | null,
+  purchase: { total: number; invoiceCashPaid: number },
+  creditReductionsSum: number
+) {
+  if (creditEntry) {
+    return roundPurchaseMoney(creditEntry.creditAmount + creditReductionsSum);
+  }
+  return roundPurchaseMoney(Math.max(0, purchase.total - (purchase.invoiceCashPaid || 0)));
+}
 
 export async function buildSupplierAccountStatement(
   branchId: string,
@@ -91,8 +109,9 @@ export async function buildSupplierAccountStatement(
                 paidAt: true,
                 cashSource: true,
                 notes: true,
+                createdAt: true,
               },
-              orderBy: [{ paidAt: "asc" }],
+              orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
             },
           },
           take: 1,
@@ -102,30 +121,31 @@ export async function buildSupplierAccountStatement(
             id: true,
             returnNumber: true,
             returnDate: true,
-            total: true,
             creditReductionAmount: true,
             shiftDepositAmount: true,
             receivableAmount: true,
             notes: true,
+            createdAt: true,
           },
-          orderBy: { returnDate: "asc" },
+          orderBy: [{ returnDate: "asc" }, { createdAt: "asc" }],
         },
       },
-      orderBy: [{ purchaseDate: "asc" }],
+      orderBy: [{ purchaseDate: "asc" }, { createdAt: "asc" }],
     }),
     prisma.purchaseSupplierReceivable.findMany({
       where: { branchId, supplierId },
       include: {
         purchase: { select: { invoiceNumber: true } },
-        purchaseReturn: { select: { returnNumber: true } },
+        purchaseReturn: { select: { returnNumber: true, returnDate: true } },
         collections: {
           select: {
             id: true,
             amount: true,
             collectedAt: true,
             notes: true,
+            createdAt: true,
           },
-          orderBy: [{ collectedAt: "asc" }],
+          orderBy: [{ collectedAt: "asc" }, { createdAt: "asc" }],
         },
       },
       orderBy: [{ createdAt: "asc" }],
@@ -133,7 +153,6 @@ export async function buildSupplierAccountStatement(
   ]);
 
   const rawEntries: RawEntry[] = [];
-
   let totalCreditPurchases = 0;
   let totalPaidOnUs = 0;
   let debtOutstanding = 0;
@@ -141,11 +160,14 @@ export async function buildSupplierAccountStatement(
   for (const purchase of purchases) {
     const creditEntry = purchase.creditLedgerEntries[0] ?? null;
     const outstanding = purchaseDebtDisplayOutstanding(purchase, creditEntry);
-    const creditAmount = roundPurchaseMoney(purchase.total - (purchase.invoiceCashPaid || 0));
-
-    totalCreditPurchases += creditAmount;
-    totalPaidOnUs += purchase.paidAmount;
     debtOutstanding += outstanding;
+
+    const creditReductionsSum = roundPurchaseMoney(
+      purchase.returns.reduce((sum, ret) => sum + ret.creditReductionAmount, 0)
+    );
+    const openingCredit = originalCreditAmount(creditEntry, purchase, creditReductionsSum);
+    totalCreditPurchases += openingCredit;
+    totalPaidOnUs += purchase.paidAmount;
 
     rawEntries.push({
       id: `purchase-${purchase.id}`,
@@ -153,11 +175,28 @@ export async function buildSupplierAccountStatement(
       type: "purchase",
       typeLabel: TYPE_LABELS.purchase,
       reference: purchase.invoiceNumber,
-      debit: creditAmount,
-      credit: 0,
+      debtDelta: openingCredit,
+      receivableDelta: 0,
       notes:
         PURCHASE_PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType,
+      sortPriority: 1,
     });
+
+    for (const payment of creditEntry?.payments ?? []) {
+      rawEntries.push({
+        id: `payment-${payment.id}`,
+        date: payment.paidAt.toISOString(),
+        type: "payment",
+        typeLabel: TYPE_LABELS.payment,
+        reference: purchase.invoiceNumber,
+        debtDelta: roundPurchaseMoney(-payment.amount),
+        receivableDelta: 0,
+        notes: payment.cashSource
+          ? `${CASH_SOURCE_LABELS[payment.cashSource] ?? payment.cashSource}${payment.notes ? ` · ${payment.notes}` : ""}`
+          : payment.notes,
+        sortPriority: 3,
+      });
+    }
 
     for (const ret of purchase.returns) {
       if (ret.creditReductionAmount > 0.001) {
@@ -167,23 +206,13 @@ export async function buildSupplierAccountStatement(
           type: "return_credit",
           typeLabel: TYPE_LABELS.return_credit,
           reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
-          debit: 0,
-          credit: ret.creditReductionAmount,
+          debtDelta: roundPurchaseMoney(-ret.creditReductionAmount),
+          receivableDelta: 0,
           notes: ret.notes,
+          sortPriority: 2,
         });
       }
-      if (ret.shiftDepositAmount > 0.001) {
-        rawEntries.push({
-          id: `return-shift-${ret.id}`,
-          date: ret.returnDate.toISOString(),
-          type: "return_shift",
-          typeLabel: TYPE_LABELS.return_shift,
-          reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
-          debit: 0,
-          credit: ret.shiftDepositAmount,
-          notes: "توريد للوردية",
-        });
-      }
+
       if (ret.receivableAmount > 0.001) {
         rawEntries.push({
           id: `return-receivable-${ret.id}`,
@@ -191,27 +220,26 @@ export async function buildSupplierAccountStatement(
           type: "return_receivable",
           typeLabel: TYPE_LABELS.return_receivable,
           reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
-          debit: 0,
-          credit: ret.receivableAmount,
+          debtDelta: 0,
+          receivableDelta: ret.receivableAmount,
           notes: "مستحق لنا عند المورد",
+          sortPriority: 4,
         });
       }
-    }
 
-    const ledgerPayments = creditEntry?.payments ?? [];
-    for (const payment of ledgerPayments) {
-      rawEntries.push({
-        id: `payment-${payment.id}`,
-        date: payment.paidAt.toISOString(),
-        type: "payment",
-        typeLabel: TYPE_LABELS.payment,
-        reference: purchase.invoiceNumber,
-        debit: 0,
-        credit: payment.amount,
-        notes: payment.cashSource
-          ? `${CASH_SOURCE_LABELS[payment.cashSource] ?? payment.cashSource}${payment.notes ? ` · ${payment.notes}` : ""}`
-          : payment.notes,
-      });
+      if (ret.shiftDepositAmount > 0.001) {
+        rawEntries.push({
+          id: `return-shift-${ret.id}`,
+          date: ret.returnDate.toISOString(),
+          type: "return_shift",
+          typeLabel: TYPE_LABELS.return_shift,
+          reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
+          debtDelta: 0,
+          receivableDelta: 0,
+          notes: `توريد نقدي للوردية · ${roundPurchaseMoney(ret.shiftDepositAmount)} ج.م — لا يؤثر على رصيد الحساب`,
+          sortPriority: 6,
+        });
+      }
     }
   }
 
@@ -222,7 +250,10 @@ export async function buildSupplierAccountStatement(
   for (const receivable of receivables) {
     totalReceivableSum += receivable.amount;
     totalCollected += receivable.collectedAmount;
-    receivableOutstandingSum += receivableOutstanding(receivable.amount, receivable.collectedAmount);
+    receivableOutstandingSum += receivableOutstanding(
+      receivable.amount,
+      receivable.collectedAmount
+    );
 
     for (const collection of receivable.collections) {
       rawEntries.push({
@@ -231,9 +262,10 @@ export async function buildSupplierAccountStatement(
         type: "collection",
         typeLabel: TYPE_LABELS.collection,
         reference: `${receivable.purchaseReturn.returnNumber} · ${receivable.purchase.invoiceNumber}`,
-        debit: collection.amount,
-        credit: 0,
+        debtDelta: 0,
+        receivableDelta: roundPurchaseMoney(-collection.amount),
         notes: collection.notes,
+        sortPriority: 5,
       });
     }
   }
@@ -241,13 +273,31 @@ export async function buildSupplierAccountStatement(
   rawEntries.sort((a, b) => {
     const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
     if (diff !== 0) return diff;
+    if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
     return a.id.localeCompare(b.id);
   });
 
-  let runningBalance = 0;
+  let runningDebt = 0;
+  let runningReceivable = 0;
   const entries: SupplierStatementEntry[] = rawEntries.map((entry) => {
-    runningBalance = roundPurchaseMoney(runningBalance + entry.debit - entry.credit);
-    return { ...entry, balance: runningBalance };
+    runningDebt = roundPurchaseMoney(Math.max(0, runningDebt + entry.debtDelta));
+    runningReceivable = roundPurchaseMoney(
+      Math.max(0, runningReceivable + entry.receivableDelta)
+    );
+    const netBalance = roundPurchaseMoney(runningDebt - runningReceivable);
+    return {
+      id: entry.id,
+      date: entry.date,
+      type: entry.type,
+      typeLabel: entry.typeLabel,
+      reference: entry.reference,
+      debtDelta: entry.debtDelta,
+      receivableDelta: entry.receivableDelta,
+      runningDebt,
+      runningReceivable,
+      netBalance,
+      notes: entry.notes,
+    };
   });
 
   const netDebt = roundPurchaseMoney(debtOutstanding);

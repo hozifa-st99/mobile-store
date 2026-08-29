@@ -24,6 +24,14 @@ import {
 
 type DebtTab = typeof SUPPLIER_KIND_WHOLESALE | typeof SUPPLIER_KIND_INDIVIDUAL_CUSTOMER;
 
+interface InvoiceReceivableLine {
+  id: string;
+  returnNumber: string;
+  amount: number;
+  collectedAmount: number;
+  outstanding: number;
+}
+
 interface DebtRow {
   id: string;
   invoiceNumber: string;
@@ -35,24 +43,12 @@ interface DebtRow {
   total: number;
   paidAmount: number;
   outstanding: number;
+  receivableAmount: number;
+  receivableCollected: number;
+  receivableOutstanding: number;
+  receivables: InvoiceReceivableLine[];
   paymentType: string;
   paymentTypeLabel: string;
-}
-
-interface ReceivableRow {
-  id: string;
-  purchaseId: string;
-  invoiceNumber: string;
-  returnNumber: string;
-  returnDate: string;
-  purchaseDate: string;
-  supplierId: string;
-  supplierName: string;
-  supplierPhone: string | null;
-  amount: number;
-  collectedAmount: number;
-  outstanding: number;
-  notes: string | null;
 }
 
 interface SupplierOption {
@@ -99,9 +95,183 @@ interface PaymentDetailsResponse {
   schedule: PaymentScheduleRow[];
 }
 
-type UnifiedOutstandingRow =
-  | ({ kind: "debt" } & DebtRow)
-  | ({ kind: "receivable" } & ReceivableRow);
+function RemainingCell({ row }: { row: DebtRow }) {
+  const hasDebt = row.outstanding > 0.0001;
+  const hasReceivable = row.receivableOutstanding > 0.0001;
+  if (!hasDebt && !hasReceivable) {
+    return <span className="text-muted">—</span>;
+  }
+  return (
+    <div className="space-y-1">
+      {hasDebt && (
+        <p className="tabular-nums text-amber-300 font-bold text-sm">
+          <span className="text-[10px] text-amber-200/70 font-normal block">علينا</span>
+          {formatAmountExact(row.outstanding)}
+        </p>
+      )}
+      {hasReceivable && (
+        <p className="tabular-nums text-violet-300 font-bold text-sm">
+          <span className="text-[10px] text-violet-200/70 font-normal block">لينا</span>
+          {formatAmountExact(row.receivableOutstanding)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function InvoiceDebtTable({
+  rows,
+  loading,
+  emptyMessage,
+  onMoney,
+  onDetails,
+  showMoneyAction = false,
+  stickyHeader = false,
+  scrollMaxHeight,
+  headRowClassName,
+  partyColumnLabel = "المورد",
+}: {
+  rows: DebtRow[];
+  loading: boolean;
+  emptyMessage: string;
+  onMoney?: (row: DebtRow) => void;
+  onDetails: (row: DebtRow) => void;
+  showMoneyAction?: boolean;
+  stickyHeader?: boolean;
+  scrollMaxHeight?: string;
+  headRowClassName?: string;
+  partyColumnLabel?: string;
+}) {
+  const viewportClass = scrollMaxHeight
+    ? cn("overflow-auto", scrollMaxHeight)
+    : "overflow-x-auto";
+
+  return (
+    <div className={viewportClass}>
+      <table className="w-full min-w-[1100px] border-collapse">
+        <thead className={stickyHeader ? "sticky top-0 z-10" : undefined}>
+          <tr
+            className={cn(
+              "text-xs text-muted-dark border-b border-border",
+              stickyHeader
+                ? "bg-background-input/95 backdrop-blur-md shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]"
+                : "bg-background-input/30",
+              headRowClassName
+            )}
+          >
+            <ThEmoji emoji={em.invoice} className="text-right p-4 font-medium">
+              الفاتورة
+            </ThEmoji>
+            <ThEmoji emoji="📅" className="text-right p-4 font-medium">
+              التاريخ
+            </ThEmoji>
+            <ThEmoji emoji={em.supplier} className="text-right p-4 font-medium">
+              {partyColumnLabel}
+            </ThEmoji>
+            <ThEmoji emoji="💳" className="text-right p-4 font-medium">
+              نوع الدفع
+            </ThEmoji>
+            <ThEmoji emoji="💰" className="text-right p-4 font-medium">
+              الإجمالي
+            </ThEmoji>
+            <ThEmoji emoji="✅" className="text-right p-4 font-medium">
+              المسدّد علينا
+            </ThEmoji>
+            <ThEmoji emoji="💵" className="text-right p-4 font-medium">
+              المحصّل لنا
+            </ThEmoji>
+            <ThEmoji emoji="⚠️" className="text-right p-4 font-medium">
+              المتبقي
+            </ThEmoji>
+            <ThEmoji emoji={em.actions} className="text-center p-4 font-medium">
+              إجراء
+            </ThEmoji>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={9} className="p-8 text-center text-muted">
+                جاري التحميل...
+              </td>
+            </tr>
+          ) : rows.length === 0 ? (
+            <tr>
+              <td colSpan={9} className="p-8 text-center text-muted">
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => {
+              const canMoney =
+                showMoneyAction &&
+                (row.outstanding > 0.0001 || row.receivableOutstanding > 0.0001);
+              return (
+                <tr key={row.id} className="border-b border-border/50 hover:bg-white/[0.02]">
+                  <td className="p-4">
+                    <Link
+                      href={`/dashboard/purchases/${row.id}`}
+                      className="text-primary-light hover:underline font-medium"
+                    >
+                      {row.invoiceNumber}
+                    </Link>
+                    {row.receivables.some((r) => r.outstanding > 0.0001) && (
+                      <p className="text-[11px] text-violet-300/80 mt-1">
+                        {row.receivables
+                          .filter((r) => r.outstanding > 0.0001)
+                          .map((r) => r.returnNumber)
+                          .join(" · ")}
+                      </p>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    <DocumentDateTimeStack value={row.purchaseDate} />
+                  </td>
+                  <td className="p-4 text-sm">{row.supplierName}</td>
+                  <td className="p-4 text-sm">{row.paymentTypeLabel}</td>
+                  <td className="p-4 tabular-nums">{formatAmountExact(row.total)}</td>
+                  <td className="p-4 tabular-nums text-accent-green">
+                    {row.outstanding > 0.0001 || row.paidAmount > 0
+                      ? formatAmountExact(row.paidAmount)
+                      : "—"}
+                  </td>
+                  <td className="p-4 tabular-nums text-cyan-300">
+                    {row.receivableCollected > 0.001
+                      ? formatAmountExact(row.receivableCollected)
+                      : "—"}
+                  </td>
+                  <td className="p-4">
+                    <RemainingCell row={row} />
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center justify-center gap-2">
+                      {canMoney && onMoney && (
+                        <button
+                          type="button"
+                          title="سداد أو تحصيل"
+                          onClick={() => onMoney(row)}
+                          className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-primary/35 bg-primary/10 px-2.5 text-base hover:bg-primary/20 transition-colors"
+                        >
+                          💸
+                        </button>
+                      )}
+                      <ActionEmoji
+                        emoji={em.view}
+                        title="تفاصيل السداد"
+                        onClick={() => onDetails(row)}
+                        className="text-muted hover:text-white hover:border-primary/30"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function GlassAccentKpiCard({
   emoji,
@@ -134,338 +304,9 @@ function GlassAccentKpiCard({
   );
 }
 
-function UnifiedOutstandingTable({
-  debtRows,
-  receivableRows,
-  loading,
-  emptyMessage,
-  onPay,
-  onCollect,
-  onDetails,
-  stickyHeader = false,
-  scrollMaxHeight,
-  headRowClassName,
-  partyColumnLabel = "المورد",
-}: {
-  debtRows: DebtRow[];
-  receivableRows: ReceivableRow[];
-  loading: boolean;
-  emptyMessage: string;
-  onPay?: (row: DebtRow) => void;
-  onCollect?: (row: ReceivableRow) => void;
-  onDetails: (row: DebtRow) => void;
-  stickyHeader?: boolean;
-  scrollMaxHeight?: string;
-  headRowClassName?: string;
-  partyColumnLabel?: string;
-}) {
-  const unifiedRows: UnifiedOutstandingRow[] = [
-    ...debtRows.map((row) => ({ kind: "debt" as const, ...row })),
-    ...receivableRows.map((row) => ({ kind: "receivable" as const, ...row })),
-  ].sort((a, b) => {
-    const dateA =
-      a.kind === "debt" ? new Date(a.purchaseDate).getTime() : new Date(a.returnDate).getTime();
-    const dateB =
-      b.kind === "debt" ? new Date(b.purchaseDate).getTime() : new Date(b.returnDate).getTime();
-    return dateB - dateA;
-  });
-
-  const viewportClass = scrollMaxHeight
-    ? cn("overflow-auto", scrollMaxHeight)
-    : "overflow-x-auto";
-
-  return (
-    <div className={viewportClass}>
-      <table className="w-full min-w-[1100px] border-collapse">
-        <thead className={stickyHeader ? "sticky top-0 z-10" : undefined}>
-          <tr
-            className={cn(
-              "text-xs text-muted-dark border-b border-border",
-              stickyHeader
-                ? "bg-background-input/95 backdrop-blur-md shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]"
-                : "bg-background-input/30",
-              headRowClassName
-            )}
-          >
-            <ThEmoji emoji={em.invoice} className="text-right p-4 font-medium">
-              الفاتورة / المرتجع
-            </ThEmoji>
-            <ThEmoji emoji="📅" className="text-right p-4 font-medium">
-              التاريخ
-            </ThEmoji>
-            <ThEmoji emoji={em.supplier} className="text-right p-4 font-medium">
-              {partyColumnLabel}
-            </ThEmoji>
-            <ThEmoji emoji="💳" className="text-right p-4 font-medium">
-              النوع
-            </ThEmoji>
-            <ThEmoji emoji="💰" className="text-right p-4 font-medium">
-              الإجمالي
-            </ThEmoji>
-            <ThEmoji emoji="✅" className="text-right p-4 font-medium">
-              المسدّد علينا
-            </ThEmoji>
-            <ThEmoji emoji="💵" className="text-right p-4 font-medium">
-              المحصّل لنا
-            </ThEmoji>
-            <ThEmoji emoji="⚠️" className="text-right p-4 font-medium">
-              المتبقي
-            </ThEmoji>
-            <ThEmoji emoji={em.actions} className="text-center p-4 font-medium">
-              حركة مالية
-            </ThEmoji>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={9} className="p-8 text-center text-muted">
-                جاري التحميل...
-              </td>
-            </tr>
-          ) : unifiedRows.length === 0 ? (
-            <tr>
-              <td colSpan={9} className="p-8 text-center text-muted">
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            unifiedRows.map((row) => {
-              if (row.kind === "debt") {
-                return (
-                  <tr key={`debt-${row.id}`} className="border-b border-border/50 hover:bg-white/[0.02]">
-                    <td className="p-4">
-                      <Link
-                        href={`/dashboard/purchases/${row.id}`}
-                        className="text-primary-light hover:underline font-medium"
-                      >
-                        {row.invoiceNumber}
-                      </Link>
-                    </td>
-                    <td className="p-4">
-                      <DocumentDateTimeStack value={row.purchaseDate} />
-                    </td>
-                    <td className="p-4 text-sm">{row.supplierName}</td>
-                    <td className="p-4 text-sm">{row.paymentTypeLabel}</td>
-                    <td className="p-4 tabular-nums">{formatAmountExact(row.total)}</td>
-                    <td className="p-4 tabular-nums text-accent-green">
-                      {formatAmountExact(row.paidAmount)}
-                    </td>
-                    <td className="p-4 tabular-nums text-muted">—</td>
-                    <td className="p-4 tabular-nums text-accent-orange font-bold">
-                      <span className="text-[10px] text-amber-200/70 block mb-0.5">علينا</span>
-                      {formatAmountExact(row.outstanding)}
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-center gap-2">
-                        {row.outstanding > 0.0001 && onPay && (
-                          <button
-                            type="button"
-                            title="سداد — مبلغ خارج (علينا)"
-                            onClick={() => onPay(row)}
-                            className="inline-flex h-9 min-w-9 items-center justify-center gap-0.5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-2 text-sm hover:bg-amber-500/20 transition-colors"
-                          >
-                            <span aria-hidden>💸</span>
-                            <span aria-hidden className="text-[10px] text-amber-200">↓</span>
-                          </button>
-                        )}
-                        <ActionEmoji
-                          emoji={em.view}
-                          title="تفاصيل السداد"
-                          onClick={() => onDetails(row)}
-                          className="text-muted hover:text-white hover:border-primary/30"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }
-
-              return (
-                <tr
-                  key={`recv-${row.id}`}
-                  className="border-b border-border/50 hover:bg-white/[0.02] border-r-2 border-r-cyan-400/40"
-                >
-                  <td className="p-4">
-                    <p className="font-medium text-cyan-200">{row.returnNumber}</p>
-                    <Link
-                      href={`/dashboard/purchases/${row.purchaseId}`}
-                      className="text-xs text-primary-light/80 hover:underline"
-                    >
-                      {row.invoiceNumber}
-                    </Link>
-                  </td>
-                  <td className="p-4">
-                    <DocumentDateTimeStack value={row.returnDate} />
-                  </td>
-                  <td className="p-4 text-sm">{row.supplierName}</td>
-                  <td className="p-4 text-sm text-cyan-200">مستحق لنا</td>
-                  <td className="p-4 tabular-nums">{formatAmountExact(row.amount)}</td>
-                  <td className="p-4 tabular-nums text-muted">—</td>
-                  <td className="p-4 tabular-nums text-accent-green">
-                    {formatAmountExact(row.collectedAmount)}
-                  </td>
-                  <td className="p-4 tabular-nums text-cyan-300 font-bold">
-                    <span className="text-[10px] text-cyan-200/70 block mb-0.5">لينا</span>
-                    {formatAmountExact(row.outstanding)}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center gap-2">
-                      {row.outstanding > 0.0001 && onCollect && (
-                        <button
-                          type="button"
-                          title="تحصيل — مبلغ داخل (لينا)"
-                          onClick={() => onCollect(row)}
-                          className="inline-flex h-9 min-w-9 items-center justify-center gap-0.5 rounded-xl border border-cyan-500/35 bg-cyan-500/10 px-2 text-sm hover:bg-cyan-500/20 transition-colors"
-                        >
-                          <span aria-hidden>💸</span>
-                          <span aria-hidden className="text-[10px] text-cyan-200">↑</span>
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function DebtTable({
-  rows,
-  loading,
-  emptyMessage,
-  onPay,
-  onDetails,
-  showPayAction,
-  stickyHeader = false,
-  scrollMaxHeight,
-  headRowClassName,
-  partyColumnLabel = "المورد",
-}: {
-  rows: DebtRow[];
-  loading: boolean;
-  emptyMessage: string;
-  onPay?: (row: DebtRow) => void;
-  onDetails: (row: DebtRow) => void;
-  showPayAction: boolean;
-  stickyHeader?: boolean;
-  scrollMaxHeight?: string;
-  headRowClassName?: string;
-  partyColumnLabel?: string;
-}) {
-  const viewportClass = scrollMaxHeight
-    ? cn("overflow-auto", scrollMaxHeight)
-    : "overflow-x-auto";
-
-  return (
-    <div className={viewportClass}>
-      <table className="w-full min-w-[980px] border-collapse">
-        <thead className={stickyHeader ? "sticky top-0 z-10" : undefined}>
-          <tr
-            className={cn(
-              "text-xs text-muted-dark border-b border-border",
-              stickyHeader
-                ? "bg-background-input/95 backdrop-blur-md shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]"
-                : "bg-background-input/30",
-              headRowClassName
-            )}
-          >
-            <ThEmoji emoji={em.invoice} className="text-right p-4 font-medium">
-              الفاتورة
-            </ThEmoji>
-            <ThEmoji emoji="📅" className="text-right p-4 font-medium">
-              التاريخ
-            </ThEmoji>
-            <ThEmoji emoji={em.supplier} className="text-right p-4 font-medium">
-              {partyColumnLabel}
-            </ThEmoji>
-            <ThEmoji emoji="💳" className="text-right p-4 font-medium">
-              نوع الدفع
-            </ThEmoji>
-            <ThEmoji emoji="💰" className="text-right p-4 font-medium">
-              الإجمالي
-            </ThEmoji>
-            <ThEmoji emoji="✅" className="text-right p-4 font-medium">
-              المسدّد
-            </ThEmoji>
-            <ThEmoji emoji="⚠️" className="text-right p-4 font-medium">
-              المتبقي
-            </ThEmoji>
-            <ThEmoji emoji={em.actions} className="text-center p-4 font-medium">
-              إجراء
-            </ThEmoji>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={8} className="p-8 text-center text-muted">
-                جاري التحميل...
-              </td>
-            </tr>
-          ) : rows.length === 0 ? (
-            <tr>
-              <td colSpan={8} className="p-8 text-center text-muted">
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/50 hover:bg-white/[0.02]">
-                <td className="p-4">
-                  <Link
-                    href={`/dashboard/purchases/${row.id}`}
-                    className="text-primary-light hover:underline font-medium"
-                  >
-                    {row.invoiceNumber}
-                  </Link>
-                </td>
-                <td className="p-4">
-                  <DocumentDateTimeStack value={row.purchaseDate} />
-                </td>
-                <td className="p-4 text-sm">{row.supplierName}</td>
-                <td className="p-4 text-sm">{row.paymentTypeLabel}</td>
-                <td className="p-4 tabular-nums">{formatAmountExact(row.total)}</td>
-                <td className="p-4 tabular-nums text-accent-green">
-                  {formatAmountExact(row.paidAmount)}
-                </td>
-                <td className="p-4 tabular-nums text-accent-orange font-bold">
-                  {formatAmountExact(row.outstanding)}
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center justify-center gap-2">
-                    {showPayAction && row.outstanding > 0.0001 && onPay && (
-                      <ActionEmoji
-                        emoji="💵"
-                        title="تسجيل سداد"
-                        onClick={() => onPay(row)}
-                      />
-                    )}
-                    <ActionEmoji
-                      emoji={em.view}
-                      title="تفاصيل السداد"
-                      onClick={() => onDetails(row)}
-                      className="text-muted hover:text-white hover:border-primary/30"
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function PurchaseDebtsPage() {
   const [outstandingRows, setOutstandingRows] = useState<DebtRow[]>([]);
   const [settledRows, setSettledRows] = useState<DebtRow[]>([]);
-  const [outstandingReceivableRows, setOutstandingReceivableRows] = useState<ReceivableRow[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
   const [totals, setTotals] = useState({ totalAmount: 0, paidAmount: 0, outstanding: 0 });
   const [receivableTotals, setReceivableTotals] = useState({
@@ -484,7 +325,7 @@ export default function PurchaseDebtsPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsResponse | null>(null);
   const [selectedRow, setSelectedRow] = useState<DebtRow | null>(null);
-  const [selectedReceivable, setSelectedReceivable] = useState<ReceivableRow | null>(null);
+  const [selectedReceivableId, setSelectedReceivableId] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payCashSource, setPayCashSource] = useState<"shift" | "vault">("shift");
   const [payNotes, setPayNotes] = useState("");
@@ -521,7 +362,6 @@ export default function PurchaseDebtsPage() {
     const { ok, data } = await apiJson<{
       outstandingRows: DebtRow[];
       settledRows: DebtRow[];
-      outstandingReceivableRows: ReceivableRow[];
       totals: typeof totals;
       receivableTotals: typeof receivableTotals;
       supplierOptions: SupplierOption[];
@@ -529,7 +369,6 @@ export default function PurchaseDebtsPage() {
     if (ok) {
       setOutstandingRows(data.outstandingRows || []);
       setSettledRows(data.settledRows || []);
-      setOutstandingReceivableRows(data.outstandingReceivableRows || []);
       setTotals(data.totals || { totalAmount: 0, paidAmount: 0, outstanding: 0 });
       setReceivableTotals(
         data.receivableTotals || { amount: 0, collectedAmount: 0, outstanding: 0 }
@@ -547,24 +386,39 @@ export default function PurchaseDebtsPage() {
     void loadDebts();
   }, [loadDebts]);
 
-  const openPayModal = (row: DebtRow) => {
+  const openMoneyModal = (row: DebtRow, preferredTab?: "pay" | "collect") => {
+    const hasDebt = row.outstanding > 0.0001;
+    const openReceivables = row.receivables.filter((r) => r.outstanding > 0.0001);
+    const hasReceivable = openReceivables.length > 0;
+
+    let tab: "pay" | "collect" = "pay";
+    if (preferredTab === "collect" && hasReceivable) {
+      tab = "collect";
+    } else if (preferredTab === "pay" && hasDebt) {
+      tab = "pay";
+    } else if (!hasDebt && hasReceivable) {
+      tab = "collect";
+    }
+
     setSelectedRow(row);
-    setSelectedReceivable(null);
-    setMoneyModalTab("pay");
-    setPayAmount(String(row.outstanding));
+    setMoneyModalTab(tab);
     setPayCashSource("shift");
     setPayNotes("");
+
+    if (tab === "collect") {
+      const recv = openReceivables[0];
+      setSelectedReceivableId(recv?.id ?? "");
+      setPayAmount(String(recv?.outstanding ?? row.receivableOutstanding));
+    } else {
+      setSelectedReceivableId("");
+      setPayAmount(String(row.outstanding));
+    }
+
     setPayModalOpen(true);
   };
 
-  const openCollectModal = (row: ReceivableRow) => {
-    setSelectedReceivable(row);
-    setSelectedRow(null);
-    setMoneyModalTab("collect");
-    setPayAmount(String(row.outstanding));
-    setPayNotes("");
-    setPayModalOpen(true);
-  };
+  const selectedReceivable =
+    selectedRow?.receivables.find((r) => r.id === selectedReceivableId) ?? null;
 
   const openDetailsModal = async (row: DebtRow) => {
     setSelectedRow(row);
@@ -584,7 +438,10 @@ export default function PurchaseDebtsPage() {
 
   const submitPayment = async () => {
     if (moneyModalTab === "collect") {
-      if (!selectedReceivable) return;
+      if (!selectedRow || !selectedReceivable) {
+        toast.error("اختر مرتجعاً للتحصيل");
+        return;
+      }
       const amount = Number(payAmount);
       if (!Number.isFinite(amount) || amount <= 0) {
         toast.error("أدخل مبلغ تحصيل صحيح");
@@ -612,7 +469,8 @@ export default function PurchaseDebtsPage() {
         if (ok) {
           toast.success(data.message || "تم تسجيل التحصيل");
           setPayModalOpen(false);
-          setSelectedReceivable(null);
+          setSelectedRow(null);
+          setSelectedReceivableId("");
           void loadDebts();
           return;
         }
@@ -821,20 +679,16 @@ export default function PurchaseDebtsPage() {
         <div className="px-4 pt-4 pb-3 border-b border-amber-500/15 bg-amber-500/[0.06]">
           <h2 className="text-sm font-bold text-amber-100">مديونيات ومستحقات قائمة</h2>
           <p className="text-xs text-amber-200/70 mt-1">
-            جدول واحد —{" "}
-            <span className="text-amber-100/90">💸↓ سداد (علينا)</span>
-            {" · "}
-            <span className="text-cyan-200/90">💸↑ تحصيل (لينا)</span>
+            فاتورة واحدة — زر 💸 للسداد (علينا) أو التحصيل (لينا)
           </p>
         </div>
-        <UnifiedOutstandingTable
-          debtRows={outstandingRows}
-          receivableRows={outstandingReceivableRows}
+        <InvoiceDebtTable
+          rows={outstandingRows}
           loading={loading}
           emptyMessage="لا توجد مديونيات أو مستحقات مفتوحة"
-          onPay={openPayModal}
-          onCollect={openCollectModal}
+          onMoney={openMoneyModal}
           onDetails={(row) => void openDetailsModal(row)}
+          showMoneyAction
           stickyHeader
           scrollMaxHeight={debtTableScrollClass}
           headRowClassName="bg-amber-950/90"
@@ -868,12 +722,11 @@ export default function PurchaseDebtsPage() {
           </span>
         </button>
         {settledOpen ? (
-          <DebtTable
+          <InvoiceDebtTable
             rows={settledRows}
             loading={loading}
             emptyMessage="لا توجد فواتير مسدّدة بعد"
             onDetails={(row) => void openDetailsModal(row)}
-            showPayAction={false}
             stickyHeader
             scrollMaxHeight={debtTableScrollClass}
             headRowClassName="bg-emerald-950/90"
@@ -885,17 +738,20 @@ export default function PurchaseDebtsPage() {
       <Modal
         open={payModalOpen}
         onClose={() => !payLoading && setPayModalOpen(false)}
-        title={moneyModalTab === "collect" ? "تسجيل تحصيل" : "تسجيل سداد"}
+        title="سداد أو تحصيل"
       >
-        {(selectedRow || selectedReceivable) && (
+        {selectedRow && (
           <div className="space-y-4">
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={!selectedRow}
-                onClick={() => setMoneyModalTab("pay")}
+                disabled={selectedRow.outstanding <= 0.0001}
+                onClick={() => {
+                  setMoneyModalTab("pay");
+                  setPayAmount(String(selectedRow.outstanding));
+                }}
                 className={cn(
-                  "flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors",
+                  "flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors disabled:opacity-40",
                   moneyModalTab === "pay"
                     ? "border-accent-green bg-accent-green/15 text-white"
                     : "border-border text-muted"
@@ -905,10 +761,22 @@ export default function PurchaseDebtsPage() {
               </button>
               <button
                 type="button"
-                disabled={!selectedReceivable}
-                onClick={() => setMoneyModalTab("collect")}
+                disabled={selectedRow.receivableOutstanding <= 0.0001}
+                onClick={() => {
+                  const openReceivables = selectedRow.receivables.filter(
+                    (r) => r.outstanding > 0.0001
+                  );
+                  const recv = openReceivables.find((r) => r.id === selectedReceivableId) ?? openReceivables[0];
+                  setMoneyModalTab("collect");
+                  if (recv) {
+                    setSelectedReceivableId(recv.id);
+                    setPayAmount(String(recv.outstanding));
+                  } else {
+                    setPayAmount(String(selectedRow.receivableOutstanding));
+                  }
+                }}
                 className={cn(
-                  "flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors",
+                  "flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors disabled:opacity-40",
                   moneyModalTab === "collect"
                     ? "border-cyan-400 bg-cyan-500/15 text-white"
                     : "border-border text-muted"
@@ -919,26 +787,45 @@ export default function PurchaseDebtsPage() {
             </div>
 
             <div className="text-sm text-muted">
-              {moneyModalTab === "collect" && selectedReceivable ? (
-                <>
-                  مرتجع{" "}
-                  <span className="text-white font-bold">{selectedReceivable.returnNumber}</span> —{" "}
-                  {selectedReceivable.supplierName}
-                </>
-              ) : selectedRow ? (
-                <>
-                  فاتورة <span className="text-white font-bold">{selectedRow.invoiceNumber}</span> —{" "}
-                  {selectedRow.supplierName}
-                </>
-              ) : null}
+              فاتورة <span className="text-white font-bold">{selectedRow.invoiceNumber}</span> —{" "}
+              {selectedRow.supplierName}
             </div>
+
+            {moneyModalTab === "collect" &&
+            selectedRow.receivables.filter((r) => r.outstanding > 0.0001).length > 1 ? (
+              <div>
+                <label className="block text-xs text-muted mb-1.5">المرتجع</label>
+                <select
+                  value={selectedReceivableId}
+                  onChange={(e) => {
+                    const recv = selectedRow.receivables.find((r) => r.id === e.target.value);
+                    setSelectedReceivableId(e.target.value);
+                    if (recv) setPayAmount(String(recv.outstanding));
+                  }}
+                  className="glass-input"
+                >
+                  {selectedRow.receivables
+                    .filter((r) => r.outstanding > 0.0001)
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.returnNumber} — متبقي {formatAmountExact(r.outstanding)}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            ) : moneyModalTab === "collect" && selectedReceivable ? (
+              <p className="text-sm text-cyan-200/90">
+                مرتجع <span className="font-bold">{selectedReceivable.returnNumber}</span>
+              </p>
+            ) : null}
+
             <p className="text-sm">
               المتبقي:{" "}
               <span className="font-bold text-accent-orange tabular-nums">
                 {formatCurrency(
                   moneyModalTab === "collect"
-                    ? selectedReceivable?.outstanding ?? 0
-                    : selectedRow?.outstanding ?? 0
+                    ? selectedReceivable?.outstanding ?? selectedRow.receivableOutstanding
+                    : selectedRow.outstanding
                 )}{" "}
                 ج.م
               </span>
@@ -954,8 +841,8 @@ export default function PurchaseDebtsPage() {
                 step="0.01"
                 max={
                   moneyModalTab === "collect"
-                    ? selectedReceivable?.outstanding
-                    : selectedRow?.outstanding
+                    ? selectedReceivable?.outstanding ?? selectedRow.receivableOutstanding
+                    : selectedRow.outstanding
                 }
                 value={payAmount}
                 onChange={(e) => setPayAmount(e.target.value)}
