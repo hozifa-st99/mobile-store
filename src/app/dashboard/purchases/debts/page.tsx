@@ -142,7 +142,6 @@ function UnifiedOutstandingTable({
   onPay,
   onCollect,
   onDetails,
-  onStatement,
   stickyHeader = false,
   scrollMaxHeight,
   headRowClassName,
@@ -155,7 +154,6 @@ function UnifiedOutstandingTable({
   onPay?: (row: DebtRow) => void;
   onCollect?: (row: ReceivableRow) => void;
   onDetails: (row: DebtRow) => void;
-  onStatement: (supplierId: string) => void;
   stickyHeader?: boolean;
   scrollMaxHeight?: string;
   headRowClassName?: string;
@@ -214,7 +212,7 @@ function UnifiedOutstandingTable({
               المتبقي
             </ThEmoji>
             <ThEmoji emoji={em.actions} className="text-center p-4 font-medium">
-              إجراء
+              حركة مالية
             </ThEmoji>
           </tr>
         </thead>
@@ -261,19 +259,21 @@ function UnifiedOutstandingTable({
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         {row.outstanding > 0.0001 && onPay && (
-                          <ActionEmoji emoji="💵" title="تسجيل سداد" onClick={() => onPay(row)} />
+                          <button
+                            type="button"
+                            title="سداد — مبلغ خارج (علينا)"
+                            onClick={() => onPay(row)}
+                            className="inline-flex h-9 min-w-9 items-center justify-center gap-0.5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-2 text-sm hover:bg-amber-500/20 transition-colors"
+                          >
+                            <span aria-hidden>💸</span>
+                            <span aria-hidden className="text-[10px] text-amber-200">↓</span>
+                          </button>
                         )}
                         <ActionEmoji
                           emoji={em.view}
                           title="تفاصيل السداد"
                           onClick={() => onDetails(row)}
                           className="text-muted hover:text-white hover:border-primary/30"
-                        />
-                        <ActionEmoji
-                          emoji="📊"
-                          title="كشف حساب المورد"
-                          onClick={() => onStatement(row.supplierId)}
-                          className="text-muted hover:text-cyan-300 hover:border-cyan-500/30"
                         />
                       </div>
                     </td>
@@ -284,7 +284,7 @@ function UnifiedOutstandingTable({
               return (
                 <tr
                   key={`recv-${row.id}`}
-                  className="border-b border-border/50 hover:bg-white/[0.02] bg-cyan-500/[0.03]"
+                  className="border-b border-border/50 hover:bg-white/[0.02] border-r-2 border-r-cyan-400/40"
                 >
                   <td className="p-4">
                     <p className="font-medium text-cyan-200">{row.returnNumber}</p>
@@ -312,18 +312,16 @@ function UnifiedOutstandingTable({
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-2">
                       {row.outstanding > 0.0001 && onCollect && (
-                        <ActionEmoji
-                          emoji="💵"
-                          title="تسجيل تحصيل"
+                        <button
+                          type="button"
+                          title="تحصيل — مبلغ داخل (لينا)"
                           onClick={() => onCollect(row)}
-                        />
+                          className="inline-flex h-9 min-w-9 items-center justify-center gap-0.5 rounded-xl border border-cyan-500/35 bg-cyan-500/10 px-2 text-sm hover:bg-cyan-500/20 transition-colors"
+                        >
+                          <span aria-hidden>💸</span>
+                          <span aria-hidden className="text-[10px] text-cyan-200">↑</span>
+                        </button>
                       )}
-                      <ActionEmoji
-                        emoji="📊"
-                        title="كشف حساب المورد"
-                        onClick={() => onStatement(row.supplierId)}
-                        className="text-muted hover:text-cyan-300 hover:border-cyan-500/30"
-                      />
                     </div>
                   </td>
                 </tr>
@@ -342,7 +340,6 @@ function DebtTable({
   emptyMessage,
   onPay,
   onDetails,
-  onStatement,
   showPayAction,
   stickyHeader = false,
   scrollMaxHeight,
@@ -354,7 +351,6 @@ function DebtTable({
   emptyMessage: string;
   onPay?: (row: DebtRow) => void;
   onDetails: (row: DebtRow) => void;
-  onStatement?: (supplierId: string) => void;
   showPayAction: boolean;
   stickyHeader?: boolean;
   scrollMaxHeight?: string;
@@ -455,14 +451,6 @@ function DebtTable({
                       onClick={() => onDetails(row)}
                       className="text-muted hover:text-white hover:border-primary/30"
                     />
-                    {onStatement && (
-                      <ActionEmoji
-                        emoji="📊"
-                        title="كشف حساب المورد"
-                        onClick={() => onStatement(row.supplierId)}
-                        className="text-muted hover:text-cyan-300 hover:border-cyan-500/30"
-                      />
-                    )}
                   </div>
                 </td>
               </tr>
@@ -809,15 +797,34 @@ export default function PurchaseDebtsPage() {
             />
           </div>
         </div>
+        {supplierId ? (
+          <div className="mt-3 pt-3 border-t border-border/40 flex flex-wrap items-center gap-3">
+            <p className="text-xs text-muted flex-1 min-w-[200px]">
+              عرض حسابات{" "}
+              <span className="text-white font-medium">
+                {supplierOptions.find((s) => s.id === supplierId)?.nameAr}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => void openSupplierStatement(supplierId)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-violet-400/35 bg-violet-500/10 text-sm font-semibold text-violet-200 hover:bg-violet-500/20 transition-colors"
+            >
+              <span aria-hidden>📊</span>
+              كشف حساب المورد
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-5 rounded-2xl border border-amber-500/25 bg-gradient-to-b from-amber-950/20 to-background-input/10 overflow-hidden shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)]">
         <div className="px-4 pt-4 pb-3 border-b border-amber-500/15 bg-amber-500/[0.06]">
-          <h2 className="text-sm font-bold text-amber-100">مديونيات قائمة</h2>
+          <h2 className="text-sm font-bold text-amber-100">مديونيات ومستحقات قائمة</h2>
           <p className="text-xs text-amber-200/70 mt-1">
-            {debtTab === SUPPLIER_KIND_INDIVIDUAL_CUSTOMER
-              ? "فواتير شراء من عملاء — مديونيات ومستحقات لنا"
-              : "فواتير لها مبلغ متبقٍ أو مستحقات لنا عند المورد"}
+            جدول واحد —{" "}
+            <span className="text-amber-100/90">💸↓ سداد (علينا)</span>
+            {" · "}
+            <span className="text-cyan-200/90">💸↑ تحصيل (لينا)</span>
           </p>
         </div>
         <UnifiedOutstandingTable
@@ -828,7 +835,6 @@ export default function PurchaseDebtsPage() {
           onPay={openPayModal}
           onCollect={openCollectModal}
           onDetails={(row) => void openDetailsModal(row)}
-          onStatement={(id) => void openSupplierStatement(id)}
           stickyHeader
           scrollMaxHeight={debtTableScrollClass}
           headRowClassName="bg-amber-950/90"
@@ -867,7 +873,6 @@ export default function PurchaseDebtsPage() {
             loading={loading}
             emptyMessage="لا توجد فواتير مسدّدة بعد"
             onDetails={(row) => void openDetailsModal(row)}
-            onStatement={(id) => void openSupplierStatement(id)}
             showPayAction={false}
             stickyHeader
             scrollMaxHeight={debtTableScrollClass}
@@ -1081,16 +1086,18 @@ export default function PurchaseDebtsPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-amber-200/90 mb-1">إجمالي مبلغ المرتجعات</p>
+                    <p className="text-[11px] text-amber-200/90 mb-1">إجمالي مبلغ المرتجعات (أصناف فقط)</p>
                     <p className="text-base font-bold tabular-nums text-amber-300">
                       {formatCurrency(paymentDetails.purchase.returnsSummary.totalAmount)} ج.م
                     </p>
+                    <p className="text-[10px] text-muted mt-0.5">بدون مصاريف المرتجع</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-primary-light/90 mb-1">الإجمالي بعد المرتجعات</p>
                     <p className="text-base font-bold tabular-nums text-white">
                       {formatCurrency(paymentDetails.purchase.returnsSummary.totalAfterReturns)} ج.م
                     </p>
+                    <p className="text-[10px] text-muted mt-0.5">بدون خصم مصاريف المرتجع</p>
                   </div>
                 </div>
               )}
@@ -1106,7 +1113,7 @@ export default function PurchaseDebtsPage() {
               <div
                 className={`rounded-xl border p-4 ${
                   paymentDetails.purchase.netBalance.direction === "linna"
-                    ? "border-cyan-500/35 bg-cyan-500/10"
+                    ? "border-violet-400/50 bg-gradient-to-br from-violet-500/20 via-fuchsia-500/10 to-transparent shadow-[0_0_28px_-10px_rgba(167,139,250,0.55)]"
                     : paymentDetails.purchase.netBalance.direction === "alaina"
                       ? "border-red-500/35 bg-red-500/10"
                       : "border-emerald-500/35 bg-emerald-500/10"
@@ -1115,7 +1122,7 @@ export default function PurchaseDebtsPage() {
                 <p
                   className={`text-[11px] mb-1.5 ${
                     paymentDetails.purchase.netBalance.direction === "linna"
-                      ? "text-cyan-200/90"
+                      ? "text-violet-200/95"
                       : paymentDetails.purchase.netBalance.direction === "alaina"
                         ? "text-red-200/90"
                         : "text-emerald-200/90"
@@ -1126,7 +1133,7 @@ export default function PurchaseDebtsPage() {
                 <p
                   className={`text-lg font-bold tabular-nums ${
                     paymentDetails.purchase.netBalance.direction === "linna"
-                      ? "text-cyan-300"
+                      ? "text-violet-300"
                       : paymentDetails.purchase.netBalance.direction === "alaina"
                         ? "text-red-300"
                         : "text-emerald-300"
@@ -1156,7 +1163,7 @@ export default function PurchaseDebtsPage() {
                         <th className="text-right p-3 font-medium">التاريخ</th>
                         <th className="text-right p-3 font-medium">المبلغ</th>
                         <th className="text-right p-3 font-medium">المصدر</th>
-                        <th className="text-right p-3 font-medium">إجمالي المسدّد</th>
+                        <th className="text-right p-3 font-medium">المدفوع تراكمياً</th>
                         <th className="text-right p-3 font-medium">ملاحظات</th>
                       </tr>
                     </thead>
@@ -1202,7 +1209,7 @@ export default function PurchaseDebtsPage() {
                           <td className="p-3 text-sm text-muted">
                             {row.cashSourceLabel || "—"}
                           </td>
-                          <td className="p-3 tabular-nums text-sm font-medium">
+                          <td className="p-3 tabular-nums text-sm font-medium text-primary-light">
                             {formatAmountExact(row.runningPaidTotal)} ج.م
                           </td>
                           <td className="p-3 text-xs text-muted max-w-[180px]">

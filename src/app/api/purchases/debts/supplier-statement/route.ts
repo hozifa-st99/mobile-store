@@ -12,10 +12,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "معرّف المورد مطلوب" }, { status: 400 });
   }
 
-  const statement = await buildSupplierAccountStatement(auth.branchId, supplierId);
-  if (!statement) {
-    return NextResponse.json({ message: "المورد غير موجود" }, { status: 404 });
+  try {
+    const statement = await buildSupplierAccountStatement(auth.branchId, supplierId);
+    if (!statement) {
+      return NextResponse.json({ message: "المورد غير موجود" }, { status: 404 });
+    }
+    return NextResponse.json(statement);
+  } catch (error) {
+    console.error("supplier statement error:", error);
+    return NextResponse.json({ message: "تعذّر تحميل كشف الحساب" }, { status: 500 });
   }
-
-  return NextResponse.json(statement);
 }

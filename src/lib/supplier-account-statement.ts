@@ -58,8 +58,14 @@ export async function buildSupplierAccountStatement(
   branchId: string,
   supplierId: string
 ): Promise<SupplierStatementResult | null> {
+  const branch = await prisma.branch.findFirst({
+    where: { id: branchId },
+    select: { companyId: true },
+  });
+  if (!branch) return null;
+
   const supplier = await prisma.supplier.findFirst({
-    where: { id: supplierId, branchId },
+    where: { id: supplierId, companyId: branch.companyId },
     select: { id: true, nameAr: true, phone: true },
   });
   if (!supplier) return null;

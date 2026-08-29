@@ -47,6 +47,7 @@ type ScheduleCandidate = {
   sortTs: number;
   sortPriority: number;
   createdAt: number;
+  countsTowardSettled: boolean;
   row: PurchasePaymentScheduleRow;
 };
 
@@ -67,6 +68,7 @@ export async function GET(
         select: {
           returnNumber: true,
           returnDate: true,
+          subtotal: true,
           total: true,
           shiftDepositAmount: true,
         },
@@ -151,7 +153,7 @@ export async function GET(
   initialPaymentAtInvoice = roundPurchaseMoney(initialPaymentAtInvoice);
 
   const schedule: PurchasePaymentScheduleRow[] = [];
-  let runningPaid = initialPaymentAtInvoice;
+  let runningSettled = initialPaymentAtInvoice;
   let seq = 0;
 
   seq += 1;
@@ -164,7 +166,7 @@ export async function GET(
     cashSourceLabel: initialPaymentAtInvoice > 0 ? initialCashSourceLabel : null,
     notes: initialPaymentAtInvoice > 0 ? null : "لم يُدفع مبلغ نقدي عند إنشاء الفاتورة",
     recordedByName: null,
-    runningPaidTotal: runningPaid,
+    runningPaidTotal: runningSettled,
   });
 
   const entry = purchase.creditLedgerEntries[0];
@@ -184,6 +186,7 @@ export async function GET(
       sortTs: ret.returnDate.getTime(),
       sortPriority: 2,
       createdAt: ret.returnDate.getTime(),
+      countsTowardSettled: false,
       row: {
         seq: 0,
         phase: "return",
@@ -207,6 +210,7 @@ export async function GET(
         sortTs: movement.paidAt.getTime(),
         sortPriority: 2,
         createdAt: movement.createdAt.getTime(),
+        countsTowardSettled: true,
         row: {
           seq: 0,
           phase: "return",
@@ -226,6 +230,7 @@ export async function GET(
       sortTs: movement.paidAt.getTime(),
       sortPriority: 3,
       createdAt: movement.createdAt.getTime(),
+      countsTowardSettled: true,
       row: {
         seq: 0,
         phase: "settlement",
@@ -247,6 +252,7 @@ export async function GET(
       sortTs: collection.collectedAt.getTime(),
       sortPriority: 4,
       createdAt: collection.createdAt.getTime(),
+      countsTowardSettled: false,
       row: {
         seq: 0,
         phase: "collection",
@@ -275,12 +281,12 @@ export async function GET(
     seq += 1;
     if (candidate.row.phase === "settlement") {
       settlementIndex += 1;
-      runningPaid = roundPurchaseMoney(runningPaid + candidate.row.amount);
+      runningSettled = roundPurchaseMoney(runningSettled + candidate.row.amount);
       candidate.row.label = `سداد أجل (${settlementIndex})`;
-      candidate.row.runningPaidTotal = runningPaid;
-    } else {
-      candidate.row.runningPaidTotal = runningPaid;
+    } else if (candidate.countsTowardSettled) {
+      runningSettled = roundPurchaseMoney(runningSettled + candidate.row.amount);
     }
+    candidate.row.runningPaidTotal = runningSettled;
     candidate.row.seq = seq;
     schedule.push(candidate.row);
   }
@@ -292,10 +298,10 @@ export async function GET(
     schedule.filter((row) => row.phase === "settlement").reduce((sum, row) => sum + row.amount, 0)
   );
 
-  const returnsTotal = roundPurchaseMoney(
-    purchase.returns.reduce((sum, ret) => sum + ret.total, 0)
+  const returnsGoodsTotal = roundPurchaseMoney(
+    purchase.returns.reduce((sum, ret) => sum + ret.subtotal, 0)
   );
-  const totalAfterReturns = roundPurchaseMoney(Math.max(0, purchase.total - returnsTotal));
+  const totalAfterReturns = roundPurchaseMoney(Math.max(0, purchase.total - returnsGoodsTotal));
   const receivableOutstandingOnPurchase = roundPurchaseMoney(
     purchaseReceivables.reduce(
       (sum, row) =>
@@ -334,7 +340,7 @@ export async function GET(
       laterPaymentsTotal,
       returnsSummary: {
         count: purchase.returns.length,
-        totalAmount: returnsTotal,
+        totalAmount: returnsGoodsTotal,
         totalAfterReturns,
       },
       receivableOutstanding: receivableOutstandingOnPurchase,
