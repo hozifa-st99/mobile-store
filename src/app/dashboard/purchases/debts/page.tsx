@@ -252,7 +252,7 @@ function InvoiceDebtTable({
                           onClick={() => onMoney(row)}
                           className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-primary/35 bg-primary/10 px-2.5 text-base hover:bg-primary/20 transition-colors"
                         >
-                          💸
+                          💵
                         </button>
                       )}
                       <ActionEmoji
@@ -679,7 +679,7 @@ export default function PurchaseDebtsPage() {
         <div className="px-4 pt-4 pb-3 border-b border-amber-500/15 bg-amber-500/[0.06]">
           <h2 className="text-sm font-bold text-amber-100">مديونيات ومستحقات قائمة</h2>
           <p className="text-xs text-amber-200/70 mt-1">
-            فاتورة واحدة — زر 💸 للسداد (علينا) أو التحصيل (لينا)
+            فاتورة واحدة — زر 💵 للسداد (علينا) أو التحصيل (لينا)
           </p>
         </div>
         <InvoiceDebtTable

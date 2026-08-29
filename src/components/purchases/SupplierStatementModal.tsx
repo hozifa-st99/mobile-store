@@ -23,6 +23,7 @@ export interface SupplierStatementData {
     type: string;
     typeLabel: string;
     reference: string;
+    transactionAmount: number;
     debtDelta: number;
     receivableDelta: number;
     runningDebt: number;
@@ -179,8 +180,9 @@ export default function SupplierStatementModal({
                     <th className="text-right p-3 font-medium">التاريخ</th>
                     <th className="text-right p-3 font-medium">الحركة</th>
                     <th className="text-right p-3 font-medium">المرجع</th>
-                    <th className="text-right p-3 font-medium">علينا (Δ)</th>
-                    <th className="text-right p-3 font-medium">لنا (Δ)</th>
+                    <th className="text-right p-3 font-medium">تعاملات</th>
+                    <th className="text-right p-3 font-medium">⚠️ علينا</th>
+                    <th className="text-right p-3 font-medium">📥 لنا</th>
                     <th className="text-right p-3 font-medium">صافي الرصيد</th>
                     <th className="text-right p-3 font-medium">ملاحظات</th>
                   </tr>
@@ -196,6 +198,13 @@ export default function SupplierStatementModal({
                       </td>
                       <td className="p-3 text-sm font-medium">{entry.typeLabel}</td>
                       <td className="p-3 text-sm">{entry.reference}</td>
+                      <td className="p-3 tabular-nums font-medium">
+                        {formatSignedDelta(
+                          entry.transactionAmount,
+                          "text-emerald-300",
+                          "text-rose-300"
+                        )}
+                      </td>
                       <td className="p-3 tabular-nums">
                         {formatSignedDelta(entry.debtDelta, "text-amber-300", "text-emerald-300")}
                       </td>

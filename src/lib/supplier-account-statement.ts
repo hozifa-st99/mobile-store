@@ -21,6 +21,8 @@ export interface SupplierStatementEntry {
   type: StatementEntryType;
   typeLabel: string;
   reference: string;
+  /** مبلغ التعامل للعرض فقط (+/−) */
+  transactionAmount: number;
   /** زيادة في مديونيتنا (+) أو خصم (−) */
   debtDelta: number;
   /** زيادة في مستحقاتنا (+) أو تحصيل (−) */
@@ -175,6 +177,7 @@ export async function buildSupplierAccountStatement(
       type: "purchase",
       typeLabel: TYPE_LABELS.purchase,
       reference: purchase.invoiceNumber,
+      transactionAmount: openingCredit,
       debtDelta: openingCredit,
       receivableDelta: 0,
       notes:
@@ -189,6 +192,7 @@ export async function buildSupplierAccountStatement(
         type: "payment",
         typeLabel: TYPE_LABELS.payment,
         reference: purchase.invoiceNumber,
+        transactionAmount: roundPurchaseMoney(-payment.amount),
         debtDelta: roundPurchaseMoney(-payment.amount),
         receivableDelta: 0,
         notes: payment.cashSource
@@ -206,6 +210,7 @@ export async function buildSupplierAccountStatement(
           type: "return_credit",
           typeLabel: TYPE_LABELS.return_credit,
           reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
+          transactionAmount: roundPurchaseMoney(-ret.creditReductionAmount),
           debtDelta: roundPurchaseMoney(-ret.creditReductionAmount),
           receivableDelta: 0,
           notes: ret.notes,
@@ -220,6 +225,7 @@ export async function buildSupplierAccountStatement(
           type: "return_receivable",
           typeLabel: TYPE_LABELS.return_receivable,
           reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
+          transactionAmount: ret.receivableAmount,
           debtDelta: 0,
           receivableDelta: ret.receivableAmount,
           notes: "مستحق لنا عند المورد",
@@ -234,6 +240,7 @@ export async function buildSupplierAccountStatement(
           type: "return_shift",
           typeLabel: TYPE_LABELS.return_shift,
           reference: `${ret.returnNumber} · ${purchase.invoiceNumber}`,
+          transactionAmount: roundPurchaseMoney(ret.shiftDepositAmount),
           debtDelta: 0,
           receivableDelta: 0,
           notes: `توريد نقدي للوردية · ${roundPurchaseMoney(ret.shiftDepositAmount)} ج.م — لا يؤثر على رصيد الحساب`,
@@ -262,6 +269,7 @@ export async function buildSupplierAccountStatement(
         type: "collection",
         typeLabel: TYPE_LABELS.collection,
         reference: `${receivable.purchaseReturn.returnNumber} · ${receivable.purchase.invoiceNumber}`,
+        transactionAmount: roundPurchaseMoney(collection.amount),
         debtDelta: 0,
         receivableDelta: roundPurchaseMoney(-collection.amount),
         notes: collection.notes,
@@ -291,6 +299,7 @@ export async function buildSupplierAccountStatement(
       type: entry.type,
       typeLabel: entry.typeLabel,
       reference: entry.reference,
+      transactionAmount: entry.transactionAmount,
       debtDelta: entry.debtDelta,
       receivableDelta: entry.receivableDelta,
       runningDebt,
