@@ -16,6 +16,8 @@ const money = "text-base font-bold tabular-nums tracking-tight";
 interface PurchaseInvoiceLinesTableProps {
   rows: InvoiceLineRow[];
   invoiceNumber?: string;
+  heading?: string;
+  caption?: string;
   hasExpenses?: boolean;
   readOnly?: boolean;
   onEdit?: (id: string) => void;
@@ -25,6 +27,8 @@ interface PurchaseInvoiceLinesTableProps {
 export default function PurchaseInvoiceLinesTable({
   rows,
   invoiceNumber,
+  heading = "بنود الفاتورة",
+  caption,
   hasExpenses = false,
   readOnly = false,
   onEdit,
@@ -81,7 +85,7 @@ export default function PurchaseInvoiceLinesTable({
 
             <div className="flex flex-wrap items-center gap-2">
 
-              <h3 className="text-base font-bold text-white tracking-wide">بنود الفاتورة</h3>
+              <h3 className="text-base font-bold text-white tracking-wide">{heading}</h3>
 
               {invoiceNumber && (
 
@@ -95,7 +99,9 @@ export default function PurchaseInvoiceLinesTable({
 
             </div>
 
-            <p className="text-xs text-white/50 mt-0.5">{rows.length} صنف مضاف</p>
+            <p className="text-xs text-white/50 mt-0.5">
+              {caption || `${rows.length} صنف مضاف`}
+            </p>
 
           </div>
 

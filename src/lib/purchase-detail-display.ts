@@ -17,6 +17,7 @@ export interface SavedPurchaseItem {
   unitPriceBefore?: number | null;
   /** السعر الفعلي بعد المصروف + توزيعات المرتجعات */
   effectiveUnitPrice?: number | null;
+  returnedQuantity?: number | null;
   retailPrice: number;
   total: number;
   barcode?: string | null;
@@ -115,4 +116,88 @@ export function sumPurchaseItemsBefore(items: SavedPurchaseItem[]): number {
 
 export function sumPurchaseItemsAfter(items: SavedPurchaseItem[]): number {
   return items.reduce((s, item) => s + item.unitPrice * item.quantity, 0);
+}
+
+function remainingLineQuantity(item: SavedPurchaseItem): number {
+  const returned = Math.max(0, item.returnedQuantity ?? 0);
+  return Math.max(0, item.quantity - returned);
+}
+
+export function purchaseHasPostReturnPicture(
+  items: SavedPurchaseItem[],
+  returnCount: number
+): boolean {
+  if (returnCount > 0) return true;
+  return items.some((item) => {
+    const remaining = remainingLineQuantity(item);
+    if (remaining < item.quantity) return true;
+    const effective = item.effectiveUnitPrice ?? item.unitPrice;
+    return Math.abs(effective - item.unitPrice) > 0.001;
+  });
+}
+
+/** الحالة الأخيرة بعد المرتجعات وتوزيع المصروف — عرض فقط */
+export function buildLatestPurchaseItemRows(
+  items: SavedPurchaseItem[],
+  options?: { showExpenseBreakdown?: boolean; returnedImeis?: string[] }
+): InvoiceLineRow[] {
+  const showBreakdown = options?.showExpenseBreakdown ?? true;
+  const returnedImeiSet = new Set(
+    (options?.returnedImeis ?? []).map((imei) => imei.trim()).filter(Boolean)
+  );
+
+  return items
+    .map((item) => {
+      const remainingQty = remainingLineQuantity(item);
+      if (remainingQty <= 0) return null;
+
+      const originalImeis = parseImeisSnapshot(item.imeisSnapshot);
+      const remainingImeis =
+        originalImeis.length > 0
+          ? originalImeis.filter((imei) => !returnedImeiSet.has(imei))
+          : originalImeis;
+      const isPhone = remainingImeis.length > 0 || originalImeis.length > 0;
+
+      const invoiceAfter = item.unitPrice;
+      const latestAfter = item.effectiveUnitPrice ?? invoiceAfter;
+      const hasInvoiceExpense = showBreakdown && lineHasInvoiceExpense(item);
+      const hasReturnRedistribute = Math.abs(latestAfter - invoiceAfter) > 0.001;
+      const showAfter = hasInvoiceExpense || hasReturnRedistribute;
+      const before = hasInvoiceExpense ? item.unitPriceBefore! : invoiceAfter;
+
+      const name = item.description.split(" · ")[0]?.trim() || item.description;
+      const detailsParts = item.description.split(" · ").slice(1);
+      const extraDetails = [
+        ...detailsParts,
+        item.barcode ? `باركود: ${item.barcode}` : null,
+        isPhone && remainingImeis.length > 0 ? `IMEI: ${remainingImeis.join(" / ")}` : null,
+        remainingQty < item.quantity
+          ? `متبقي ${remainingQty} من ${item.quantity}`
+          : null,
+        item.itemNotes?.trim() || null,
+      ].filter(Boolean);
+
+      return {
+        id: `${item.id}-latest`,
+        type: (isPhone ? "phone" : "accessory") as InvoiceLineRow["type"],
+        typeLabel: isPhone ? "موبايل" : "صنف",
+        name,
+        details: extraDetails.join(" · ") || "—",
+        quantity: remainingQty,
+        unitPrice: before,
+        unitPriceAfter: showAfter ? latestAfter : undefined,
+        expenseShare: showAfter ? (latestAfter - before) * remainingQty : undefined,
+        retailPrice: item.retailPrice,
+        total: before * remainingQty,
+        totalAfter: showAfter ? latestAfter * remainingQty : undefined,
+        barcode: item.barcode || "—",
+        imeis: isPhone ? remainingImeis : [],
+        condition: conditionLabel(item),
+      };
+    })
+    .filter((row): row is InvoiceLineRow => row != null);
+}
+
+export function latestTableShowsExpenseColumns(rows: InvoiceLineRow[]): boolean {
+  return rows.some((row) => row.unitPriceAfter != null);
 }

@@ -12,12 +12,15 @@ import PurchaseBarcodePrintModal from "@/components/purchases/PurchaseBarcodePri
 import PurchaseInvoiceLinesTable from "@/components/purchases/PurchaseInvoiceLinesTable";
 import { em } from "@/components/ui/TableEmoji";
 import {
+  buildLatestPurchaseItemRows,
   buildSavedPurchaseItemRows,
+  latestTableShowsExpenseColumns,
   purchaseItemsHaveExpenses,
   shouldShowInvoiceExpenseBreakdown,
   sumPurchaseItemsAfter,
   sumPurchaseItemsBefore,
 } from "@/lib/purchase-detail-display";
+import { parseImeisSnapshot } from "@/lib/purchase-return-number";
 import { splitExpenseNotes } from "@/lib/purchase-invoice-notes";
 import { formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
 import { formatCurrency } from "@/lib/utils";
@@ -31,6 +34,7 @@ interface PurchaseItem {
   unitPrice: number;
   unitPriceBefore?: number | null;
   effectiveUnitPrice?: number | null;
+  returnedQuantity?: number | null;
   retailPrice: number;
   total: number;
   barcode: string | null;
@@ -86,6 +90,7 @@ interface PurchaseReturnLog {
     unitPrice: number;
     total: number;
     imeisSnapshot: string | null;
+    purchaseItemId?: string | null;
   }[];
 }
 
@@ -119,6 +124,7 @@ export default function PurchaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [latestOpen, setLatestOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -148,6 +154,22 @@ export default function PurchaseDetailPage() {
         : [],
     [purchase, showExpenseBreakdown]
   );
+  const returnedImeis = useMemo(
+    () => returns.flatMap((ret) => ret.items.flatMap((item) => parseImeisSnapshot(item.imeisSnapshot))),
+    [returns]
+  );
+  const latestRows = useMemo(
+    () =>
+      purchase
+        ? buildLatestPurchaseItemRows(purchase.items, {
+            showExpenseBreakdown,
+            returnedImeis,
+          })
+        : [],
+    [purchase, showExpenseBreakdown, returnedImeis]
+  );
+  const showLatestPicture = returns.length > 0;
+  const latestHasExpenses = latestTableShowsExpenseColumns(latestRows);
 
   if (loading) {
     return (
@@ -350,9 +372,44 @@ export default function PurchaseDetailPage() {
       <PurchaseInvoiceLinesTable
         rows={tableRows}
         invoiceNumber={purchase.invoiceNumber}
+        heading="الفاتورة الأصلية"
+        caption={`${tableRows.length} صنف — كما أُنشئت`}
         hasExpenses={showExpenseBreakdown}
         readOnly
       />
+
+      {showLatestPicture && (
+        <div className="mt-4 rounded-2xl border border-white/10 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setLatestOpen((open) => !open)}
+            className="w-full flex items-center justify-between gap-3 px-5 py-3.5 bg-[#1e2a4a] text-white text-sm font-semibold hover:bg-[#243352] transition-colors"
+          >
+            <span>الحالة الأخيرة بعد المرتجعات</span>
+            <span className="text-xs font-normal text-white/60">
+              {latestOpen ? "إغلاق" : "فتح"}
+            </span>
+          </button>
+          {latestOpen && (
+            <div className="p-0">
+              {latestRows.length > 0 ? (
+                <PurchaseInvoiceLinesTable
+                  rows={latestRows}
+                  invoiceNumber={purchase.invoiceNumber}
+                  heading="الحالة الأخيرة"
+                  caption="البنود المتبقية بعد المرتجعات وتوزيع المصروف"
+                  hasExpenses={latestHasExpenses}
+                  readOnly
+                />
+              ) : (
+                <p className="px-5 py-8 text-sm text-muted text-center bg-[#f8f9fc]">
+                  لا تبقى بنود بعد المرتجعات
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {returns.length > 0 && (
         <div className="glass-card p-5 mt-5 space-y-4">
@@ -394,10 +451,13 @@ export default function PurchaseDetailPage() {
 
                 {ret.expenseHandling && (
                   <p className="text-xs text-accent-orange">
-                    المصروف: {ret.expenseHandling}
-                    {ret.expenseRecoveredAmount > 0.001
-                      ? ` — مسترد ${formatCurrency(ret.expenseRecoveredAmount)} ج.م`
-                      : ""}
+                    {ret.expenseHandling === "توزيع على الباقي"
+                      ? `المصروف: توزيع على الباقي — ${formatCurrency(ret.expenseAmount)} ج.م`
+                      : `المصروف: ${ret.expenseHandling}${
+                          ret.expenseRecoveredAmount > 0.001
+                            ? ` — مسترد ${formatCurrency(ret.expenseRecoveredAmount)} ج.م`
+                            : ""
+                        }`}
                   </p>
                 )}
 

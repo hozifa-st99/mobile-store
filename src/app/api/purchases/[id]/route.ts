@@ -5,7 +5,10 @@ import { readUnitPriceBeforeByItemIds } from "@/lib/purchase-item-price-before";
 import { readEffectiveUnitPricesAfter } from "@/lib/purchase-item-cost-adjustments";
 import { splitExpenseNotes } from "@/lib/purchase-invoice-notes";
 import { resolveLineReturnPricing } from "@/lib/purchase-return-expense";
-import { readPurchaseReturnStatus } from "@/lib/purchase-item-return-fields";
+import {
+  readPurchaseReturnStatus,
+  readReturnedQuantitiesByItemIds,
+} from "@/lib/purchase-item-return-fields";
 import { attachInvoiceCreators } from "@/lib/invoice-creator-server";
 import { purchaseDebtDisplayOutstanding } from "@/lib/purchase-payment-display";
 import { describePurchaseReturnSettlement } from "@/lib/purchase-return-settlement-labels";
@@ -41,19 +44,20 @@ export async function GET(
 
   const [purchaseWithCreator] = await attachInvoiceCreators(prisma, [purchase]);
 
-  const beforeMap = await readUnitPriceBeforeByItemIds(
-    prisma,
-    purchase.items.map((item) => item.id)
-  );
-  const effectiveAfterMap = await readEffectiveUnitPricesAfter(
-    prisma,
-    purchase.items.map((item) => ({
-      id: item.id,
-      unitPrice: item.unitPrice,
-      productId: item.productId,
-    })),
-    auth.branchId
-  );
+  const itemIds = purchase.items.map((item) => item.id);
+  const beforeMap = await readUnitPriceBeforeByItemIds(prisma, itemIds);
+  const [effectiveAfterMap, returnedQtyMap] = await Promise.all([
+    readEffectiveUnitPricesAfter(
+      prisma,
+      purchase.items.map((item) => ({
+        id: item.id,
+        unitPrice: item.unitPrice,
+        productId: item.productId,
+      })),
+      auth.branchId
+    ),
+    readReturnedQuantitiesByItemIds(prisma, itemIds),
+  ]);
   const { expenseLine } = splitExpenseNotes(purchase.notes);
   const pricingItems = purchase.items.map((item) => ({
     id: item.id,
@@ -71,6 +75,7 @@ export async function GET(
           items: {
             select: {
               id: true;
+              purchaseItemId: true;
               description: true;
               quantity: true;
               unitPrice: true;
@@ -94,6 +99,7 @@ export async function GET(
           items: {
             select: {
               id: true,
+              purchaseItemId: true,
               description: true,
               quantity: true,
               unitPrice: true,
@@ -139,6 +145,7 @@ export async function GET(
           ...item,
           unitPriceBefore,
           effectiveUnitPrice: effectiveAfterMap[item.id] ?? item.unitPrice,
+          returnedQuantity: returnedQtyMap[item.id] ?? 0,
         };
       }),
     },
