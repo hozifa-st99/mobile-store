@@ -8,6 +8,7 @@ export interface SupplierStatementData {
   supplier: { id: string; nameAr: string; phone: string | null };
   summary: {
     totalCreditPurchases: number;
+    totalInvoiceAmount: number;
     totalPaidOnUs: number;
     debtOutstanding: number;
     totalReceivable: number;
@@ -30,6 +31,9 @@ export interface SupplierStatementData {
     runningReceivable: number;
     netBalance: number;
     notes: string | null;
+    cashPaidAtInvoice?: number;
+    creditOpenedAtInvoice?: number;
+    invoiceTotal?: number;
   }[];
 }
 
@@ -69,6 +73,60 @@ function formatSignedDelta(value: number, positiveClass: string, negativeClass: 
       {formatAmountExact(Math.abs(value))}
     </span>
   );
+}
+
+function StatementDebtColumn({
+  entry,
+}: {
+  entry: SupplierStatementData["entries"][number];
+}) {
+  if (entry.type === "purchase") {
+    const cash = entry.cashPaidAtInvoice ?? 0;
+    const credit = entry.creditOpenedAtInvoice ?? 0;
+    if (cash <= 0.001 && credit <= 0.001) {
+      return <span className="text-muted">—</span>;
+    }
+    return (
+      <div className="space-y-1">
+        {cash > 0.001 && (
+          <p className="text-emerald-300 tabular-nums text-sm">
+            <span className="text-[10px] text-emerald-200/70 block">نقد مُسدّد</span>−
+            {formatAmountExact(cash)}
+          </p>
+        )}
+        {credit > 0.001 && (
+          <p className="text-amber-300 tabular-nums text-sm">
+            <span className="text-[10px] text-amber-200/70 block">أجل</span>+
+            {formatAmountExact(credit)}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return formatSignedDelta(entry.debtDelta, "text-amber-300", "text-emerald-300");
+}
+
+function StatementNetBalance({ value }: { value: number }) {
+  if (Math.abs(value) <= 0.001) {
+    return <span className="text-emerald-300/90 tabular-nums font-semibold text-sm">متزن</span>;
+  }
+  const isAlaina = value > 0;
+  return (
+    <span className={cn("tabular-nums font-semibold", isAlaina ? "text-amber-300" : "text-violet-300")}>
+      {formatAmountExact(Math.abs(value))} {isAlaina ? "علينا" : "لنا"}
+    </span>
+  );
+}
+
+function formatTransactionAmount(entry: SupplierStatementData["entries"][number]) {
+  if (entry.type === "purchase" && entry.invoiceTotal != null) {
+    return (
+      <span className="text-white tabular-nums">
+        +{formatAmountExact(entry.invoiceTotal)}
+      </span>
+    );
+  }
+  return formatSignedDelta(entry.transactionAmount, "text-emerald-300", "text-rose-300");
 }
 
 export default function SupplierStatementModal({
@@ -119,10 +177,18 @@ export default function SupplierStatementModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <GlassSummaryCard
               emoji="🧾"
-              label="إجمالي فواتير الأجل (افتتاح)"
-              value={`${formatCurrency(data.summary.totalCreditPurchases)} ج.م`}
+              label="إجمالي الفواتير"
+              value={`${formatCurrency(data.summary.totalInvoiceAmount)} ج.م`}
               borderClass="border-primary/30"
               bgClass="bg-primary/5"
+            />
+            <GlassSummaryCard
+              emoji="📋"
+              label="إجمالي الأجل (افتتاح)"
+              value={`${formatCurrency(data.summary.totalCreditPurchases)} ج.م`}
+              borderClass="border-amber-400/20"
+              bgClass="bg-amber-500/5"
+              valueClass="text-amber-200"
             />
             <GlassSummaryCard
               emoji="⚠️"
@@ -199,14 +265,10 @@ export default function SupplierStatementModal({
                       <td className="p-3 text-sm font-medium">{entry.typeLabel}</td>
                       <td className="p-3 text-sm">{entry.reference}</td>
                       <td className="p-3 tabular-nums font-medium">
-                        {formatSignedDelta(
-                          entry.transactionAmount,
-                          "text-emerald-300",
-                          "text-rose-300"
-                        )}
+                        {formatTransactionAmount(entry)}
                       </td>
                       <td className="p-3 tabular-nums">
-                        {formatSignedDelta(entry.debtDelta, "text-amber-300", "text-emerald-300")}
+                        <StatementDebtColumn entry={entry} />
                       </td>
                       <td className="p-3 tabular-nums">
                         {formatSignedDelta(
@@ -215,22 +277,8 @@ export default function SupplierStatementModal({
                           "text-teal-300"
                         )}
                       </td>
-                      <td
-                        className={cn(
-                          "p-3 tabular-nums font-semibold",
-                          entry.netBalance > 0.001
-                            ? "text-amber-300"
-                            : entry.netBalance < -0.001
-                              ? "text-violet-300"
-                              : "text-muted"
-                        )}
-                      >
-                        {formatAmountExact(Math.abs(entry.netBalance))}
-                        {entry.netBalance > 0.001
-                          ? " علينا"
-                          : entry.netBalance < -0.001
-                            ? " لنا"
-                            : ""}
+                      <td className="p-3 tabular-nums">
+                        <StatementNetBalance value={entry.netBalance} />
                       </td>
                       <td className="p-3 text-xs text-muted max-w-[180px]">{entry.notes || "—"}</td>
                     </tr>

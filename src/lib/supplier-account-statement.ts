@@ -31,12 +31,19 @@ export interface SupplierStatementEntry {
   runningReceivable: number;
   netBalance: number;
   notes: string | null;
+  /** عرض — نقد دُفع عند الفاتورة */
+  cashPaidAtInvoice?: number;
+  /** عرض — أجل افتُتح عند الفاتورة */
+  creditOpenedAtInvoice?: number;
+  /** عرض — إجمالي الفاتورة */
+  invoiceTotal?: number;
 }
 
 export interface SupplierStatementResult {
   supplier: { id: string; nameAr: string; phone: string | null };
   summary: {
     totalCreditPurchases: number;
+    totalInvoiceAmount: number;
     totalPaidOnUs: number;
     debtOutstanding: number;
     totalReceivable: number;
@@ -50,8 +57,8 @@ export interface SupplierStatementResult {
 }
 
 const TYPE_LABELS: Record<StatementEntryType, string> = {
-  purchase: "فاتورة أجل",
-  payment: "سداد",
+  purchase: "فاتورة مشtريات",
+  payment: "سداد أجل",
   return_credit: "مرتجع (خصم أجل)",
   return_shift: "مرتجع (توريد وردية)",
   return_receivable: "مرتجع (مستحق لنا)",
@@ -72,6 +79,37 @@ function originalCreditAmount(
     return roundPurchaseMoney(creditEntry.creditAmount + creditReductionsSum);
   }
   return roundPurchaseMoney(Math.max(0, purchase.total - (purchase.invoiceCashPaid || 0)));
+}
+
+async function resolveInitialPaymentAtInvoice(
+  branchId: string,
+  purchase: {
+    id: string;
+    paymentType: string;
+    cashSource: string | null;
+    invoiceCashPaid: number;
+  }
+) {
+  if (purchase.paymentType !== "partial_credit") return 0;
+
+  if (purchase.cashSource === "shift" && purchase.invoiceCashPaid > 0) {
+    return roundPurchaseMoney(purchase.invoiceCashPaid);
+  }
+
+  if (purchase.cashSource === "vault") {
+    const vaultPay = await prisma.branchVaultMovement.findFirst({
+      where: {
+        branchId,
+        type: "purchase_payment",
+        referenceType: "purchase",
+        referenceId: purchase.id,
+      },
+      select: { amount: true },
+    });
+    if (vaultPay) return roundPurchaseMoney(vaultPay.amount);
+  }
+
+  return 0;
 }
 
 export async function buildSupplierAccountStatement(
@@ -156,6 +194,7 @@ export async function buildSupplierAccountStatement(
 
   const rawEntries: RawEntry[] = [];
   let totalCreditPurchases = 0;
+  let totalInvoiceAmount = 0;
   let totalPaidOnUs = 0;
   let debtOutstanding = 0;
 
@@ -168,8 +207,18 @@ export async function buildSupplierAccountStatement(
       purchase.returns.reduce((sum, ret) => sum + ret.creditReductionAmount, 0)
     );
     const openingCredit = originalCreditAmount(creditEntry, purchase, creditReductionsSum);
+    const initialCash = await resolveInitialPaymentAtInvoice(branchId, purchase);
+
     totalCreditPurchases += openingCredit;
+    totalInvoiceAmount += purchase.total;
     totalPaidOnUs += purchase.paidAmount;
+
+    const noteParts = [
+      `إجمالي ${roundPurchaseMoney(purchase.total)} ج.م`,
+      initialCash > 0.0001 ? `نقد ${roundPurchaseMoney(initialCash)} ج.م` : null,
+      openingCredit > 0.0001 ? `أجل ${roundPurchaseMoney(openingCredit)} ج.م` : null,
+      PURCHASE_PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType,
+    ].filter(Boolean);
 
     rawEntries.push({
       id: `purchase-${purchase.id}`,
@@ -177,12 +226,14 @@ export async function buildSupplierAccountStatement(
       type: "purchase",
       typeLabel: TYPE_LABELS.purchase,
       reference: purchase.invoiceNumber,
-      transactionAmount: openingCredit,
+      transactionAmount: roundPurchaseMoney(purchase.total),
       debtDelta: openingCredit,
       receivableDelta: 0,
-      notes:
-        PURCHASE_PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType,
+      notes: noteParts.join(" · "),
       sortPriority: 1,
+      cashPaidAtInvoice: initialCash > 0.0001 ? initialCash : undefined,
+      creditOpenedAtInvoice: openingCredit > 0.0001 ? openingCredit : undefined,
+      invoiceTotal: roundPurchaseMoney(purchase.total),
     });
 
     for (const payment of creditEntry?.payments ?? []) {
@@ -306,6 +357,13 @@ export async function buildSupplierAccountStatement(
       runningReceivable,
       netBalance,
       notes: entry.notes,
+      ...(entry.cashPaidAtInvoice != null
+        ? { cashPaidAtInvoice: entry.cashPaidAtInvoice }
+        : {}),
+      ...(entry.creditOpenedAtInvoice != null
+        ? { creditOpenedAtInvoice: entry.creditOpenedAtInvoice }
+        : {}),
+      ...(entry.invoiceTotal != null ? { invoiceTotal: entry.invoiceTotal } : {}),
     };
   });
 
@@ -329,6 +387,7 @@ export async function buildSupplierAccountStatement(
     supplier,
     summary: {
       totalCreditPurchases: roundPurchaseMoney(totalCreditPurchases),
+      totalInvoiceAmount: roundPurchaseMoney(totalInvoiceAmount),
       totalPaidOnUs: roundPurchaseMoney(totalPaidOnUs),
       debtOutstanding: netDebt,
       totalReceivable: roundPurchaseMoney(totalReceivableSum),
