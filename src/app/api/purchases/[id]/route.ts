@@ -7,6 +7,7 @@ import { splitExpenseNotes } from "@/lib/purchase-invoice-notes";
 import { resolveLineReturnPricing } from "@/lib/purchase-return-expense";
 import { readPurchaseReturnStatus } from "@/lib/purchase-item-return-fields";
 import { attachInvoiceCreators } from "@/lib/invoice-creator-server";
+import { purchaseDebtDisplayOutstanding } from "@/lib/purchase-payment-display";
 
 const expenseHandlingLabels: Record<string, string> = {
   redistribute: "توزيع على الباقي",
@@ -108,10 +109,19 @@ export async function GET(
     console.error("Purchase returns load error:", err);
   }
 
+  const creditEntry = await prisma.creditLedgerEntry.findFirst({
+    where: { purchaseId: purchase.id },
+    select: { creditAmount: true, paidAmount: true },
+  });
+  const creditOutstanding = ["credit", "partial_credit"].includes(purchase.paymentType)
+    ? purchaseDebtDisplayOutstanding(purchase, creditEntry)
+    : 0;
+
   return NextResponse.json({
     purchase: {
       ...purchaseWithCreator,
       returnStatus,
+      creditOutstanding,
       items: purchaseWithCreator.items.map((item) => {
         const inferred = resolveLineReturnPricing(
           { id: item.id, quantity: item.quantity, unitPrice: item.unitPrice },

@@ -54,6 +54,7 @@ interface PurchaseDetail {
   total: number;
   paymentType?: string;
   paidAmount?: number;
+  creditOutstanding?: number;
   cashSource?: string | null;
   notes: string | null;
   supplier: { nameAr: string; phone?: string | null };
@@ -317,7 +318,7 @@ export default function PurchaseDetailPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted">المتبقي (أجل)</span>
                   <span className="tabular-nums text-accent-orange font-bold">
-                    {formatCurrency(Math.max(0, purchase.total - (purchase.paidAmount ?? 0)))} ج.م
+                    {formatCurrency(purchase.creditOutstanding ?? 0)} ج.م
                   </span>
                 </div>
               </>
