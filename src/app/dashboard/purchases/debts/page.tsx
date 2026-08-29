@@ -11,7 +11,7 @@ import SupplierStatementModal, {
 import Modal from "@/components/ui/Modal";
 import DocumentDateTimeStack from "@/components/ui/DocumentDateTimeStack";
 import { ActionEmoji, CellEmoji, ThEmoji, em } from "@/components/ui/TableEmoji";
-import { ClearableInput } from "@/components/ui/FilterControls";
+import { ClearableInput, ClearFilterButton } from "@/components/ui/FilterControls";
 import { apiJson } from "@/lib/api-client";
 import { formatDocumentDate, formatDocumentTime } from "@/lib/document-datetime";
 import { toast } from "@/lib/toast";
@@ -717,18 +717,26 @@ export default function PurchaseDebtsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-muted mb-1.5">{partyColumnLabel}</label>
-            <select
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="glass-input"
-            >
-              <option value="">— الكل —</option>
-              {supplierOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nameAr}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="glass-input flex-1 min-w-0"
+              >
+                <option value="">— الكل —</option>
+                {supplierOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nameAr}
+                  </option>
+                ))}
+              </select>
+              {supplierId ? (
+                <ClearFilterButton
+                  onClick={() => setSupplierId("")}
+                  label="إلغاء فلتر المورد"
+                />
+              ) : null}
+            </div>
           </div>
           <div>
             <label className="block text-xs text-muted mb-1.5">بحث</label>

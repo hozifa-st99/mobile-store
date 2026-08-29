@@ -152,6 +152,15 @@ export async function GET(request: NextRequest) {
     mapDebtRow(purchase, receivablesByPurchase.get(purchase.id) ?? [])
   );
 
+  const supplierOptions = Array.from(
+    new Map(
+      rows.map((r) => [
+        r.supplierId,
+        { id: r.supplierId, nameAr: r.supplierName, phone: r.supplierPhone },
+      ])
+    ).values()
+  ).sort((a, b) => a.nameAr.localeCompare(b.nameAr, "ar"));
+
   if (supplierId) {
     rows = rows.filter((r) => r.supplierId === supplierId);
   }
@@ -188,15 +197,6 @@ export async function GET(request: NextRequest) {
     },
     { amount: 0, collectedAmount: 0, outstanding: 0 }
   );
-
-  const supplierOptions = Array.from(
-    new Map(
-      rows.map((r) => [
-        r.supplierId,
-        { id: r.supplierId, nameAr: r.supplierName, phone: r.supplierPhone },
-      ])
-    ).values()
-  ).sort((a, b) => a.nameAr.localeCompare(b.nameAr, "ar"));
 
   return NextResponse.json({
     outstandingRows,

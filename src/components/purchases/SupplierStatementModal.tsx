@@ -183,14 +183,6 @@ export default function SupplierStatementModal({
               bgClass="bg-primary/5"
             />
             <GlassSummaryCard
-              emoji="📋"
-              label="إجمالي الأجل (افتتاح)"
-              value={`${formatCurrency(data.summary.totalCreditPurchases)} ج.م`}
-              borderClass="border-amber-400/20"
-              bgClass="bg-amber-500/5"
-              valueClass="text-amber-200"
-            />
-            <GlassSummaryCard
               emoji="⚠️"
               label="مديونية علينا (حالياً)"
               value={`${formatCurrency(data.summary.debtOutstanding)} ج.م`}
@@ -215,12 +207,12 @@ export default function SupplierStatementModal({
               valueClass="text-teal-300"
             />
             <GlassSummaryCard
-              emoji={data.summary.netDirection === "linna" ? "🏦" : "📊"}
-              label={`صافي الحساب (${data.summary.netLabel})`}
-              value={`${formatCurrency(data.summary.netAmount)} ج.م`}
-              borderClass={netCard.border}
-              bgClass={netCard.bg}
-              valueClass={netCard.value}
+              emoji="💵"
+              label="إجمالي المدفوع للمورد"
+              value={`${formatCurrency(data.summary.totalPaidOnUs)} ج.م`}
+              borderClass="border-emerald-400/25"
+              bgClass="bg-emerald-500/5"
+              valueClass="text-emerald-300"
             />
             {lastEntry ? (
               <GlassSummaryCard
