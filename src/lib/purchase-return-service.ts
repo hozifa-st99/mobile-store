@@ -159,6 +159,24 @@ async function redistributeExpenseToRemaining(
 
   await recordPurchaseItemCostAdjustments(tx, purchaseReturnId, adjustments);
 
+  for (const row of remainingAfterReturn) {
+    if (row.productType !== "phone") continue;
+    const extra = allocMap.get(row.purchaseItemId) ?? 0;
+    if (extra <= 0) continue;
+    const perUnit = Math.round((extra / row.remainingQty) * 100) / 100;
+    if (perUnit <= 0.0001) continue;
+
+    await tx.productSerial.updateMany({
+      where: {
+        branchId,
+        purchaseItemId: row.purchaseItemId,
+        productId: row.productId,
+        status: "available",
+      },
+      data: { unitCost: { increment: perUnit } },
+    });
+  }
+
   const returnedByProduct = new Map<string, { quantity: number; value: number }>();
   for (const layer of returnedLayers) {
     const prev = returnedByProduct.get(layer.productId) ?? { quantity: 0, value: 0 };
