@@ -57,7 +57,7 @@ export interface SupplierStatementResult {
 }
 
 const TYPE_LABELS: Record<StatementEntryType, string> = {
-  purchase: "فاتورة مشtريات",
+  purchase: "فاتورة " + "مشتريات",
   payment: "سداد أجل",
   return_credit: "مرتجع (خصم أجل)",
   return_shift: "مرتجع (توريد وردية)",
@@ -195,7 +195,7 @@ export async function buildSupplierAccountStatement(
   const rawEntries: RawEntry[] = [];
   let totalCreditPurchases = 0;
   let totalInvoiceAmount = 0;
-  let totalPaidOnUs = 0;
+  let totalActuallyPaidToSupplier = 0;
   let debtOutstanding = 0;
 
   for (const purchase of purchases) {
@@ -211,7 +211,14 @@ export async function buildSupplierAccountStatement(
 
     totalCreditPurchases += openingCredit;
     totalInvoiceAmount += purchase.total;
-    totalPaidOnUs += purchase.paidAmount;
+    totalActuallyPaidToSupplier = roundPurchaseMoney(
+      totalActuallyPaidToSupplier + initialCash
+    );
+    for (const payment of creditEntry?.payments ?? []) {
+      totalActuallyPaidToSupplier = roundPurchaseMoney(
+        totalActuallyPaidToSupplier + payment.amount
+      );
+    }
 
     const noteParts = [
       `إجمالي ${roundPurchaseMoney(purchase.total)} ج.م`,
@@ -388,7 +395,7 @@ export async function buildSupplierAccountStatement(
     summary: {
       totalCreditPurchases: roundPurchaseMoney(totalCreditPurchases),
       totalInvoiceAmount: roundPurchaseMoney(totalInvoiceAmount),
-      totalPaidOnUs: roundPurchaseMoney(totalPaidOnUs),
+      totalPaidOnUs: roundPurchaseMoney(totalActuallyPaidToSupplier),
       debtOutstanding: netDebt,
       totalReceivable: roundPurchaseMoney(totalReceivableSum),
       totalCollected: roundPurchaseMoney(totalCollected),
