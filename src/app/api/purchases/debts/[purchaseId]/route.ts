@@ -23,6 +23,10 @@ export interface PurchasePaymentScheduleRow {
   runningDebt: number;
   runningReceivable: number;
   runningNetBalance: number;
+  /** عرض فقط — نقد دُفع عند الفاتورة */
+  cashPaidAtInvoice?: number;
+  /** عرض فقط — أجل افتُتح عند الفاتورة */
+  creditOpenedAtInvoice?: number;
 }
 
 type ScheduleDraft = Omit<
@@ -52,6 +56,12 @@ function finalizeSchedule(drafts: ScheduleDraft[]): PurchasePaymentScheduleRow[]
       runningDebt,
       runningReceivable,
       runningNetBalance: roundPurchaseMoney(runningDebt - runningReceivable),
+      ...(draft.cashPaidAtInvoice != null
+        ? { cashPaidAtInvoice: draft.cashPaidAtInvoice }
+        : {}),
+      ...(draft.creditOpenedAtInvoice != null
+        ? { creditOpenedAtInvoice: draft.creditOpenedAtInvoice }
+        : {}),
     };
   });
 }
@@ -164,40 +174,35 @@ export async function GET(
   const invoiceTs = purchase.purchaseDate.getTime();
   const drafts: ScheduleDraft[] = [];
 
+  const invoiceNoteParts: string[] = [];
+  if (initialPaymentAtInvoice > 0.0001 && initialCashSourceLabel) {
+    invoiceNoteParts.push(
+      `دُفع ${roundPurchaseMoney(initialPaymentAtInvoice)} ج.م · ${initialCashSourceLabel}`
+    );
+  } else if (initialPaymentAtInvoice <= 0.0001) {
+    invoiceNoteParts.push("لم يُدفع نقداً عند الفاتورة");
+  }
+  invoiceNoteParts.push(
+    PURCHASE_PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType
+  );
+
   drafts.push({
     sortTs: invoiceTs,
     sortPriority: 0,
     createdAt: invoiceTs,
     phase: "invoice",
-    label: "الدفع عند الفاتورة",
-    amount: initialPaymentAtInvoice,
+    label: "فاتورة مشتريات",
+    amount: roundPurchaseMoney(purchase.total),
     paidAt: purchase.purchaseDate.toISOString(),
     cashSourceLabel: initialPaymentAtInvoice > 0 ? initialCashSourceLabel : null,
-    notes:
-      initialPaymentAtInvoice > 0
-        ? null
-        : "لم يُدفع مبلغ نقدي عند إنشاء الفاتورة",
+    notes: invoiceNoteParts.join(" · "),
     recordedByName: null,
-    debtDelta: 0,
+    debtDelta: creditOnInvoice,
     receivableDelta: 0,
+    cashPaidAtInvoice:
+      initialPaymentAtInvoice > 0.0001 ? initialPaymentAtInvoice : undefined,
+    creditOpenedAtInvoice: creditOnInvoice > 0.0001 ? creditOnInvoice : undefined,
   });
-
-  if (creditOnInvoice > 0.0001) {
-    drafts.push({
-      sortTs: invoiceTs,
-      sortPriority: 1,
-      createdAt: invoiceTs + 1,
-      phase: "invoice",
-      label: "فتح الأجل",
-      amount: creditOnInvoice,
-      paidAt: purchase.purchaseDate.toISOString(),
-      cashSourceLabel: null,
-      notes: PURCHASE_PAYMENT_TYPE_LABELS[purchase.paymentType] || purchase.paymentType,
-      recordedByName: null,
-      debtDelta: creditOnInvoice,
-      receivableDelta: 0,
-    });
-  }
 
   const entry = purchase.creditLedgerEntries[0];
   const ledgerPayments = [...(entry?.payments ?? [])];

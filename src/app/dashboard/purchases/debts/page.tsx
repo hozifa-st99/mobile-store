@@ -71,6 +71,8 @@ interface PaymentScheduleRow {
   runningDebt: number;
   runningReceivable: number;
   runningNetBalance: number;
+  cashPaidAtInvoice?: number;
+  creditOpenedAtInvoice?: number;
 }
 
 interface PaymentDetailsResponse {
@@ -121,7 +123,7 @@ function ScheduleSignedCell({
 
 function ScheduleNetCell({ value }: { value: number }) {
   if (Math.abs(value) <= 0.001) {
-    return <span className="text-muted tabular-nums">—</span>;
+    return <span className="text-emerald-300/90 tabular-nums font-semibold text-sm">متزن</span>;
   }
   const isAlaina = value > 0;
   return (
@@ -133,6 +135,49 @@ function ScheduleNetCell({ value }: { value: number }) {
     >
       {formatAmountExact(Math.abs(value))} {isAlaina ? "علينا" : "لنا"}
     </span>
+  );
+}
+
+function ScheduleDebtColumn({ row }: { row: PaymentScheduleRow }) {
+  if (row.phase === "invoice") {
+    const cash = row.cashPaidAtInvoice ?? 0;
+    const credit = row.creditOpenedAtInvoice ?? 0;
+    if (cash <= 0.001 && credit <= 0.001) {
+      return <span className="text-muted">—</span>;
+    }
+    return (
+      <div className="space-y-1">
+        {cash > 0.001 && (
+          <p className="text-emerald-300 tabular-nums text-sm">
+            <span className="text-[10px] text-emerald-200/70 block">نقد مُسدّد</span>−
+            {formatAmountExact(cash)}
+          </p>
+        )}
+        {credit > 0.001 && (
+          <p className="text-amber-300 tabular-nums text-sm">
+            <span className="text-[10px] text-amber-200/70 block">أجل</span>+
+            {formatAmountExact(credit)}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <ScheduleSignedCell
+      value={row.debtDelta}
+      positiveClass="text-amber-300"
+      negativeClass="text-emerald-300"
+    />
+  );
+}
+
+function ScheduleReceivableColumn({ row }: { row: PaymentScheduleRow }) {
+  return (
+    <ScheduleSignedCell
+      value={row.receivableDelta}
+      positiveClass="text-cyan-300"
+      negativeClass="text-teal-300"
+    />
   );
 }
 
@@ -1133,18 +1178,10 @@ export default function PurchaseDebtsPage() {
                             {formatAmountExact(row.amount)} ج.م
                           </td>
                           <td className="p-3 tabular-nums">
-                            <ScheduleSignedCell
-                              value={row.debtDelta}
-                              positiveClass="text-amber-300"
-                              negativeClass="text-emerald-300"
-                            />
+                            <ScheduleDebtColumn row={row} />
                           </td>
                           <td className="p-3 tabular-nums">
-                            <ScheduleSignedCell
-                              value={row.receivableDelta}
-                              positiveClass="text-cyan-300"
-                              negativeClass="text-teal-300"
-                            />
+                            <ScheduleReceivableColumn row={row} />
                           </td>
                           <td className="p-3">
                             <ScheduleNetCell value={row.runningNetBalance} />
