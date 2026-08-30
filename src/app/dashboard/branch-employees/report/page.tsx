@@ -19,12 +19,14 @@ interface EmployeeReportRow {
   address?: string | null;
   salesCount: number;
   salesTotal: number;
+  phoneCount: number;
+  accessoryCount: number;
 }
 
 interface ReportData {
   periodLabel: string;
   rows: EmployeeReportRow[];
-  totals: { salesCount: number; salesTotal: number };
+  totals: { salesCount: number; salesTotal: number; phoneCount: number; accessoryCount: number };
 }
 
 const defaultFilter: ReportFilterState = {
@@ -113,10 +115,21 @@ export default function BranchEmployeesReportPage() {
     [filteredRows]
   );
 
-  const topPerformer = useMemo(() => {
-    if (!filteredRows.length) return null;
-    return [...filteredRows].sort((a, b) => b.salesTotal - a.salesTotal)[0];
+  const rankedRows = useMemo(() => {
+    return [...filteredRows].sort((a, b) => {
+      const qtyA = a.phoneCount + a.accessoryCount;
+      const qtyB = b.phoneCount + b.accessoryCount;
+      if (qtyB !== qtyA) return qtyB - qtyA;
+      return b.salesTotal - a.salesTotal;
+    });
   }, [filteredRows]);
+
+  const topPerformer = useMemo(() => {
+    if (!rankedRows.length) return null;
+    const top = rankedRows[0];
+    if (top.phoneCount + top.accessoryCount <= 0 && top.salesCount <= 0) return null;
+    return top;
+  }, [rankedRows]);
 
   return (
     <>
@@ -160,7 +173,13 @@ export default function BranchEmployeesReportPage() {
         <SummaryCard
           emoji="🏆"
           label="الأعلى مبيعاً"
-          value={loading ? "…" : topPerformer?.nameAr ?? "—"}
+          value={
+            loading
+              ? "…"
+              : topPerformer
+                ? `${topPerformer.nameAr} · ${topPerformer.phoneCount} موبايل · ${topPerformer.accessoryCount} إكسسوار`
+                : "—"
+          }
           borderClass="border-accent-orange/25"
           bgClass="bg-accent-orange/5"
           valueClass="text-accent-orange text-lg sm:text-xl"
@@ -217,7 +236,7 @@ export default function BranchEmployeesReportPage() {
 
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px]">
+          <table className="w-full min-w-[1040px]">
             <thead>
               <tr className="text-xs text-muted-dark border-b border-border bg-background-input/30">
                 <ThEmoji emoji={em.number} className="text-right p-4 font-medium w-24">
@@ -232,6 +251,12 @@ export default function BranchEmployeesReportPage() {
                 <ThEmoji emoji={em.invoice} className="text-right p-4 font-medium">
                   عدد الفواتير
                 </ThEmoji>
+                <ThEmoji emoji={em.device} className="text-right p-4 font-medium">
+                  عدد الموبايلات
+                </ThEmoji>
+                <ThEmoji emoji={em.product} className="text-right p-4 font-medium">
+                  عدد الإكسسوارات
+                </ThEmoji>
                 <ThEmoji emoji={em.total} className="text-right p-4 font-medium">
                   إجمالي المبيعات
                 </ThEmoji>
@@ -243,20 +268,20 @@ export default function BranchEmployeesReportPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-muted">
+                  <td colSpan={8} className="p-12 text-center text-muted">
                     جاري التحميل...
                   </td>
                 </tr>
-              ) : filteredRows.length === 0 ? (
+              ) : rankedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-muted">
+                  <td colSpan={8} className="p-12 text-center text-muted">
                     {hasActiveFilter
                       ? "لا توجد نتائج مطابقة للفلتر"
                       : "لا يوجد موظفين أو مبيعات في هذه الفترة"}
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row) => (
+                rankedRows.map((row) => (
                   <tr key={row.id} className="border-b border-border/40 hover:bg-white/[0.02] transition-colors">
                     <td className="p-4 text-sm font-mono font-bold text-primary-light">{row.employeeCode}</td>
                     <td className="p-4 text-sm font-medium text-white">
@@ -276,6 +301,12 @@ export default function BranchEmployeesReportPage() {
                     </td>
                     <td className="p-4 text-sm tabular-nums text-white font-semibold">
                       <CellEmoji emoji={em.invoice}>{row.salesCount}</CellEmoji>
+                    </td>
+                    <td className="p-4 text-sm tabular-nums text-white font-semibold">
+                      <CellEmoji emoji={em.device}>{row.phoneCount}</CellEmoji>
+                    </td>
+                    <td className="p-4 text-sm tabular-nums text-white font-semibold">
+                      <CellEmoji emoji={em.product}>{row.accessoryCount}</CellEmoji>
                     </td>
                     <td className="p-4 text-sm tabular-nums text-accent-green font-bold">
                       {formatCurrency(row.salesTotal)} ج.م

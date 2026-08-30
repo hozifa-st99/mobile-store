@@ -50,21 +50,77 @@ export async function GET(request: NextRequest, context: RouteContext) {
       total: true,
       paymentMethod: true,
       customer: { select: { nameAr: true } },
-      _count: { select: { items: true } },
+      items: {
+        select: {
+          id: true,
+          description: true,
+          quantity: true,
+          total: true,
+          imei: true,
+          product: { select: { type: true } },
+        },
+        orderBy: { id: "asc" },
+      },
     },
     orderBy: [{ saleDate: "desc" }, { createdAt: "desc" }],
   });
 
-  const rows = sales.map((sale) => ({
-    id: sale.id,
-    invoiceNumber: sale.invoiceNumber,
-    saleDate: sale.saleDate.toISOString(),
-    total: sale.total,
-    paymentMethod: sale.paymentMethod,
-    paymentLabel: paymentLabels[sale.paymentMethod] || sale.paymentMethod,
-    customerName: sale.customer?.nameAr || "—",
-    itemCount: sale._count.items,
-  }));
+  const phoneLines: {
+    id: string;
+    description: string;
+    quantity: number;
+    total: number;
+    imei: string | null;
+    invoiceNumber: string;
+    saleDate: string;
+  }[] = [];
+  const accessoryLines: {
+    id: string;
+    description: string;
+    quantity: number;
+    total: number;
+    invoiceNumber: string;
+    saleDate: string;
+  }[] = [];
+
+  const rows = sales.map((sale) => {
+    let phoneCount = 0;
+    let accessoryCount = 0;
+    for (const item of sale.items) {
+      const line = {
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity,
+        total: item.total,
+        invoiceNumber: sale.invoiceNumber,
+        saleDate: sale.saleDate.toISOString(),
+      };
+      if (item.product?.type === "phone") {
+        phoneCount += item.quantity;
+        phoneLines.push({ ...line, imei: item.imei });
+      } else {
+        accessoryCount += item.quantity;
+        accessoryLines.push(line);
+      }
+    }
+    return {
+      id: sale.id,
+      invoiceNumber: sale.invoiceNumber,
+      saleDate: sale.saleDate.toISOString(),
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      paymentLabel: paymentLabels[sale.paymentMethod] || sale.paymentMethod,
+      customerName: sale.customer?.nameAr || "—",
+      itemCount: sale.items.length,
+      phoneCount,
+      accessoryCount,
+    };
+  });
+
+  const phoneAmount = phoneLines.reduce((sum, line) => sum + line.total, 0);
+  const accessoryAmount = accessoryLines.reduce((sum, line) => sum + line.total, 0);
+  const phoneCount = phoneLines.reduce((sum, line) => sum + line.quantity, 0);
+  const accessoryCount = accessoryLines.reduce((sum, line) => sum + line.quantity, 0);
 
   const totals = rows.reduce(
     (acc, row) => {
@@ -80,6 +136,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     employee,
     periodLabel: range.label,
     rows,
-    totals,
+    totals: {
+      ...totals,
+      phones: { quantity: phoneCount, amount: phoneAmount },
+      accessories: { quantity: accessoryCount, amount: accessoryAmount },
+    },
+    phoneLines,
+    accessoryLines,
   });
 }

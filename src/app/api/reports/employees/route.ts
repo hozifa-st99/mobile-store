@@ -33,21 +33,44 @@ export async function GET(request: NextRequest) {
     select: {
       branchEmployeeId: true,
       total: true,
-      id: true,
+      items: {
+        select: {
+          quantity: true,
+          total: true,
+          product: { select: { type: true } },
+        },
+      },
     },
   });
 
-  const byEmployee = new Map<string, { salesCount: number; salesTotal: number }>();
+  const byEmployee = new Map<
+    string,
+    { salesCount: number; salesTotal: number; phoneCount: number; accessoryCount: number }
+  >();
   for (const sale of sales) {
     if (!sale.branchEmployeeId) continue;
-    const prev = byEmployee.get(sale.branchEmployeeId) ?? { salesCount: 0, salesTotal: 0 };
+    const prev = byEmployee.get(sale.branchEmployeeId) ?? {
+      salesCount: 0,
+      salesTotal: 0,
+      phoneCount: 0,
+      accessoryCount: 0,
+    };
     prev.salesCount += 1;
     prev.salesTotal += sale.total;
+    for (const item of sale.items) {
+      if (item.product?.type === "phone") prev.phoneCount += item.quantity;
+      else prev.accessoryCount += item.quantity;
+    }
     byEmployee.set(sale.branchEmployeeId, prev);
   }
 
   const rows = employees.map((emp) => {
-    const stats = byEmployee.get(emp.id) ?? { salesCount: 0, salesTotal: 0 };
+    const stats = byEmployee.get(emp.id) ?? {
+      salesCount: 0,
+      salesTotal: 0,
+      phoneCount: 0,
+      accessoryCount: 0,
+    };
     return {
       id: emp.id,
       employeeCode: emp.employeeCode,
@@ -56,6 +79,8 @@ export async function GET(request: NextRequest) {
       address: emp.address,
       salesCount: stats.salesCount,
       salesTotal: stats.salesTotal,
+      phoneCount: stats.phoneCount,
+      accessoryCount: stats.accessoryCount,
     };
   });
 
@@ -63,9 +88,11 @@ export async function GET(request: NextRequest) {
     (acc, row) => {
       acc.salesCount += row.salesCount;
       acc.salesTotal += row.salesTotal;
+      acc.phoneCount += row.phoneCount;
+      acc.accessoryCount += row.accessoryCount;
       return acc;
     },
-    { salesCount: 0, salesTotal: 0 }
+    { salesCount: 0, salesTotal: 0, phoneCount: 0, accessoryCount: 0 }
   );
 
   return NextResponse.json({
