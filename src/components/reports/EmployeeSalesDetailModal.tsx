@@ -79,11 +79,11 @@ function MiniStat({
   }`;
   const body = (
     <>
-      <p className="text-[11px] text-muted mb-1 inline-flex items-center gap-1.5">
+      <p className="text-sm font-semibold text-muted mb-1.5 inline-flex items-center gap-1.5">
         <span aria-hidden>{emoji}</span>
         {label}
       </p>
-      <p className={`text-lg font-bold tabular-nums ${valueClass}`}>{value}</p>
+      <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
     </>
   );
   if (onClick) {
@@ -121,21 +121,21 @@ function CategoryCard({
       onClick={onClick}
       className={`rounded-2xl border p-4 text-right w-full ${borderClass} ${bgClass} hover:brightness-110 transition-[filter,box-shadow] hover:shadow-glow-sm`}
     >
-      <p className="text-sm font-bold text-white mb-3 inline-flex items-center gap-1.5">
-        <span aria-hidden>{emoji}</span>
+      <p className="text-lg font-bold text-white mb-3 inline-flex items-center gap-2">
+        <span aria-hidden className="text-xl">{emoji}</span>
         {title}
       </p>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] text-muted mb-0.5">العدد</p>
-          <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{quantity}</p>
+          <p className="text-sm text-muted mb-0.5">العدد</p>
+          <p className={`text-3xl font-extrabold tabular-nums ${valueClass}`}>{quantity}</p>
         </div>
         <div className="text-left">
-          <p className="text-[11px] text-muted mb-0.5">المبلغ</p>
-          <p className="text-lg font-bold tabular-nums text-accent-green">{formatCurrency(amount)} ج.م</p>
+          <p className="text-sm text-muted mb-0.5">المبلغ</p>
+          <p className="text-xl font-bold tabular-nums text-accent-green">{formatCurrency(amount)} ج.م</p>
         </div>
       </div>
-      <p className="text-[11px] text-muted mt-3">اضغط لعرض البنود</p>
+      <p className="text-sm text-muted mt-3">اضغط لعرض البنود</p>
     </button>
   );
 }
@@ -153,7 +153,7 @@ function LinesTable({
   const colSpan = showImei ? 6 : 5;
   return (
     <div className="overflow-x-auto">
-      <table className={`w-full text-sm ${showImei ? "min-w-[860px]" : "min-w-[720px]"}`}>
+      <table className={`w-full text-base ${showImei ? "min-w-[860px]" : "min-w-[720px]"}`}>
         <thead>
           <tr className="text-xs text-muted-dark border-b border-primary/15 bg-background-input/40">
             <ThEmoji emoji={em.description} className="text-right p-4 font-medium">
@@ -284,7 +284,7 @@ export default function EmployeeSalesDetailModal({
               value={`${formatCurrency(data.totals.total)} ج.م`}
               borderClass="border-accent-green/30"
               bgClass="bg-accent-green/5"
-              valueClass="text-accent-green text-base"
+              valueClass="text-accent-green text-xl"
             />
           </div>
 
@@ -293,7 +293,7 @@ export default function EmployeeSalesDetailModal({
               <span className="w-8 h-8 rounded-lg bg-primary/25 flex items-center justify-center" aria-hidden>
                 {view === "phones" ? em.device : view === "accessories" ? em.product : em.invoice}
               </span>
-              <span className="text-sm font-bold text-white">{heading}</span>
+              <span className="text-base font-bold text-white">{heading}</span>
               <span className="text-xs text-muted mr-auto">{data.employee.employeeCode}</span>
               {view !== "invoices" && (
                 <button

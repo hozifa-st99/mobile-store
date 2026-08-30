@@ -63,6 +63,46 @@ function SummaryCard({
   );
 }
 
+function TopPerformerCard({
+  loading,
+  performer,
+}: {
+  loading: boolean;
+  performer: EmployeeReportRow | null;
+}) {
+  return (
+    <div className="glass-card p-4 border border-accent-yellow/30 bg-accent-yellow/5">
+      <p className="text-xs text-muted mb-2 inline-flex items-center gap-1.5">
+        <span aria-hidden>🏆</span>
+        الأعلى مبيعاً
+      </p>
+      {loading ? (
+        <p className="text-2xl font-bold text-accent-yellow">…</p>
+      ) : !performer ? (
+        <p className="text-2xl font-bold text-muted">—</p>
+      ) : (
+        <>
+          <p className="text-xl sm:text-2xl font-extrabold text-accent-yellow leading-tight mb-3">
+            {performer.nameAr}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-accent-cyan/12 border border-accent-cyan/30 text-accent-cyan">
+              <span aria-hidden className="text-base leading-none">{em.device}</span>
+              <span className="text-lg font-extrabold tabular-nums leading-none">{performer.phoneCount}</span>
+              <span className="text-xs font-semibold">موبايل</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-accent-orange/12 border border-accent-orange/30 text-accent-orange">
+              <span aria-hidden className="text-base leading-none">{em.product}</span>
+              <span className="text-lg font-extrabold tabular-nums leading-none">{performer.accessoryCount}</span>
+              <span className="text-xs font-semibold">إكسسوار</span>
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function BranchEmployeesReportPage() {
   const [filter, setFilter] = useState<ReportFilterState>(defaultFilter);
   const [data, setData] = useState<ReportData | null>(null);
@@ -160,8 +200,9 @@ export default function BranchEmployeesReportPage() {
           emoji="🧾"
           label="عدد الفواتير"
           value={loading ? "…" : filteredInvoiceCount}
-          borderClass="border-primary/30"
-          bgClass="bg-primary/5"
+          borderClass="border-accent-cyan/35"
+          bgClass="bg-accent-cyan/5"
+          valueClass="text-accent-cyan"
         />
         <SummaryCard
           emoji="👔"
@@ -170,20 +211,7 @@ export default function BranchEmployeesReportPage() {
           borderClass="border-primary/25"
           bgClass="bg-primary/5"
         />
-        <SummaryCard
-          emoji="🏆"
-          label="الأعلى مبيعاً"
-          value={
-            loading
-              ? "…"
-              : topPerformer
-                ? `${topPerformer.nameAr} · ${topPerformer.phoneCount} موبايل · ${topPerformer.accessoryCount} إكسسوار`
-                : "—"
-          }
-          borderClass="border-accent-orange/25"
-          bgClass="bg-accent-orange/5"
-          valueClass="text-accent-orange text-lg sm:text-xl"
-        />
+        <TopPerformerCard loading={loading} performer={topPerformer} />
       </div>
 
       <div className="glass-card p-3 mb-4 flex flex-wrap gap-3 items-center">
