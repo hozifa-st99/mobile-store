@@ -27,8 +27,8 @@ import {
 import { matchPurchaseLinesToResolved } from "@/lib/purchase-line-match";
 import {
   PURCHASE_PAYMENT_TYPE_LABELS,
+  purchaseDebtDisplayOutstanding,
   purchaseSettlementLabel,
-  roundPurchaseMoney,
 } from "@/lib/purchase-payment-display";
 import {
   applyPurchasePaymentSideEffects,
@@ -101,6 +101,10 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       supplier: true,
+      creditLedgerEntries: {
+        select: { creditAmount: true, paidAmount: true },
+        take: 1,
+      },
     },
     orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
   });
@@ -117,8 +121,12 @@ export async function GET(request: NextRequest) {
   const purchasesWithCreators = await attachInvoiceCreators(prisma, purchases);
 
   const enriched = purchasesWithCreators.map((p) => {
-    const outstanding = roundPurchaseMoney(Math.max(0, p.total - p.paidAmount));
-    const settlement = purchaseSettlementLabel(p.paymentType, p.total, p.paidAmount);
+    const creditEntry = p.creditLedgerEntries[0] ?? null;
+    const outstanding =
+      p.paymentType === "full_cash"
+        ? 0
+        : purchaseDebtDisplayOutstanding(p, creditEntry);
+    const settlement = purchaseSettlementLabel(p.paymentType, outstanding);
     return {
       ...p,
       returnStatus: returnStatusMap[p.id] ?? "none",

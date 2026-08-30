@@ -30,12 +30,12 @@ export function purchaseDebtDisplayOutstanding(
   return purchaseOutstanding(purchase.total, purchase.paidAmount);
 }
 
+/** تسمية حالة السداد للعرض — المتبقي يُمرَّر جاهزاً (مثلاً من سجل الأجل) */
 export function purchaseSettlementLabel(
   paymentType: string,
-  total: number,
-  paidAmount: number
+  outstanding: number
 ): { label: string; tone: "settled" | "partial" | "credit" | "cash" } {
-  const outstanding = purchaseOutstanding(total, paidAmount);
+  outstanding = roundPurchaseMoney(Math.max(0, outstanding));
 
   if (paymentType === "full_cash") {
     return { label: "مسدّد (نقدي)", tone: "cash" };
