@@ -31,13 +31,14 @@ export async function getBranchesForUser(
   if (isFullAccessRole(role)) {
     return prisma.branch.findMany({
       where: { companyId, isActive: true },
-      orderBy: { nameAr: "asc" },
+      orderBy: { createdAt: "asc" },
     });
   }
 
   const links = await prisma.userBranch.findMany({
     where: { userId, branch: { isActive: true } },
     include: { branch: true },
+    orderBy: { branch: { createdAt: "asc" } },
   });
 
   return links.map((l) => l.branch);
