@@ -796,7 +796,7 @@ export default function BranchComparisonDashboard({
                   />
                   <BranchMetricRow
                     emoji="✅"
-                    label="صافي أجهزة مباعة"
+                    label="صافي أجهزة مباعة (مبيعات)"
                     value={
                       <CountWithAmountBadge
                         count={r.phones.netSoldCount}
@@ -816,7 +816,7 @@ export default function BranchComparisonDashboard({
                   />
                   {r.phones.soldByBrand.length > 0 ? (
                     <div className="mt-3 pt-3 border-t border-white/15 space-y-1">
-                      <p className="text-xs font-bold mb-2 opacity-90">🏭 حسب الشركة (صافي)</p>
+                      <p className="text-xs font-bold mb-2 opacity-90">🏭 حسب الشركة (صافي مبيعات بعد مرتجعات)</p>
                       {r.phones.soldByBrand.slice(0, 5).map((b) => (
                         <BranchMetricRow
                           key={b.brand}

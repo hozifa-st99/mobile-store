@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   const allBranches = await prisma.branch.findMany({
     where: { companyId: auth.companyId, isActive: true },
     select: { id: true, nameAr: true, code: true },
-    orderBy: { nameAr: "asc" },
+    orderBy: { createdAt: "asc" },
   });
 
   const parsedBranchIds = branchIdsParam ? branchIdsParam.split(",").filter(Boolean) : [];
