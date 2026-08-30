@@ -66,6 +66,13 @@ export default function SettingsPage() {
     ...(isSuperAdmin
       ? [
           {
+            title: "النسخ الاحتياطي",
+            desc: "نسخة كاملة من قاعدة البيانات — تنزيل على اللاب توب أو استعادتها على السيرفر",
+            href: "/dashboard/settings/database-backup",
+            emoji: "💾",
+            color: "#06b6d4",
+          },
+          {
             title: "تفعيل الموقع",
             desc: "تفعيل أو إيقاف الموقع لمدة محددة — للسوبر أدمن فقط",
             href: "/dashboard/settings/site-activation",
