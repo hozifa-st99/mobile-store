@@ -27,8 +27,34 @@ const TimelineChart = dynamic(
   { ssr: false, loading: () => <div className="h-72 glass-card animate-pulse rounded-2xl" /> }
 );
 
-function formatCountWithAmount(count: number, amount: number) {
-  return `${formatNumber(count)} · ${formatCurrency(amount)} ج.م`;
+function CountWithAmountBadge({
+  count,
+  amount,
+  tone = "cyan",
+}: {
+  count: number;
+  amount: number;
+  tone?: "cyan" | "orange" | "green" | "violet";
+}) {
+  const toneClasses = {
+    cyan: "bg-cyan-500/18 border-cyan-400/40 text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.12)]",
+    orange: "bg-orange-500/18 border-orange-400/40 text-orange-100 shadow-[0_0_16px_rgba(251,146,60,0.12)]",
+    green: "bg-emerald-500/18 border-emerald-400/40 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.12)]",
+    violet: "bg-violet-500/18 border-violet-400/40 text-violet-100 shadow-[0_0_16px_rgba(167,139,250,0.12)]",
+  };
+
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <span
+        className={`inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full border px-2.5 text-sm font-extrabold tabular-nums ${toneClasses[tone]}`}
+      >
+        {formatNumber(count)}
+      </span>
+      <span className="text-sm font-semibold tabular-nums text-white/90">
+        {formatCurrency(amount)} ج.م
+      </span>
+    </span>
+  );
 }
 
 const categoryLabels: Record<string, string> = {
@@ -755,17 +781,29 @@ export default function BranchComparisonDashboard({
                   <BranchMetricRow
                     emoji={em.device}
                     label="أجهزة مباعة (إجمالي)"
-                    value={formatCountWithAmount(r.phones.soldCount, r.phones.soldAmount)}
+                    value={<CountWithAmountBadge count={r.phones.soldCount} amount={r.phones.soldAmount} tone="cyan" />}
                   />
                   <BranchMetricRow
                     emoji="↩️"
                     label="مرتجع أجهزة مباعة"
-                    value={formatCountWithAmount(r.phones.returnedCount, r.phones.returnedAmount)}
+                    value={
+                      <CountWithAmountBadge
+                        count={r.phones.returnedCount}
+                        amount={r.phones.returnedAmount}
+                        tone="orange"
+                      />
+                    }
                   />
                   <BranchMetricRow
                     emoji="✅"
                     label="صافي أجهزة مباعة"
-                    value={formatCountWithAmount(r.phones.netSoldCount, r.phones.netSoldAmount)}
+                    value={
+                      <CountWithAmountBadge
+                        count={r.phones.netSoldCount}
+                        amount={r.phones.netSoldAmount}
+                        tone="green"
+                      />
+                    }
                   />
                   <BranchMetricRow emoji="📲" label="أجهزة متاحة (إجمالي)" value={formatNumber(r.phones.availableCount)} />
                   <BranchMetricRow emoji="♻️" label="مستعمل متاح (المخزون)" value={formatNumber(r.phones.usedStockCount)} />
@@ -773,7 +811,7 @@ export default function BranchComparisonDashboard({
                   <BranchMetricRow emoji={em.profitUp} label="أرباح الموبايلات (صافي)" value={`${formatCurrency(r.phones.phoneProfit)} ج.م`} />
                   <BranchMetricRow
                     emoji="🔄"
-                    label="أجهزة لها أكثر من دورة"
+                    label="أجهزة لها دورة سابقة (متاحة الآن)"
                     value={formatNumber(r.phones.usedCount)}
                   />
                   {r.phones.soldByBrand.length > 0 ? (
@@ -783,7 +821,7 @@ export default function BranchComparisonDashboard({
                         <BranchMetricRow
                           key={b.brand}
                           label={b.brand}
-                          value={formatCountWithAmount(b.count, b.amount)}
+                          value={<CountWithAmountBadge count={b.count} amount={b.amount} tone="violet" />}
                         />
                       ))}
                     </div>

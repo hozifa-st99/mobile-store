@@ -124,7 +124,7 @@ export interface BranchPhoneMetrics {
   phoneSales: number;
   /** صافي ربح الموبaيلات بعد المرتجع */
   phoneProfit: number;
-  /** أجهزة مباعة بدورة مستعملة (cycleIndex > 1) خلال الفترة */
+  /** أجهزة متاحة الآن سبق لها دورة (cycleIndex > 1) — ليست مباعة حالياً */
   usedCount: number;
 }
 
@@ -381,10 +381,17 @@ export async function computeBranchComparisonRow(
       },
       select: { unitCost: true },
     }),
-    db.saleItem.count({
+    db.productSerial.count({
       where: {
-        sale: { branchId, status: "completed", saleDate: { gte: from, lte: to } },
-        serial: { cycleIndex: { gt: 1 } },
+        branchId,
+        status: "available",
+        cycleIndex: { gt: 1 },
+        product: {
+          type: "phone",
+          deletedAt: null,
+          isActive: true,
+          companyId,
+        },
       },
     }),
     db.productSerial.count({
