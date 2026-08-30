@@ -27,6 +27,10 @@ const TimelineChart = dynamic(
   { ssr: false, loading: () => <div className="h-72 glass-card animate-pulse rounded-2xl" /> }
 );
 
+function formatCountWithAmount(count: number, amount: number) {
+  return `${formatNumber(count)} · ${formatCurrency(amount)} ج.م`;
+}
+
 const categoryLabels: Record<string, string> = {
   rent: "إيجار",
   utilities: "مرافق",
@@ -110,13 +114,17 @@ interface ComparisonRow {
   };
   phones: {
     soldCount: number;
-    soldByBrand: { brand: string; count: number }[];
+    soldAmount: number;
+    returnedCount: number;
+    returnedAmount: number;
+    netSoldCount: number;
+    netSoldAmount: number;
+    soldByBrand: { brand: string; count: number; amount: number }[];
     availableCount: number;
     usedStockCount: number;
     phoneStockValue: number;
     phoneSales: number;
     phoneProfit: number;
-    returnedCount: number;
     usedCount: number;
   };
   employees: {
@@ -744,13 +752,25 @@ export default function BranchComparisonDashboard({
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {rows.map((r, idx) => (
                 <BranchMetricCard key={r.branchId} branchName={r.branchName} branchIndex={idx} sectionEmoji="📱">
-                  <BranchMetricRow emoji={em.device} label="أجهزة مباعة" value={formatNumber(r.phones.soldCount)} />
+                  <BranchMetricRow
+                    emoji={em.device}
+                    label="أجهزة مباعة (إجمالي)"
+                    value={formatCountWithAmount(r.phones.soldCount, r.phones.soldAmount)}
+                  />
+                  <BranchMetricRow
+                    emoji="↩️"
+                    label="مرتجع أجهزة مباعة"
+                    value={formatCountWithAmount(r.phones.returnedCount, r.phones.returnedAmount)}
+                  />
+                  <BranchMetricRow
+                    emoji="✅"
+                    label="صافي أجهزة مباعة"
+                    value={formatCountWithAmount(r.phones.netSoldCount, r.phones.netSoldAmount)}
+                  />
                   <BranchMetricRow emoji="📲" label="أجهزة متاحة (إجمالي)" value={formatNumber(r.phones.availableCount)} />
                   <BranchMetricRow emoji="♻️" label="مستعمل متاح (المخزون)" value={formatNumber(r.phones.usedStockCount)} />
                   <BranchMetricRow emoji="💰" label="قيمة مخزون الموبايلات" value={`${formatCurrency(r.phones.phoneStockValue)} ج.م`} />
-                  <BranchMetricRow emoji={em.total} label="مبيعات الموبايلات" value={`${formatCurrency(r.phones.phoneSales)} ج.م`} />
-                  <BranchMetricRow emoji={em.profitUp} label="أرباح الموبايلات" value={`${formatCurrency(r.phones.phoneProfit)} ج.م`} />
-                  <BranchMetricRow emoji="↩️" label="مرتجعة" value={formatNumber(r.phones.returnedCount)} />
+                  <BranchMetricRow emoji={em.profitUp} label="أرباح الموبايلات (صافي)" value={`${formatCurrency(r.phones.phoneProfit)} ج.م`} />
                   <BranchMetricRow
                     emoji="🔄"
                     label="أجهزة لها أكثر من دورة"
@@ -758,9 +778,13 @@ export default function BranchComparisonDashboard({
                   />
                   {r.phones.soldByBrand.length > 0 ? (
                     <div className="mt-3 pt-3 border-t border-white/15 space-y-1">
-                      <p className="text-xs font-bold mb-2 opacity-90">🏭 حسب الشركة</p>
+                      <p className="text-xs font-bold mb-2 opacity-90">🏭 حسب الشركة (صافي)</p>
                       {r.phones.soldByBrand.slice(0, 5).map((b) => (
-                        <BranchMetricRow key={b.brand} label={b.brand} value={formatNumber(b.count)} />
+                        <BranchMetricRow
+                          key={b.brand}
+                          label={b.brand}
+                          value={formatCountWithAmount(b.count, b.amount)}
+                        />
                       ))}
                     </div>
                   ) : null}

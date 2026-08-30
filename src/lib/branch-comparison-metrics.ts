@@ -102,16 +102,28 @@ export interface BranchProductHighlight {
   profit: number;
 }
 
+export interface BranchPhoneBrandMetric {
+  brand: string;
+  count: number;
+  amount: number;
+}
+
 export interface BranchPhoneMetrics {
   soldCount: number;
-  soldByBrand: { brand: string; count: number }[];
+  soldAmount: number;
+  returnedCount: number;
+  returnedAmount: number;
+  netSoldCount: number;
+  netSoldAmount: number;
+  soldByBrand: BranchPhoneBrandMetric[];
   availableCount: number;
   usedStockCount: number;
   phoneStockValue: number;
   phoneStockCost: number;
+  /** إجمالي مبيعات الموبايلات قبل المرتجع */
   phoneSales: number;
+  /** صافي ربح الموبaيلات بعد المرتجع */
   phoneProfit: number;
-  returnedCount: number;
   /** أجهزة مباعة بدورة مستعملة (cycleIndex > 1) خلال الفترة */
   usedCount: number;
 }
@@ -350,7 +362,16 @@ export async function computeBranchComparisonRow(
         saleReturn: { branchId, returnDate: { gte: from, lte: to } },
         saleItem: { product: { type: "phone" } },
       },
-      select: { quantity: true },
+      select: {
+        quantity: true,
+        total: true,
+        saleItem: {
+          select: {
+            unitCost: true,
+            product: { select: { brand: true } },
+          },
+        },
+      },
     }),
     db.productSerial.findMany({
       where: {
@@ -375,8 +396,8 @@ export async function computeBranchComparisonRow(
           deletedAt: null,
           isActive: true,
           companyId,
+          deviceCondition: "used",
         },
-        OR: [{ cycleIndex: { gt: 1 } }, { product: { deviceCondition: "used" } }],
       },
     }),
     db.branchEmployee.findMany({
@@ -678,28 +699,67 @@ export async function computeBranchComparisonRow(
     .sort((a, b) => a.quantity - b.quantity)
     .slice(0, 20);
 
-  const brandMap = new Map<string, number>();
+  const brandGrossMap = new Map<string, { count: number; amount: number }>();
   let phoneSales = 0;
   let phoneCost = 0;
   for (const item of phoneSalesItems) {
     const brand = item.product?.brand || "غير محدد";
-    brandMap.set(brand, (brandMap.get(brand) || 0) + item.quantity);
+    const row = brandGrossMap.get(brand) ?? { count: 0, amount: 0 };
+    row.count += item.quantity;
+    row.amount += item.total;
+    brandGrossMap.set(brand, row);
     phoneSales += item.total;
     phoneCost += item.quantity * (item.unitCost || 0);
   }
 
+  let returnedCount = 0;
+  let returnedAmount = 0;
+  let returnedCost = 0;
+  const brandReturnMap = new Map<string, { count: number; amount: number }>();
+  for (const item of phoneReturnItems) {
+    returnedCount += item.quantity;
+    returnedAmount += item.total;
+    returnedCost += item.quantity * (item.saleItem?.unitCost || 0);
+    const brand = item.saleItem?.product?.brand || "غير محدد";
+    const row = brandReturnMap.get(brand) ?? { count: 0, amount: 0 };
+    row.count += item.quantity;
+    row.amount += item.total;
+    brandReturnMap.set(brand, row);
+  }
+
+  const soldCount = phoneSalesItems.reduce((sum, item) => sum + item.quantity, 0);
+  const netSoldCount = soldCount - returnedCount;
+  const netSoldAmount = roundMoney(phoneSales - returnedAmount);
+  const phoneProfit = roundMoney(phoneSales - phoneCost - (returnedAmount - returnedCost));
+
+  const brandKeys = new Set([...brandGrossMap.keys(), ...brandReturnMap.keys()]);
+  const soldByBrand = Array.from(brandKeys)
+    .map((brand) => {
+      const gross = brandGrossMap.get(brand) ?? { count: 0, amount: 0 };
+      const returned = brandReturnMap.get(brand) ?? { count: 0, amount: 0 };
+      return {
+        brand,
+        count: gross.count - returned.count,
+        amount: roundMoney(gross.amount - returned.amount),
+      };
+    })
+    .filter((row) => row.count > 0 || row.amount > 0)
+    .sort((a, b) => b.count - a.count || b.amount - a.amount);
+
   const phones: BranchPhoneMetrics = {
-    soldCount: phoneSalesItems.reduce((sum, item) => sum + item.quantity, 0),
-    soldByBrand: Array.from(brandMap.entries())
-      .map(([brand, count]) => ({ brand, count }))
-      .sort((a, b) => b.count - a.count),
+    soldCount,
+    soldAmount: roundMoney(phoneSales),
+    returnedCount,
+    returnedAmount: roundMoney(returnedAmount),
+    netSoldCount,
+    netSoldAmount,
+    soldByBrand,
     availableCount: availablePhones.length,
     usedStockCount: usedPhonesInStock,
     phoneStockValue: roundMoney(availablePhones.reduce((sum, s) => sum + (s.unitCost || 0), 0)),
     phoneStockCost: roundMoney(availablePhones.reduce((sum, s) => sum + (s.unitCost || 0), 0)),
     phoneSales: roundMoney(phoneSales),
-    phoneProfit: roundMoney(phoneSales - phoneCost),
-    returnedCount: phoneReturnItems.reduce((sum, item) => sum + item.quantity, 0),
+    phoneProfit,
     usedCount: usedPhonesSold,
   };
 
