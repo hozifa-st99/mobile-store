@@ -148,7 +148,36 @@ export async function GET(request: NextRequest) {
     receivablesByPurchase.set(record.purchaseId, list);
   }
 
-  let rows = purchases.map((purchase) =>
+  const cashPurchaseIds = [...receivablesByPurchase.entries()]
+    .filter(([, lines]) => lines.some((line) => line.outstanding > 0.0001))
+    .map(([purchaseId]) => purchaseId)
+    .filter((purchaseId) => !purchases.some((p) => p.id === purchaseId));
+
+  const cashPurchasesWithReceivable =
+    cashPurchaseIds.length > 0
+      ? await prisma.purchase.findMany({
+          where: {
+            branchId: auth.branchId,
+            status: "completed",
+            paymentType: "full_cash",
+            id: { in: cashPurchaseIds },
+            ...(supplierKindFilter && {
+              supplier: { supplierKind: supplierKindFilter },
+            }),
+          },
+          include: {
+            supplier: { select: { id: true, nameAr: true, phone: true, supplierKind: true } },
+            creditLedgerEntries: {
+              select: { id: true, creditAmount: true, paidAmount: true },
+              take: 1,
+            },
+          },
+        })
+      : [];
+
+  const allPurchases = [...purchases, ...cashPurchasesWithReceivable];
+
+  let rows = allPurchases.map((purchase) =>
     mapDebtRow(purchase, receivablesByPurchase.get(purchase.id) ?? [])
   );
 
