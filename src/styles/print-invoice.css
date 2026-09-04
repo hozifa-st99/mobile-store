@@ -303,42 +303,19 @@
   font-size: calc(var(--invoice-font-size, 11px) * 0.78);
 }
 
-.invoice-print-contact-branches-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: stretch;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.invoice-print-contact-chip {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid #dbeafe;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  max-width: 100%;
-  text-align: center;
-}
-
-.invoice-print-contact-address {
-  margin: 0;
-  font-weight: 700;
+.invoice-print-contact-inline-line {
+  margin: 0 0 8px;
   color: #111827;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 1.55;
+  text-align: center;
+  word-break: break-word;
+  white-space: normal;
 }
 
-.invoice-print-contact-phone-line {
-  margin: 0;
-  color: #475569;
-  direction: ltr;
-  font-size: calc(var(--invoice-font-size, 13px) * 0.72);
-  letter-spacing: 0.01em;
+.invoice-print-contact-footer--thermal .invoice-print-contact-inline-line {
+  margin-bottom: 6px;
+  font-weight: 700;
 }
 
 .invoice-print-social-row-line {
@@ -379,11 +356,6 @@
   font-weight: 600;
   word-break: break-word;
   line-height: 1.2;
-}
-
-.invoice-print-contact-footer--thermal .invoice-print-contact-chip {
-  padding: 4px 8px;
-  border-radius: 8px;
 }
 
 .invoice-print-contact-footer--thermal .invoice-print-social-chip {
@@ -570,7 +542,6 @@
   .invoice-print-meta-box,
   .invoice-print-totals--sheet,
   .invoice-print-social-chip,
-  .invoice-print-contact-chip,
   .invoice-print-social-icon-wrap {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

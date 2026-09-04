@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  splitContactPhones,
+  formatInvoiceContactBranchesLine,
   type InvoiceSocialPlatform,
   type PrintSettings,
 } from "@/lib/print-settings";
@@ -73,7 +73,9 @@ export default function InvoiceContactFooter({ settings, variant }: InvoiceConta
   const branches = settings.invoiceContactBranches;
   const socialAccounts = settings.invoiceSocialAccounts;
 
-  if (branches.length === 0 && socialAccounts.length === 0) {
+  const branchesLine = formatInvoiceContactBranchesLine(branches);
+
+  if (!branchesLine && socialAccounts.length === 0) {
     return null;
   }
 
@@ -84,24 +86,8 @@ export default function InvoiceContactFooter({ settings, variant }: InvoiceConta
 
   return (
     <section className={rootClass} aria-label="بيانات التواصل">
-      {branches.length > 0 ? (
-        <div className="invoice-print-contact-branches-row">
-          {branches.map((branch) => {
-            const phones = splitContactPhones(branch.phones);
-            if (!branch.address && phones.length === 0) return null;
-
-            return (
-              <div key={branch.id} className="invoice-print-contact-chip">
-                {branch.address ? (
-                  <span className="invoice-print-contact-address">{branch.address}</span>
-                ) : null}
-                {phones.length > 0 ? (
-                  <span className="invoice-print-contact-phone-line">{phones.join(" · ")}</span>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
+      {branchesLine ? (
+        <p className="invoice-print-contact-inline-line">{branchesLine}</p>
       ) : null}
 
       {socialAccounts.length > 0 ? (

@@ -123,24 +123,24 @@ export default function InvoiceContactSettingsPanel({
       <SectionHeading emoji={em.phone}>التواصل وعناوين الفروع</SectionHeading>
       <p className="text-xs text-muted inline-flex items-center gap-1.5">
         <span aria-hidden>{em.issue}</span>
-        يظهر أسفل الفاتورة مباشرةً — فوق نص «شكراً لتعاملكم» — في A4 / B5 والحراري
+        يظهر أسفل الفاتورة — فوق «شكراً لتعاملكم» · عدّل أي بيانات ثم اضغط «حفظ إعدادات الطباعة»
       </p>
 
       <div className="space-y-3">
         <FieldLabel emoji={em.address}>عناوين الفروع وأرقام التواصل</FieldLabel>
         {settings.invoiceContactBranches.length === 0 ? (
-          <p className="text-sm text-muted">لم تُضف عناوين بعد.</p>
+          <p className="text-sm text-muted">لم تُضف عناوين بعد — اضغط الزر بالأسفل للإضافة.</p>
         ) : (
           <div className="space-y-3">
             {settings.invoiceContactBranches.map((branch, index) => (
               <div
                 key={branch.id}
-                className="rounded-xl border border-border/60 bg-black/20 p-4 space-y-3"
+                className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-white inline-flex items-center gap-2">
-                    <span aria-hidden>{em.address}</span>
-                    عنوان {index + 1}
+                    <span aria-hidden>{em.edit}</span>
+                    تعديل عنوان {index + 1}
                   </p>
                   <button
                     type="button"
@@ -151,21 +151,27 @@ export default function InvoiceContactSettingsPanel({
                     حذف
                   </button>
                 </div>
-                <textarea
-                  value={branch.address}
-                  onChange={(event) => updateBranch(branch.id, { address: event.target.value })}
-                  rows={2}
-                  placeholder="عنوان الفرع"
-                  className="glass-input w-full resize-none"
-                />
-                <textarea
-                  value={branch.phones}
-                  onChange={(event) => updateBranch(branch.id, { phones: event.target.value })}
-                  rows={2}
-                  placeholder="أرقام التواصل — افصل بينها بفاصلة أو سطر جديد"
-                  className="glass-input w-full resize-none"
-                  dir="ltr"
-                />
+                <div>
+                  <FieldLabel emoji={em.address}>العنوان</FieldLabel>
+                  <textarea
+                    value={branch.address}
+                    onChange={(event) => updateBranch(branch.id, { address: event.target.value })}
+                    rows={2}
+                    placeholder="عنوان الفرع"
+                    className="glass-input w-full resize-none"
+                  />
+                </div>
+                <div>
+                  <FieldLabel emoji={em.phone}>أرقام التواصل</FieldLabel>
+                  <textarea
+                    value={branch.phones}
+                    onChange={(event) => updateBranch(branch.id, { phones: event.target.value })}
+                    rows={2}
+                    placeholder="أرقام التواصل — افصل بينها بفاصلة أو سطر جديد"
+                    className="glass-input w-full resize-none"
+                    dir="ltr"
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -173,7 +179,7 @@ export default function InvoiceContactSettingsPanel({
         <AddActionButton
           emoji={em.branch}
           label="إضافة عنوان / فرع"
-          hint={`${em.address} العنوان · ${em.phone} أرقام التواصل — تظهر في سطر واحد أسفل الفاتورة`}
+          hint={`${em.address} العنوان · ${em.phone} الرقم — سطر واحد: عنوان  رقم  ,  عنوان  رقم`}
           onClick={() =>
             onChange({
               ...settings,
@@ -189,18 +195,18 @@ export default function InvoiceContactSettingsPanel({
       <div className="space-y-3 pt-2">
         <FieldLabel emoji={em.customers}>حسابات التواصل الاجتماعي</FieldLabel>
         {settings.invoiceSocialAccounts.length === 0 ? (
-          <p className="text-sm text-muted">لم تُضف حسابات بعد.</p>
+          <p className="text-sm text-muted">لم تُضف حسابات بعد — اضغط الزر بالأسفل للإضافة.</p>
         ) : (
           <div className="space-y-3">
-            {settings.invoiceSocialAccounts.map((account) => (
+            {settings.invoiceSocialAccounts.map((account, index) => (
               <div
                 key={account.id}
-                className="rounded-xl border border-border/60 bg-black/20 p-4 space-y-3"
+                className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-white inline-flex items-center gap-2">
-                    <span aria-hidden>{em.link}</span>
-                    حساب تواصل
+                    <span aria-hidden>{em.edit}</span>
+                    تعديل حساب {index + 1}
                   </p>
                   <button
                     type="button"

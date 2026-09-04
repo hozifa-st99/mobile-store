@@ -170,6 +170,22 @@ export function splitContactPhones(phones: string): string[] {
     .filter(Boolean);
 }
 
+const INVOICE_CONTACT_INLINE_SEP = "  ";
+const INVOICE_CONTACT_BRANCH_SEP = "  ,  ";
+
+export function formatInvoiceContactBranchesLine(branches: InvoiceContactBranch[]): string {
+  return branches
+    .map((branch) => {
+      const phones = splitContactPhones(branch.phones);
+      const chunks: string[] = [];
+      if (branch.address.trim()) chunks.push(branch.address.trim());
+      if (phones.length > 0) chunks.push(phones.join(INVOICE_CONTACT_INLINE_SEP));
+      return chunks.join(INVOICE_CONTACT_INLINE_SEP);
+    })
+    .filter(Boolean)
+    .join(INVOICE_CONTACT_BRANCH_SEP);
+}
+
 export function hasInvoiceContactFooterContent(settings: PrintSettings): boolean {
   return settings.invoiceContactBranches.length > 0 || settings.invoiceSocialAccounts.length > 0;
 }
