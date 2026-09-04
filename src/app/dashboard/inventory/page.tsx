@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import ProductMovementModal from "@/components/inventory/ProductMovementModal";
 import ProductPurchasePriceModal from "@/components/inventory/ProductPurchasePriceModal";
+import InventoryStockValueModal from "@/components/inventory/InventoryStockValueModal";
 import ProductCatalogViewFilter from "@/components/products/ProductCatalogViewFilter";
 import ProductNameCell from "@/components/products/ProductNameCell";
 import { ProductTypeWithCondition } from "@/components/products/PhoneConditionBadge";
@@ -18,6 +19,10 @@ import {
 } from "@/lib/product-catalog-view-filter";
 import { formatPriceRangeLabel, type PriceRangeSummary } from "@/lib/phone-serial-pricing";
 import { formatCurrency } from "@/lib/utils";
+import { isFullAccessRole } from "@/lib/permissions";
+import type { InventoryStockValueSnapshot } from "@/lib/inventory-stock-value-display";
+import { toast } from "@/lib/toast";
+import { useAuthStore } from "@/store/auth-store";
 
 interface InvItem {
   id: string;
@@ -140,6 +145,13 @@ export default function InventoryPage() {
   const [purchaseProductName, setPurchaseProductName] = useState("");
   const [catalogViewFilter, setCatalogViewFilter] =
     useState<CatalogViewFilterState>(defaultCatalogViewFilter);
+  const userRole = useAuthStore((s) => s.user?.role ?? "");
+  const [stockValuePasswordOpen, setStockValuePasswordOpen] = useState(false);
+  const [stockValueOpen, setStockValueOpen] = useState(false);
+  const [stockValueLoading, setStockValueLoading] = useState(false);
+  const [stockValueError, setStockValueError] = useState<string | null>(null);
+  const [stockValueSnapshot, setStockValueSnapshot] =
+    useState<InventoryStockValueSnapshot | null>(null);
 
   const selectedPhoneEntry = useMemo(() => {
     if (!filterOptions || !phoneEntryKey) return null;
@@ -295,9 +307,66 @@ export default function InventoryPage() {
     setConditionFilter("");
   };
 
+  const handleStockValueClick = () => {
+    if (!isFullAccessRole(userRole)) {
+      toast.error("هذه الميزة تتطلب حساب أدمن أو سوبر أدمن");
+      return;
+    }
+    setStockValueError(null);
+    setStockValuePasswordOpen(true);
+  };
+
+  const handleStockValuePasswordSubmit = async (password: string) => {
+    setStockValueLoading(true);
+    setStockValueError(null);
+    const { ok, data, status } = await apiJson<{
+      snapshot?: InventoryStockValueSnapshot;
+      message?: string;
+    }>("/api/inventory/stock-value", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    setStockValueLoading(false);
+
+    if (!ok) {
+      if (status === 403) {
+        toast.error(data.message || "هذه الميزة تتطلب حساب أدمن أو سوبر أدمن");
+        setStockValuePasswordOpen(false);
+        return;
+      }
+      setStockValueError(data.message || "تعذر التحقق من كلمة المرور");
+      return;
+    }
+
+    setStockValueSnapshot(data.snapshot ?? null);
+    setStockValuePasswordOpen(false);
+    setStockValueOpen(true);
+  };
+
+  const closeStockValueModals = () => {
+    setStockValueOpen(false);
+    setStockValuePasswordOpen(false);
+    setStockValueError(null);
+    setStockValueSnapshot(null);
+  };
+
   return (
     <>
-      <PageHeader title="المخزون" subtitle="كميات المنتجات والأرقام التسلسلية" />
+      <PageHeader
+        title="المخزون"
+        subtitle="كميات المنتجات والأرقام التسلسلية"
+        centerAction={
+          <button
+            type="button"
+            onClick={handleStockValueClick}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 transition-colors"
+          >
+            <span aria-hidden>💰</span>
+            قيمة المخزون
+          </button>
+        }
+      />
 
       <ProductCatalogViewFilter
         value={catalogViewFilter}
@@ -692,6 +761,22 @@ export default function InventoryPage() {
         onClose={() => {
           setPurchaseProductId(null);
           setPurchaseProductName("");
+        }}
+      />
+
+      <InventoryStockValueModal
+        open={stockValueOpen}
+        passwordOpen={stockValuePasswordOpen}
+        loading={stockValueLoading}
+        error={stockValueError}
+        snapshot={stockValueSnapshot}
+        onClose={closeStockValueModals}
+        onSubmitPassword={(password) => void handleStockValuePasswordSubmit(password)}
+        onClosePassword={() => {
+          if (!stockValueLoading) {
+            setStockValuePasswordOpen(false);
+            setStockValueError(null);
+          }
         }}
       />
     </>
