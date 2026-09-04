@@ -1,12 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { em } from "@/components/ui/TableEmoji";
 import {
   INVOICE_SOCIAL_PLATFORMS,
   createInvoiceContactBranch,
   createInvoiceSocialAccount,
+  splitContactPhones,
+  type InvoiceContactBranch,
+  type InvoiceSocialAccount,
   type PrintSettings,
 } from "@/lib/print-settings";
 
@@ -14,6 +17,37 @@ interface InvoiceContactSettingsPanelProps {
   settings: PrintSettings;
   onChange: (next: PrintSettings) => void;
 }
+
+type CardTone = "branch" | "social";
+
+const CARD_TONE_STYLES: Record<
+  CardTone,
+  {
+    shell: string;
+    badge: string;
+    badgeLabel: string;
+    badgeEmoji: string;
+    divider: string;
+    addTone: "emerald" | "fuchsia";
+  }
+> = {
+  branch: {
+    shell: "border-emerald-400/35 bg-gradient-to-br from-emerald-500/12 via-teal-500/8 to-transparent",
+    badge: "bg-emerald-500/20 text-emerald-100 border-emerald-400/35",
+    badgeLabel: "عنوان",
+    badgeEmoji: em.address,
+    divider: "border-emerald-400/20",
+    addTone: "emerald",
+  },
+  social: {
+    shell: "border-fuchsia-400/35 bg-gradient-to-br from-fuchsia-500/12 via-violet-500/8 to-transparent",
+    badge: "bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400/35",
+    badgeLabel: "حساب",
+    badgeEmoji: em.link,
+    divider: "border-fuchsia-400/20",
+    addTone: "fuchsia",
+  },
+};
 
 function SectionHeading({ emoji, children }: { emoji: string; children: ReactNode }) {
   return (
@@ -38,23 +72,23 @@ function AddActionButton({
   label,
   hint,
   onClick,
-  tone = "sky",
+  tone = "emerald",
 }: {
   emoji: string;
   label: string;
   hint: string;
   onClick: () => void;
-  tone?: "sky" | "violet";
+  tone?: "emerald" | "fuchsia";
 }) {
   const toneClasses =
-    tone === "violet"
-      ? "border-violet-400/45 bg-violet-500/10 hover:border-violet-300/70 hover:bg-violet-500/15 focus-visible:ring-violet-400/50"
-      : "border-sky-400/45 bg-sky-500/10 hover:border-sky-300/70 hover:bg-sky-500/15 focus-visible:ring-sky-400/50";
+    tone === "fuchsia"
+      ? "border-fuchsia-400/45 bg-fuchsia-500/10 hover:border-fuchsia-300/70 hover:bg-fuchsia-500/15 focus-visible:ring-fuchsia-400/50"
+      : "border-emerald-400/45 bg-emerald-500/10 hover:border-emerald-300/70 hover:bg-emerald-500/15 focus-visible:ring-emerald-400/50";
 
   const iconClasses =
-    tone === "violet"
-      ? "bg-violet-500/20 border-violet-400/30"
-      : "bg-sky-500/20 border-sky-400/30";
+    tone === "fuchsia"
+      ? "bg-fuchsia-500/20 border-fuchsia-400/30"
+      : "bg-emerald-500/20 border-emerald-400/30";
 
   return (
     <button
@@ -79,10 +113,115 @@ function AddActionButton({
   );
 }
 
+function branchSummary(branch: InvoiceContactBranch, index: number): string {
+  const address = branch.address.trim();
+  const phones = splitContactPhones(branch.phones).join(" · ");
+  if (address && phones) return `${address} — ${phones}`;
+  if (address) return address;
+  if (phones) return phones;
+  return `عنوان ${index + 1} — لم يُكتب بعد`;
+}
+
+function socialSummary(account: InvoiceSocialAccount): string {
+  const platform =
+    INVOICE_SOCIAL_PLATFORMS.find((item) => item.value === account.platform)?.label ??
+    account.platform;
+  const label = account.label.trim();
+  if (label) return `${platform}: ${label}`;
+  return `${platform} — لم يُكتب بعد`;
+}
+
+function CollapsibleContactCard({
+  tone,
+  summary,
+  isOpen,
+  onToggle,
+  onDelete,
+  children,
+}: {
+  tone: CardTone;
+  summary: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  children: ReactNode;
+}) {
+  const styles = CARD_TONE_STYLES[tone];
+
+  return (
+    <div className={`rounded-xl border overflow-hidden ${styles.shell}`}>
+      <div className="flex items-center gap-2 p-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="min-w-0 flex-1 flex items-center gap-2 text-right"
+          aria-expanded={isOpen}
+        >
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${styles.badge}`}
+          >
+            <span aria-hidden>{styles.badgeEmoji}</span>
+            {styles.badgeLabel}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm text-white/95">{summary}</span>
+          <span className="shrink-0 text-xs text-muted" aria-hidden>
+            {isOpen ? "▲" : "▼"}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/10"
+        >
+          <span aria-hidden>{em.edit}</span>
+          {isOpen ? "إغلاق" : "تعديل"}
+        </button>
+      </div>
+
+      {isOpen ? (
+        <div className={`space-y-3 border-t px-4 py-4 ${styles.divider}`}>
+          {children}
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-200 hover:bg-red-500/15"
+            >
+              <span aria-hidden>{em.delete}</span>
+              حذف
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function InvoiceContactSettingsPanel({
   settings,
   onChange,
 }: InvoiceContactSettingsPanelProps) {
+  const [expandedBranchIds, setExpandedBranchIds] = useState<Set<string>>(() => new Set());
+  const [expandedSocialIds, setExpandedSocialIds] = useState<Set<string>>(() => new Set());
+
+  const toggleBranch = (id: string) => {
+    setExpandedBranchIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSocial = (id: string) => {
+    setExpandedSocialIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const updateBranch = (id: string, patch: Partial<{ address: string; phones: string }>) => {
     onChange({
       ...settings,
@@ -93,6 +232,11 @@ export default function InvoiceContactSettingsPanel({
   };
 
   const removeBranch = (id: string) => {
+    setExpandedBranchIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
     onChange({
       ...settings,
       invoiceContactBranches: settings.invoiceContactBranches.filter((branch) => branch.id !== id),
@@ -101,7 +245,7 @@ export default function InvoiceContactSettingsPanel({
 
   const updateSocial = (
     id: string,
-    patch: Partial<{ platform: PrintSettings["invoiceSocialAccounts"][number]["platform"]; label: string }>
+    patch: Partial<{ platform: InvoiceSocialAccount["platform"]; label: string }>
   ) => {
     onChange({
       ...settings,
@@ -112,10 +256,33 @@ export default function InvoiceContactSettingsPanel({
   };
 
   const removeSocial = (id: string) => {
+    setExpandedSocialIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
     onChange({
       ...settings,
       invoiceSocialAccounts: settings.invoiceSocialAccounts.filter((account) => account.id !== id),
     });
+  };
+
+  const addBranch = () => {
+    const branch = createInvoiceContactBranch();
+    onChange({
+      ...settings,
+      invoiceContactBranches: [...settings.invoiceContactBranches, branch],
+    });
+    setExpandedBranchIds((current) => new Set(current).add(branch.id));
+  };
+
+  const addSocial = () => {
+    const account = createInvoiceSocialAccount();
+    onChange({
+      ...settings,
+      invoiceSocialAccounts: [...settings.invoiceSocialAccounts, account],
+    });
+    setExpandedSocialIds((current) => new Set(current).add(account.id));
   };
 
   return (
@@ -123,34 +290,31 @@ export default function InvoiceContactSettingsPanel({
       <SectionHeading emoji={em.phone}>التواصل وعناوين الفروع</SectionHeading>
       <p className="text-xs text-muted inline-flex items-center gap-1.5">
         <span aria-hidden>{em.issue}</span>
-        يظهر أسفل الفاتورة — فوق «شكراً لتعاملكم» · عدّل أي بيانات ثم اضغط «حفظ إعدادات الطباعة»
+        يظهر أسفل الفاتورة — فوق «شكراً لتعاملكم» · اضغط «تعديل» لفتح أي عنصر ثم احفظ الإعدادات
       </p>
 
       <div className="space-y-3">
-        <FieldLabel emoji={em.address}>عناوين الفروع وأرقام التواصل</FieldLabel>
+        <FieldLabel emoji={em.address}>
+          <span className="inline-flex items-center gap-2">
+            عناوين الفروع وأرقام التواصل
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-100">
+              أخضر
+            </span>
+          </span>
+        </FieldLabel>
         {settings.invoiceContactBranches.length === 0 ? (
           <p className="text-sm text-muted">لم تُضف عناوين بعد — اضغط الزر بالأسفل للإضافة.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {settings.invoiceContactBranches.map((branch, index) => (
-              <div
+              <CollapsibleContactCard
                 key={branch.id}
-                className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4 space-y-3"
+                tone="branch"
+                summary={branchSummary(branch, index)}
+                isOpen={expandedBranchIds.has(branch.id)}
+                onToggle={() => toggleBranch(branch.id)}
+                onDelete={() => removeBranch(branch.id)}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-white inline-flex items-center gap-2">
-                    <span aria-hidden>{em.edit}</span>
-                    تعديل عنوان {index + 1}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => removeBranch(branch.id)}
-                    className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-red-200"
-                  >
-                    <span aria-hidden>{em.delete}</span>
-                    حذف
-                  </button>
-                </div>
                 <div>
                   <FieldLabel emoji={em.address}>العنوان</FieldLabel>
                   <textarea
@@ -172,7 +336,7 @@ export default function InvoiceContactSettingsPanel({
                     dir="ltr"
                   />
                 </div>
-              </div>
+              </CollapsibleContactCard>
             ))}
           </div>
         )}
@@ -180,43 +344,33 @@ export default function InvoiceContactSettingsPanel({
           emoji={em.branch}
           label="إضافة عنوان / فرع"
           hint={`${em.address} العنوان · ${em.phone} الرقم — سطر واحد: عنوان  رقم  /  عنوان  رقم`}
-          onClick={() =>
-            onChange({
-              ...settings,
-              invoiceContactBranches: [
-                ...settings.invoiceContactBranches,
-                createInvoiceContactBranch(),
-              ],
-            })
-          }
+          tone="emerald"
+          onClick={addBranch}
         />
       </div>
 
       <div className="space-y-3 pt-2">
-        <FieldLabel emoji={em.customers}>حسابات التواصل الاجتماعي</FieldLabel>
+        <FieldLabel emoji={em.customers}>
+          <span className="inline-flex items-center gap-2">
+            حسابات التواصل الاجتماعي
+            <span className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/15 px-2 py-0.5 text-[10px] text-fuchsia-100">
+              بنفسجي
+            </span>
+          </span>
+        </FieldLabel>
         {settings.invoiceSocialAccounts.length === 0 ? (
           <p className="text-sm text-muted">لم تُضف حسابات بعد — اضغط الزر بالأسفل للإضافة.</p>
         ) : (
-          <div className="space-y-3">
-            {settings.invoiceSocialAccounts.map((account, index) => (
-              <div
+          <div className="space-y-2">
+            {settings.invoiceSocialAccounts.map((account) => (
+              <CollapsibleContactCard
                 key={account.id}
-                className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-3"
+                tone="social"
+                summary={socialSummary(account)}
+                isOpen={expandedSocialIds.has(account.id)}
+                onToggle={() => toggleSocial(account.id)}
+                onDelete={() => removeSocial(account.id)}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-white inline-flex items-center gap-2">
-                    <span aria-hidden>{em.edit}</span>
-                    تعديل حساب {index + 1}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => removeSocial(account.id)}
-                    className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-red-200"
-                  >
-                    <span aria-hidden>{em.delete}</span>
-                    حذف
-                  </button>
-                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <FieldLabel emoji={em.type}>المنصة</FieldLabel>
@@ -247,7 +401,7 @@ export default function InvoiceContactSettingsPanel({
                     />
                   </div>
                 </div>
-              </div>
+              </CollapsibleContactCard>
             ))}
           </div>
         )}
@@ -255,16 +409,8 @@ export default function InvoiceContactSettingsPanel({
           emoji={em.customers}
           label="إضافة حساب تواصل اجتماعي"
           hint="📘 فيسبوك · 💬 واتس · 📸 انستجرام · 🎵 تيك توك — تظهر في سطر واحد أسفل العناوين"
-          tone="violet"
-          onClick={() =>
-            onChange({
-              ...settings,
-              invoiceSocialAccounts: [
-                ...settings.invoiceSocialAccounts,
-                createInvoiceSocialAccount(),
-              ],
-            })
-          }
+          tone="fuchsia"
+          onClick={addSocial}
         />
       </div>
     </section>
