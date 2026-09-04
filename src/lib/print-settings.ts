@@ -190,6 +190,7 @@ export interface SaleInvoicePrintData {
 
 export interface SaleInvoicePrintContext {
   companyName: string;
+  companyLogoUrl?: string | null;
   branchName?: string;
   branchAddress?: string | null;
   branchPhone?: string | null;

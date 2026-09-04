@@ -7,6 +7,13 @@ import { useScreenAccess } from "@/hooks/use-screen-access";
 
 const settingsSections = [
   {
+    title: "بيانات الشركة",
+    desc: "اسم ولوجo المؤسسة — يظهر في تسجيل الدخول وطباعة فاتورة البيع",
+    href: "/dashboard/settings/company",
+    emoji: "🏢",
+    color: "#8b5cf6",
+  },
+  {
     title: "قائمة الموبايلات",
     desc: "إدارة أنواع الأجهزة (iPhone / Android) والشركات وأسماء الموبايلات",
     href: "/dashboard/settings/phone-catalog",

@@ -27,6 +27,7 @@ interface AuthState {
   allowedScreens: AllowedScreens;
   isAuthenticated: boolean;
   setAuth: (user: User, branches: Branch[], allowedScreens?: AllowedScreens) => void;
+  updateCompanyName: (companyName: string) => void;
   setBranch: (branch: Branch) => void;
   clearSelectedBranch: () => void;
   logout: () => void;
@@ -50,6 +51,10 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
         });
       },
+      updateCompanyName: (companyName) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, companyName } : null,
+        })),
       setBranch: (branch) => {
         clearDashboardCaches();
         set({ selectedBranch: branch });

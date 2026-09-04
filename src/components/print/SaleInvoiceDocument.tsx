@@ -129,6 +129,55 @@ function ThermalTotalsBlock({ sale }: { sale: SaleInvoicePrintData }) {
   );
 }
 
+function InvoiceBrandHeader({
+  headerTitle,
+  companyLogoUrl,
+  subtitle,
+  branchName,
+  variant,
+}: {
+  headerTitle: string;
+  companyLogoUrl?: string | null;
+  subtitle?: string;
+  branchName?: string;
+  variant: "sheet" | "thermal";
+}) {
+  const logo =
+    companyLogoUrl ? (
+      <img
+        src={companyLogoUrl}
+        alt={headerTitle}
+        className={
+          variant === "thermal"
+            ? "invoice-print-brand-logo invoice-print-brand-logo--thermal"
+            : "invoice-print-brand-logo"
+        }
+      />
+    ) : null;
+
+  if (variant === "thermal") {
+    return (
+      <header className="invoice-print-thermal-header">
+        {logo}
+        <h1 className="invoice-print-thermal-title">{headerTitle}</h1>
+        {subtitle ? <p className="invoice-print-thermal-subtitle">{subtitle}</p> : null}
+        {branchName ? <p className="invoice-print-thermal-subtitle">{branchName}</p> : null}
+      </header>
+    );
+  }
+
+  return (
+    <div className="invoice-print-brand-block">
+      {logo}
+      <div>
+        <h1 className="invoice-print-brand-title">{headerTitle}</h1>
+        {subtitle ? <p className="invoice-print-brand-subtitle">{subtitle}</p> : null}
+        {branchName ? <p className="invoice-print-brand-subtitle">{branchName}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function SheetInvoiceBody({
   sale,
   context,
@@ -149,13 +198,13 @@ function SheetInvoiceBody({
   return (
     <>
       <header className="invoice-print-header">
-        <div>
-          <h1 className="invoice-print-brand-title">{headerTitle}</h1>
-          <p className="invoice-print-brand-subtitle">{settings.headerSubtitle}</p>
-          {context.branchName ? (
-            <p className="invoice-print-brand-subtitle">{context.branchName}</p>
-          ) : null}
-        </div>
+        <InvoiceBrandHeader
+          variant="sheet"
+          headerTitle={headerTitle}
+          companyLogoUrl={context.companyLogoUrl}
+          subtitle={settings.headerSubtitle}
+          branchName={context.branchName}
+        />
 
         <div className="invoice-print-meta-box">
           <p className="invoice-print-meta-title">إيصال دفع</p>
@@ -233,13 +282,13 @@ function ThermalInvoiceBody({
 }) {
   return (
     <>
-      <header className="invoice-print-thermal-header">
-        <h1 className="invoice-print-thermal-title">{headerTitle}</h1>
-        <p className="invoice-print-thermal-subtitle">{settings.headerSubtitle}</p>
-        {context.branchName ? (
-          <p className="invoice-print-thermal-branch">{context.branchName}</p>
-        ) : null}
-      </header>
+      <InvoiceBrandHeader
+        variant="thermal"
+        headerTitle={headerTitle}
+        companyLogoUrl={context.companyLogoUrl}
+        subtitle={settings.headerSubtitle}
+        branchName={context.branchName}
+      />
 
       <div className="invoice-print-thermal-rule" />
 

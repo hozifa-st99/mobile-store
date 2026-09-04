@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { em } from "@/components/ui/TableEmoji";
+import { DEFAULT_COMPANY_DISPLAY_NAME, type CompanyBranding } from "@/lib/company-branding";
 import { getDefaultBranchLandingPath } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/lib/toast";
@@ -170,6 +171,21 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [branding, setBranding] = useState<CompanyBranding>({
+    nameAr: DEFAULT_COMPANY_DISPLAY_NAME,
+    logoUrl: null,
+  });
+
+  useEffect(() => {
+    fetch("/api/public/company-branding")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.branding) setBranding(data.branding);
+      })
+      .catch(() => {
+        /* keep default */
+      });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,17 +255,19 @@ export default function LoginPage() {
       <main className="app-container">
         <div className="top-logo">
           <div className="logo-icon">
-            <span aria-hidden>{em.device}</span>
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={branding.nameAr} className="login-brand-logo login-brand-logo--sm" />
+            ) : (
+              <span aria-hidden>{em.device}</span>
+            )}
           </div>
-          <span className="logo-text">MOBILE STORE</span>
+          <span className="logo-text">{branding.nameAr}</span>
         </div>
 
         <div className="content-wrapper">
           <div className="left-section">
             <div className="hero-content">
-              <h1 className="main-title">
-                MOBILE <span className="highlight">STORE</span>
-              </h1>
+              <h1 className="main-title">{branding.nameAr}</h1>
               <p className="sub-title">إدارة مبيعات ومخزون المحل</p>
             </div>
 
@@ -273,7 +291,15 @@ export default function LoginPage() {
                   <div className="mobile-status-spacer" aria-hidden />
                   <div className="mobile-content">
                 <div className="login-logo-circle">
-                  <span aria-hidden>{em.device}</span>
+                  {branding.logoUrl ? (
+                    <img
+                      src={branding.logoUrl}
+                      alt={branding.nameAr}
+                      className="login-brand-logo login-brand-logo--circle"
+                    />
+                  ) : (
+                    <span aria-hidden>{em.device}</span>
+                  )}
                 </div>
 
                 <div className="welcome-text">

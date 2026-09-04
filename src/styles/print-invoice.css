@@ -52,6 +52,27 @@
   margin-bottom: 12px;
 }
 
+.invoice-print-brand-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.invoice-print-brand-logo {
+  display: block;
+  max-height: 52px;
+  max-width: 120px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.invoice-print-brand-logo--thermal {
+  max-height: 44px;
+  max-width: 100px;
+  margin: 0 auto 6px;
+}
+
 .invoice-print-brand-title {
   font-size: calc(var(--invoice-font-size, 13px) * 1.35);
   font-weight: 800;

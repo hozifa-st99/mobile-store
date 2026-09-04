@@ -810,3 +810,18 @@
     padding: 20px 15px;
   }
 }
+
+.login-premium .login-brand-logo {
+  object-fit: contain;
+}
+
+.login-premium .login-brand-logo--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.login-premium .login-brand-logo--circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+}

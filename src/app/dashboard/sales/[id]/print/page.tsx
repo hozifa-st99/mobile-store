@@ -54,6 +54,7 @@ export default function SalePrintPage() {
   const [sale, setSale] = useState<SaleInvoicePrintData | null>(null);
   const [invoiceCreatorName, setInvoiceCreatorName] = useState<string | null>(null);
   const [settings, setSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -63,7 +64,8 @@ export default function SalePrintPage() {
     Promise.all([
       apiJson<SaleApiResponse>(`/api/sales/${id}`),
       fetch("/api/settings/print", { credentials: "include" }).then((response) => response.json()),
-    ]).then(([saleResult, settingsResult]) => {
+      fetch("/api/settings/company", { credentials: "include" }).then((response) => response.json()),
+    ]).then(([saleResult, settingsResult, companyResult]) => {
       if (saleResult.ok && saleResult.data.sale) {
         const currentSale = saleResult.data.sale;
         setSale({
@@ -93,6 +95,9 @@ export default function SalePrintPage() {
       if (settingsResult.settings) {
         setSettings(settingsResult.settings);
       }
+      if (companyResult.company?.logoUrl) {
+        setCompanyLogoUrl(companyResult.company.logoUrl);
+      }
 
       setLoading(false);
     });
@@ -110,12 +115,13 @@ export default function SalePrintPage() {
   const context = useMemo(
     () => ({
       companyName: user?.companyName || "المحل",
+      companyLogoUrl,
       branchName: selectedBranch?.name,
       branchAddress: selectedBranch?.address,
       branchPhone: selectedBranch?.phone,
       invoiceCreatorName,
     }),
-    [user, selectedBranch, invoiceCreatorName]
+    [user, selectedBranch, invoiceCreatorName, companyLogoUrl]
   );
 
   if (loading) {
