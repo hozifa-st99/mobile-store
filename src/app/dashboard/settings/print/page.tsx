@@ -39,6 +39,8 @@ export default function PrintSettingsPage() {
   const { user, selectedBranch } = useAuthStore();
   const [activeTab, setActiveTab] = useState<PrintSettingsTab>("invoice");
   const [settings, setSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS);
+  const [companyPreviewName, setCompanyPreviewName] = useState<string | null>(null);
+  const [companyPreviewLogoUrl, setCompanyPreviewLogoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -53,17 +55,30 @@ export default function PrintSettingsPage() {
       .catch(() => {
         /* keep defaults */
       });
+
+    fetch("/api/settings/company", { credentials: "include" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.company) {
+          setCompanyPreviewName(data.company.nameAr ?? null);
+          setCompanyPreviewLogoUrl(data.company.logoUrl ?? null);
+        }
+      })
+      .catch(() => {
+        /* keep session defaults */
+      });
   }, []);
 
   const previewContext = useMemo(
     () => ({
-      companyName: user?.companyName || "اسم المحل",
+      companyName: companyPreviewName || user?.companyName || "اسم المحل",
+      companyLogoUrl: companyPreviewLogoUrl,
       branchName: selectedBranch?.name,
       branchAddress: selectedBranch?.address,
       branchPhone: selectedBranch?.phone,
       invoiceCreatorName: user?.fullName ?? null,
     }),
-    [user, selectedBranch]
+    [user, selectedBranch, companyPreviewName, companyPreviewLogoUrl]
   );
 
   const handleSave = async () => {
