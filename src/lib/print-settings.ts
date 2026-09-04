@@ -171,7 +171,7 @@ export function splitContactPhones(phones: string): string[] {
 }
 
 const INVOICE_CONTACT_INLINE_SEP = "  ";
-const INVOICE_CONTACT_BRANCH_SEP = "  ,  ";
+const INVOICE_CONTACT_BRANCH_SEP = "  /  ";
 
 export function formatInvoiceContactBranchesLine(branches: InvoiceContactBranch[]): string {
   return branches

@@ -179,7 +179,7 @@ export default function InvoiceContactSettingsPanel({
         <AddActionButton
           emoji={em.branch}
           label="إضافة عنوان / فرع"
-          hint={`${em.address} العنوان · ${em.phone} الرقم — سطر واحد: عنوان  رقم  ,  عنوان  رقم`}
+          hint={`${em.address} العنوان · ${em.phone} الرقم — سطر واحد: عنوان  رقم  /  عنوان  رقم`}
           onClick={() =>
             onChange({
               ...settings,
