@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireScreenAccess } from "@/lib/api-auth";
 import {
+  assertOptionalManualBranchReference,
   assertPartyBelongsToCompany,
   ledgerErrorToResponse,
   MANUAL_LEDGER_ENTRY_WHERE,
+  manualBranchEntryWhere,
   outstanding,
   parseLedgerNotes,
+  parseManualBranchFilter,
+  partyBranchReportKey,
   syncEntryPaidAmountFromMovements,
   type PartyType,
 } from "@/lib/credit-ledger-service";
@@ -36,20 +40,26 @@ function entryDateWithStaggeredTime(entryDate: Date, baseMs: number, step: numbe
 function mapEntry(entry: {
   id: string;
   partyType: string;
+  branchId: string | null;
   entryDate: Date;
   creditAmount: number;
   paidAmount: number;
   notes: string | null;
   supplier: { id: string; nameAr: string; phone: string | null } | null;
   customer: { id: string; nameAr: string; phone: string | null } | null;
+  branch: { id: string; nameAr: string } | null;
 }) {
   const party = entry.partyType === "supplier" ? entry.supplier : entry.customer;
+  const partyId = party?.id ?? null;
   return {
     id: entry.id,
     partyType: entry.partyType,
-    partyId: party?.id ?? null,
+    partyId,
     partyName: party?.nameAr ?? "—",
     partyPhone: party?.phone ?? null,
+    branchId: entry.branchId,
+    branchName: entry.branch?.nameAr ?? null,
+    reportKey: partyId ? partyBranchReportKey(partyId, entry.branchId) : entry.id,
     entryDate: entry.entryDate.toISOString(),
     creditAmount: entry.creditAmount,
     paidAmount: entry.paidAmount,
@@ -72,16 +82,19 @@ export async function GET(request: NextRequest) {
     const onlyOutstanding = searchParams.get("onlyOutstanding") === "1";
     const search = (searchParams.get("search") || "").trim();
     const partyId = (searchParams.get("partyId") || "").trim();
+    const branchFilter = parseManualBranchFilter(searchParams.get("branchId"));
 
     const entries = await prisma.creditLedgerEntry.findMany({
       where: {
         companyId: auth.companyId,
         partyType,
         ...MANUAL_LEDGER_ENTRY_WHERE,
+        ...manualBranchEntryWhere(branchFilter),
       },
       include: {
         supplier: { select: { id: true, nameAr: true, phone: true } },
         customer: { select: { id: true, nameAr: true, phone: true } },
+        branch: { select: { id: true, nameAr: true } },
         payments: { select: { paidAt: true, createdAt: true } },
       },
       orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
@@ -92,9 +105,12 @@ export async function GET(request: NextRequest) {
     const partyMap = new Map<
       string,
       {
+        reportKey: string;
         partyId: string;
         partyName: string;
         partyPhone: string | null;
+        branchId: string | null;
+        branchName: string | null;
         creditAmount: number;
         paidAmount: number;
         outstanding: number;
@@ -106,19 +122,18 @@ export async function GET(request: NextRequest) {
 
     for (const row of mapped) {
       if (!row.partyId) continue;
-      const raw = entries.find(
-        (e) =>
-          (e.supplier?.id === row.partyId || e.customer?.id === row.partyId) &&
-          e.id === row.id
-      );
+      const raw = entries.find((e) => e.id === row.id);
       const paymentDates =
         raw?.payments.map((p) => Math.max(p.paidAt.getTime(), p.createdAt.getTime())) ?? [];
       const activityTs = Math.max(new Date(row.entryDate).getTime(), ...paymentDates, 0);
 
-      const prev = partyMap.get(row.partyId) ?? {
+      const prev = partyMap.get(row.reportKey) ?? {
+        reportKey: row.reportKey,
         partyId: row.partyId,
         partyName: row.partyName,
         partyPhone: row.partyPhone,
+        branchId: row.branchId,
+        branchName: row.branchName,
         creditAmount: 0,
         paidAmount: 0,
         outstanding: 0,
@@ -137,19 +152,23 @@ export async function GET(request: NextRequest) {
       if (activityTs > new Date(prev.lastActivityDate).getTime()) {
         prev.lastActivityDate = new Date(activityTs).toISOString();
       }
-      partyMap.set(row.partyId, prev);
+      partyMap.set(row.reportKey, prev);
     }
 
-    const partyOptions = Array.from(partyMap.values())
-      .filter((p) => !onlyOutstanding || p.outstanding > 0.0001)
-      .map((p) => ({
-        partyId: p.partyId,
-        partyName: p.partyName,
-        partyPhone: p.partyPhone,
-      }))
-      .sort((a, b) => a.partyName.localeCompare(b.partyName, "ar"));
+    const partyOptions = Array.from(
+      new Map(
+        Array.from(partyMap.values()).map((p) => [
+          p.partyId,
+          {
+            partyId: p.partyId,
+            partyName: p.partyName,
+            partyPhone: p.partyPhone,
+          },
+        ])
+      ).values()
+    ).sort((a, b) => a.partyName.localeCompare(b.partyName, "ar"));
 
-    let partyReport = partyOptions.map((option) => partyMap.get(option.partyId)!);
+    let partyReport = Array.from(partyMap.values());
 
     if (partyId) {
       partyReport = partyReport.filter((p) => p.partyId === partyId);
@@ -158,7 +177,9 @@ export async function GET(request: NextRequest) {
     if (search) {
       partyReport = partyReport.filter(
         (p) =>
-          p.partyName.includes(search) || (p.partyPhone?.includes(search) ?? false)
+          p.partyName.includes(search) ||
+          (p.partyPhone?.includes(search) ?? false) ||
+          (p.branchName?.includes(search) ?? false)
       );
     }
 
@@ -177,6 +198,12 @@ export async function GET(request: NextRequest) {
       { creditAmount: 0, paidAmount: 0, outstanding: 0 }
     );
 
+    const branchOptions = await prisma.branch.findMany({
+      where: { companyId: auth.companyId, isActive: true },
+      select: { id: true, nameAr: true },
+      orderBy: { nameAr: "asc" },
+    });
+
     return NextResponse.json({
       entries: mapped,
       totals: {
@@ -186,6 +213,10 @@ export async function GET(request: NextRequest) {
       },
       partyReport,
       partyOptions,
+      branchOptions: branchOptions.map((branch) => ({
+        branchId: branch.id,
+        branchName: branch.nameAr,
+      })),
     });
   } catch (err) {
     console.error("credit-ledger GET:", err);
@@ -230,11 +261,13 @@ export async function POST(request: NextRequest) {
     await assertPartyBelongsToCompany(prisma, auth.companyId, partyType, partyId, {
       requireActive: true,
     });
+    const branchId = await assertOptionalManualBranchReference(prisma, auth.companyId, body.branchId);
 
     const entry = await prisma.$transaction(async (tx) => {
       const created = await tx.creditLedgerEntry.create({
         data: {
           companyId: auth.companyId,
+          branchId,
           partyType,
           supplierId: partyType === "supplier" ? supplierId : null,
           customerId: partyType === "customer" ? customerId : null,
@@ -247,6 +280,7 @@ export async function POST(request: NextRequest) {
         include: {
           supplier: { select: { id: true, nameAr: true, phone: true } },
           customer: { select: { id: true, nameAr: true, phone: true } },
+          branch: { select: { id: true, nameAr: true } },
         },
       });
 

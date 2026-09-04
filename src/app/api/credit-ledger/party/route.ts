@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { requireScreenAccess } from "@/lib/api-auth";
 import {
   applyPartyPayment,
+  assertOptionalManualBranchReference,
   assertPartyBelongsToCompany,
   buildPartyTimeline,
   ledgerErrorToResponse,
   MANUAL_LEDGER_ENTRY_WHERE,
+  manualBranchEntryWhere,
   outstanding,
   parseLedgerNotes,
+  parseManualBranchFilter,
   parseOptionalPaidAt,
   partyWhere,
   runSerializableLedgerTransaction,
@@ -28,6 +31,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const partyType = parsePartyType(searchParams.get("partyType"));
     const partyId = searchParams.get("partyId");
+    const branchFilter = parseManualBranchFilter(searchParams.get("branchId"));
 
     if (!partyType || !partyId) {
       return NextResponse.json({ message: "معرّف الطرف مطلوب" }, { status: 400 });
@@ -41,10 +45,12 @@ export async function GET(request: NextRequest) {
         partyType,
         ...partyWhere(partyType, partyId),
         ...MANUAL_LEDGER_ENTRY_WHERE,
+        ...manualBranchEntryWhere(branchFilter),
       },
       include: {
         supplier: { select: { id: true, nameAr: true, phone: true } },
         customer: { select: { id: true, nameAr: true, phone: true } },
+        branch: { select: { id: true, nameAr: true } },
       },
       orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
     });
@@ -73,6 +79,8 @@ export async function GET(request: NextRequest) {
         partyType,
         partyName: party?.nameAr ?? "—",
         partyPhone: party?.phone ?? null,
+        branchId: entries[0].branchId,
+        branchName: entries[0].branch?.nameAr ?? null,
         firstEntryDate: entries[0].entryDate.toISOString(),
         creditAmount,
         paidAmount,
@@ -109,6 +117,7 @@ export async function PATCH(request: NextRequest) {
 
     const notes = parseLedgerNotes(body.notes);
     const paidAt = parseOptionalPaidAt(body.paidAt);
+    const branchId = await assertOptionalManualBranchReference(prisma, auth.companyId, body.branchId);
 
     await runSerializableLedgerTransaction(prisma, async (tx) => {
       await applyPartyPayment(
@@ -119,7 +128,8 @@ export async function PATCH(request: NextRequest) {
         amount,
         paidAt,
         notes,
-        auth.userId
+        auth.userId,
+        branchId
       );
     });
 

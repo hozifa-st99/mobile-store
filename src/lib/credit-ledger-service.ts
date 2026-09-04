@@ -194,6 +194,41 @@ export function partyWhere(partyType: PartyType, partyId: string) {
   return partyType === "supplier" ? { supplierId: partyId } : { customerId: partyId };
 }
 
+export function partyBranchReportKey(partyId: string, branchId: string | null) {
+  return `${partyId}::${branchId ?? ""}`;
+}
+
+export function parseManualBranchFilter(value: string | null): string | null | undefined {
+  if (value == null || value === "") return undefined;
+  if (value === "__none__") return null;
+  return value.trim();
+}
+
+export function manualBranchEntryWhere(branchId: string | null | undefined) {
+  if (branchId === undefined) return {};
+  if (branchId === null) return { branchId: null };
+  return { branchId };
+}
+
+export async function assertOptionalManualBranchReference(
+  db: Tx | PrismaClient,
+  companyId: string,
+  branchId: unknown
+): Promise<string | null> {
+  if (branchId == null || branchId === "") return null;
+  if (typeof branchId !== "string") {
+    throw new LedgerValidationError("الفرع غير صالح", "PARTY_NOT_FOUND");
+  }
+
+  const branch = await db.branch.findFirst({
+    where: { id: branchId.trim(), companyId, isActive: true },
+    select: { id: true },
+  });
+  if (!branch) {
+    throw new LedgerValidationError("الفرع غير موجود", "PARTY_NOT_FOUND");
+  }
+  return branch.id;
+}
 
 function movementLabel(type: string) {
   if (type === "payment") return "تسجيل دفعة";
@@ -370,7 +405,8 @@ export async function applyPartyPayment(
   amount: number,
   paidAt: Date,
   notes: string | null,
-  createdByUserId: string
+  createdByUserId: string,
+  branchId?: string | null
 ) {
   await assertPartyBelongsToCompany(tx, companyId, partyType, partyId);
 
@@ -382,6 +418,7 @@ export async function applyPartyPayment(
         partyType,
         ...partyWhere(partyType, partyId),
         ...MANUAL_LEDGER_ENTRY_WHERE,
+        ...manualBranchEntryWhere(branchId),
       },
       select: { id: true },
       orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],

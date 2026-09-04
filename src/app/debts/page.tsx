@@ -23,9 +23,12 @@ interface PartyOption {
 }
 
 interface PartyReportRow {
+  reportKey: string;
   partyId: string;
   partyName: string;
   partyPhone: string | null;
+  branchId: string | null;
+  branchName: string | null;
   creditAmount: number;
   paidAmount: number;
   outstanding: number;
@@ -40,10 +43,16 @@ interface PartyFilterOption {
   partyPhone: string | null;
 }
 
+interface BranchFilterOption {
+  branchId: string;
+  branchName: string;
+}
+
 interface LedgerResponse {
   totals: { creditAmount: number; paidAmount: number; outstanding: number };
   partyReport: PartyReportRow[];
   partyOptions: PartyFilterOption[];
+  branchOptions: BranchFilterOption[];
 }
 
 interface PartyDetailsResponse {
@@ -110,6 +119,14 @@ const ledgerTableViewportClass = "overflow-auto max-h-[calc(100vh-22rem)] min-h-
 const ledgerTableHeadCellClass =
   "sticky top-0 z-10 bg-background-card text-right p-4 font-medium shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]";
 
+function branchQueryValue(branchId: string | null) {
+  return branchId ?? "__none__";
+}
+
+function branchDisplayName(branchName: string | null) {
+  return branchName?.trim() || "بدون فرع";
+}
+
 export default function DebtsPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
@@ -122,7 +139,9 @@ export default function DebtsPage() {
   const [onlyOutstanding, setOnlyOutstanding] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedPartyId, setSelectedPartyId] = useState("");
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [partyOptions, setPartyOptions] = useState<PartyFilterOption[]>([]);
+  const [branchOptions, setBranchOptions] = useState<BranchFilterOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [partyReport, setPartyReport] = useState<PartyReportRow[]>([]);
@@ -146,6 +165,7 @@ export default function DebtsPage() {
 
   const [addForm, setAddForm] = useState({
     partyId: "",
+    branchId: "",
     entryDate: todayInputValue(),
     creditAmount: "",
     paidAmount: "",
@@ -164,11 +184,13 @@ export default function DebtsPage() {
       ...(onlyOutstanding ? { onlyOutstanding: "1" } : {}),
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(selectedPartyId ? { partyId: selectedPartyId } : {}),
+      ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
     });
     const { ok, data } = await apiJson<LedgerResponse & { message?: string }>(`/api/credit-ledger?${q}`);
     if (ok) {
       setPartyReport(data.partyReport || []);
       setPartyOptions(data.partyOptions || []);
+      setBranchOptions(data.branchOptions || []);
       setTotals(data.totals || { creditAmount: 0, paidAmount: 0, outstanding: 0 });
     } else {
       toast.error(data.message || "تعذّر تحميل الديون والأجل");
@@ -186,6 +208,7 @@ export default function DebtsPage() {
   useEffect(() => {
     setSearch("");
     setSelectedPartyId("");
+    setSelectedBranchId("");
   }, [tab]);
 
   useEffect(() => {
@@ -194,7 +217,7 @@ export default function DebtsPage() {
       void loadLedger();
     }, search ? 400 : 0);
     return () => clearTimeout(t);
-  }, [ready, tab, onlyOutstanding, search, selectedPartyId, canAccessDebts]);
+  }, [ready, tab, onlyOutstanding, search, selectedPartyId, selectedBranchId, canAccessDebts]);
 
   useEffect(() => {
     if (!ready || !showAddModal) return;
@@ -207,6 +230,7 @@ export default function DebtsPage() {
   const resetAddForm = () => {
     setAddForm({
       partyId: "",
+      branchId: "",
       entryDate: todayInputValue(),
       creditAmount: "",
       paidAmount: "",
@@ -246,6 +270,7 @@ export default function DebtsPage() {
           ? {
               partyType: tab,
               supplierId: addForm.partyId,
+              branchId: addForm.branchId || null,
               entryDate: addForm.entryDate,
               creditAmount,
               paidAmount,
@@ -254,6 +279,7 @@ export default function DebtsPage() {
           : {
               partyType: tab,
               customerId: addForm.partyId,
+              branchId: addForm.branchId || null,
               entryDate: addForm.entryDate,
               creditAmount,
               paidAmount,
@@ -284,6 +310,7 @@ export default function DebtsPage() {
   };
 
   const selectedAddParty = parties.find((p) => p.id === addForm.partyId);
+  const selectedAddBranch = branchOptions.find((b) => b.branchId === addForm.branchId);
   const pendingAddCredit = Number(addForm.creditAmount);
   const pendingAddPaid = addForm.paidAmount.trim() ? Number(addForm.paidAmount) : 0;
 
@@ -328,6 +355,7 @@ export default function DebtsPage() {
           body: JSON.stringify({
             partyType: tab,
             partyId: payTarget.partyId,
+            branchId: payTarget.branchId,
             addPayment: pendingPayAmount,
             notes: payNotes.trim() || null,
           }),
@@ -358,7 +386,11 @@ export default function DebtsPage() {
     setShowDetailsModal(true);
     setDetailsLoading(true);
 
-    const q = new URLSearchParams({ partyType: tab, partyId: row.partyId });
+    const q = new URLSearchParams({
+      partyType: tab,
+      partyId: row.partyId,
+      branchId: branchQueryValue(row.branchId),
+    });
     const { ok, data } = await apiJson<PartyDetailsResponse & { message?: string }>(
       `/api/credit-ledger/party?${q}`
     );
@@ -494,7 +526,7 @@ export default function DebtsPage() {
       </div>
 
       <div className="glass-card p-4 mb-5">
-        <div className="flex flex-row items-center gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
           <div className="relative flex-1 min-w-0">
             <span
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-dark inline-flex items-center justify-center text-lg leading-none pointer-events-none"
@@ -505,7 +537,7 @@ export default function DebtsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={`بحث باسم ${partyLabel} أو الهاتف...`}
+              placeholder={`بحث باسم ${partyLabel} أو الهاتف أو الفرع...`}
               className={cn(filterFieldClass, "pr-10 pl-4")}
             />
           </div>
@@ -520,6 +552,21 @@ export default function DebtsPage() {
                 <option key={p.partyId} value={p.partyId}>
                   {p.partyName}
                   {p.partyPhone ? ` — ${p.partyPhone}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full sm:w-64 shrink-0">
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className={cn(filterFieldClass, "px-4")}
+            >
+              <option value="">كل الفروع</option>
+              <option value="__none__">بدون فرع</option>
+              {branchOptions.map((branch) => (
+                <option key={branch.branchId} value={branch.branchId}>
+                  {branch.branchName}
                 </option>
               ))}
             </select>
@@ -549,15 +596,18 @@ export default function DebtsPage() {
           <div className="p-4 border-b border-border">
             <h2 className="text-sm font-semibold text-white">تقرير مجمع — {tabLabel}</h2>
             <p className="text-xs text-muted mt-1">
-              ملخص لكل {partyLabel} — إجمالي الآجل والمدفوع وعدد السجلات. الدفعة من هنا تُوزَّع على أقدم السجلات المفتوحة.
+              ملخص لكل {partyLabel} وفرع — إجمالي الآجل والمدفوع وعدد السجلات. الدفعة تُطبَّق على سجلات نفس الفرع فقط.
             </p>
           </div>
           <div className={ledgerTableViewportClass}>
-            <table className="w-full min-w-[720px] border-collapse">
+            <table className="w-full min-w-[860px] border-collapse">
               <thead>
                 <tr className="text-xs text-muted-dark">
                   <ThEmoji emoji={tab === "supplier" ? em.supplier : em.customer} className={ledgerTableHeadCellClass}>
                     {partyLabel}
+                  </ThEmoji>
+                  <ThEmoji emoji={em.branch} className={ledgerTableHeadCellClass}>
+                    الفرع
                   </ThEmoji>
                   <ThEmoji emoji={em.total} className={ledgerTableHeadCellClass}>
                     إجمالي الآجل
@@ -579,13 +629,13 @@ export default function DebtsPage() {
               <tbody>
                 {partyReport.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-10 text-center text-muted text-sm">
+                    <td colSpan={7} className="p-10 text-center text-muted text-sm">
                       {emptyLedgerMessage(search, onlyOutstanding, tabLabel)}
                     </td>
                   </tr>
                 ) : (
                   partyReport.map((row) => (
-                    <tr key={row.partyId} className="border-b border-border/60 hover:bg-white/[0.02]">
+                    <tr key={row.reportKey} className="border-b border-border/60 hover:bg-white/[0.02]">
                       <td className="p-4">
                         <CellEmoji emoji={tab === "supplier" ? em.supplier : em.customer}>
                           <div>
@@ -596,6 +646,7 @@ export default function DebtsPage() {
                           </div>
                         </CellEmoji>
                       </td>
+                      <td className="p-4 text-sm text-muted">{branchDisplayName(row.branchName)}</td>
                       <td className="p-4 tabular-nums text-accent-orange">{formatAmountExact(row.creditAmount)}</td>
                       <td className="p-4 tabular-nums text-accent-green">{formatAmountExact(row.paidAmount)}</td>
                       <td className="p-4 tabular-nums font-semibold text-primary-light">
@@ -625,11 +676,11 @@ export default function DebtsPage() {
           <div className="p-4 border-b border-border">
             <h2 className="text-sm font-semibold text-white">سجل تفصيلي — {tabLabel}</h2>
             <p className="text-xs text-muted mt-1">
-              سطر واحد لكل {partyLabel} — اضغط «عرض» لرؤية كل الحركات
+              سطر لكل {partyLabel} وفرع — اضغط «عرض» لرؤية حركات نفس الفرع فقط
             </p>
           </div>
           <div className={ledgerTableViewportClass}>
-            <table className="w-full min-w-[820px] border-collapse">
+            <table className="w-full min-w-[960px] border-collapse">
               <thead>
                 <tr className="text-xs text-muted-dark">
                   <ThEmoji emoji={em.date} className={ledgerTableHeadCellClass}>
@@ -637,6 +688,9 @@ export default function DebtsPage() {
                   </ThEmoji>
                   <ThEmoji emoji={tab === "supplier" ? em.supplier : em.customer} className={ledgerTableHeadCellClass}>
                     {partyLabel}
+                  </ThEmoji>
+                  <ThEmoji emoji={em.branch} className={ledgerTableHeadCellClass}>
+                    الفرع
                   </ThEmoji>
                   <ThEmoji emoji={em.total} className={ledgerTableHeadCellClass}>
                     إجمالي الآجل
@@ -655,13 +709,13 @@ export default function DebtsPage() {
               <tbody>
                 {partyReport.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-10 text-center text-muted text-sm">
+                    <td colSpan={7} className="p-10 text-center text-muted text-sm">
                       {emptyLedgerMessage(search, onlyOutstanding, tabLabel)}
                     </td>
                   </tr>
                 ) : (
                   partyReport.map((row) => (
-                    <tr key={row.partyId} className="border-b border-border/60 hover:bg-white/[0.02]">
+                    <tr key={row.reportKey} className="border-b border-border/60 hover:bg-white/[0.02]">
                       <td className="p-4 text-sm text-muted">{formatLedgerDate(row.lastActivityDate)}</td>
                       <td className="p-4">
                         <CellEmoji emoji={tab === "supplier" ? em.supplier : em.customer}>
@@ -673,6 +727,7 @@ export default function DebtsPage() {
                           </div>
                         </CellEmoji>
                       </td>
+                      <td className="p-4 text-sm text-muted">{branchDisplayName(row.branchName)}</td>
                       <td className="p-4 tabular-nums text-accent-orange">{formatAmountExact(row.creditAmount)}</td>
                       <td className="p-4 tabular-nums text-accent-green">{formatAmountExact(row.paidAmount)}</td>
                       <td className="p-4 tabular-nums font-semibold text-primary-light">
@@ -735,6 +790,25 @@ export default function DebtsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted mb-1.5 block">الفرع (اختياري — للتذكّر فقط)</label>
+                <select
+                  value={addForm.branchId}
+                  onChange={(e) => setAddForm({ ...addForm, branchId: e.target.value })}
+                  className="glass-input w-full"
+                >
+                  <option value="">بدون فرع</option>
+                  {branchOptions.map((branch) => (
+                    <option key={branch.branchId} value={branch.branchId}>
+                      {branch.branchName}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted mt-1.5">
+                  للتذكّر بمكان الزيارة فقط — لا يؤثر على حسابات الفروع الداخلية
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -830,6 +904,12 @@ export default function DebtsPage() {
                 <span className="text-white">{formatLedgerDate(addForm.entryDate)}</span>
               </p>
               <p className="text-muted">
+                الفرع:{" "}
+                <span className="text-white">
+                  {selectedAddBranch?.branchName ?? "بدون فرع"}
+                </span>
+              </p>
+              <p className="text-muted">
                 المبلغ الآجل:{" "}
                 <span className="text-accent-orange font-semibold tabular-nums">
                   {formatAmountExact(pendingAddCredit)} ج.م
@@ -886,7 +966,8 @@ export default function DebtsPage() {
               <div>
                 <h3 className="text-lg font-bold text-white">تفاصيل الحساب — {detailsParty.partyName}</h3>
                 <p className="text-sm text-muted mt-1">
-                  {detailsParty.entryCount} سجل — أول تسجيل: {formatLedgerDate(detailsParty.firstEntryDate)}
+                  الفرع: {branchDisplayName(detailsParty.branchName)} — {detailsParty.entryCount} سجل — أول
+                  تسجيل: {formatLedgerDate(detailsParty.firstEntryDate)}
                 </p>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm">
                   <span>
@@ -1003,12 +1084,12 @@ export default function DebtsPage() {
           <div className="glass-card w-full max-w-md p-6 space-y-4">
             <h3 className="text-lg font-bold text-white">تسجيل دفعة</h3>
             <p className="text-sm text-muted">
-              {payTarget.partyName} — مستحق:{" "}
+              {payTarget.partyName} — {branchDisplayName(payTarget.branchName)} — مستحق:{" "}
               <span className="text-primary-light font-semibold tabular-nums">
                 {formatAmountExact(payTarget.outstanding)} ج.م
               </span>
               <span className="block text-xs mt-1">
-                تُوزَّع الدفعة على أقدم السجلات المفتوحة ({payTarget.entryCount} سجل)
+                تُطبَّق الدفعة على سجلات نفس الفرع فقط ({payTarget.entryCount} سجل)
               </span>
             </p>
             <form onSubmit={handlePayment} className="space-y-4">
@@ -1072,7 +1153,7 @@ export default function DebtsPage() {
               </span>{" "}
               لـ{" "}
               <span className="text-white font-semibold">{payTarget.partyName}</span>
-              <> — {payTarget.entryCount} سجل</>
+              <> — {branchDisplayName(payTarget.branchName)} — {payTarget.entryCount} سجل</>
               ؟
             </p>
             <div className="rounded-xl border border-border bg-background-input/40 p-3 text-sm space-y-1">
