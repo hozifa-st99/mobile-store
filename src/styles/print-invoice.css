@@ -54,23 +54,54 @@
 
 .invoice-print-brand-block {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 12px;
   min-width: 0;
+}
+
+.invoice-print-brand-block--thermal {
+  gap: 8px;
+  text-align: right;
+}
+
+.invoice-print-brand-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.invoice-print-brand-logo-wrap {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  flex-shrink: 0;
 }
 
 .invoice-print-brand-logo {
   display: block;
-  max-height: 52px;
-  max-width: 120px;
+  height: 100%;
+  width: auto;
+  max-height: 100%;
+  max-width: 180px;
+  min-height: 56px;
   object-fit: contain;
-  flex-shrink: 0;
+  object-position: center;
 }
 
 .invoice-print-brand-logo--thermal {
-  max-height: 44px;
-  max-width: 100px;
-  margin: 0 auto 6px;
+  max-width: 96px;
+  min-height: 48px;
+}
+
+.invoice-print-thermal-header--with-logo {
+  text-align: right;
+}
+
+.invoice-print-thermal-header--with-logo .invoice-print-thermal-title {
+  text-align: right;
 }
 
 .invoice-print-brand-title {

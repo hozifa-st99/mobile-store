@@ -149,24 +149,56 @@ function InvoiceBrandHeader({
 }) {
   const logo =
     companyLogoUrl ? (
-      <img
-        src={companyLogoUrl}
-        alt={headerTitle}
-        className={
-          variant === "thermal"
-            ? "invoice-print-brand-logo invoice-print-brand-logo--thermal"
-            : "invoice-print-brand-logo"
-        }
-      />
+      <div className="invoice-print-brand-logo-wrap">
+        <img
+          src={companyLogoUrl}
+          alt={headerTitle}
+          className={
+            variant === "thermal"
+              ? "invoice-print-brand-logo invoice-print-brand-logo--thermal"
+              : "invoice-print-brand-logo"
+          }
+        />
+      </div>
     ) : null;
 
   const subtitleClass =
     variant === "thermal" ? "invoice-print-thermal-subtitle" : "invoice-print-brand-subtitle";
 
+  const brandText = (
+    <div className="invoice-print-brand-text">
+      <h1 className={variant === "thermal" ? "invoice-print-thermal-title" : "invoice-print-brand-title"}>
+        {headerTitle}
+      </h1>
+      {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
+      {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
+      {branchPhone ? (
+        <p className={variant === "thermal" ? "invoice-print-thermal-branch" : subtitleClass}>
+          هاتف الفرع: {branchPhone}
+        </p>
+      ) : null}
+      {branchAddress ? (
+        <p className={variant === "thermal" ? "invoice-print-thermal-branch" : subtitleClass}>
+          {branchAddress}
+        </p>
+      ) : null}
+    </div>
+  );
+
   if (variant === "thermal") {
+    if (logo) {
+      return (
+        <header className="invoice-print-thermal-header invoice-print-thermal-header--with-logo">
+          <div className="invoice-print-brand-block invoice-print-brand-block--thermal">
+            {logo}
+            {brandText}
+          </div>
+        </header>
+      );
+    }
+
     return (
       <header className="invoice-print-thermal-header">
-        {logo}
         <h1 className="invoice-print-thermal-title">{headerTitle}</h1>
         {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
         {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
@@ -181,15 +213,7 @@ function InvoiceBrandHeader({
   return (
     <div className="invoice-print-brand-block">
       {logo}
-      <div>
-        <h1 className="invoice-print-brand-title">{headerTitle}</h1>
-        {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
-        {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
-        {branchPhone ? (
-          <p className={subtitleClass}>هاتف الفرع: {branchPhone}</p>
-        ) : null}
-        {branchAddress ? <p className={subtitleClass}>{branchAddress}</p> : null}
-      </div>
+      {brandText}
     </div>
   );
 }
