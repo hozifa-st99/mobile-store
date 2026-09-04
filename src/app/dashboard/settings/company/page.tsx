@@ -89,7 +89,7 @@ export default function CompanySettingsPage() {
 
       <PageHeader
         title="بيانات الشركة"
-        subtitle="اسم ولوجo المؤسسة — يظهر في تسجيل الدخول وطباعة فاتورة البيع"
+        subtitle="اسم ولوجو المؤسسة — يظهر في تسجيل الدخول وطباعة فاتورة البيع"
       />
 
       {loading ? (
@@ -114,7 +114,7 @@ export default function CompanySettingsPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-muted mb-3">لوجo الشركة</label>
+            <label className="block text-xs text-muted mb-3">لوجو الشركة</label>
             <LogoUpload
               name={form.nameAr || "الشركة"}
               value={form.logoUrl}
