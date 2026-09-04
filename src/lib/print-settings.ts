@@ -13,6 +13,30 @@ export const SHEET_PAPER_SIZES = PRINT_PAPER_SIZES.filter((size) => size.kind ==
 
 export type PrintPaperSize = (typeof PRINT_PAPER_SIZES)[number]["value"];
 
+export type InvoiceSocialPlatform = "facebook" | "whatsapp" | "instagram" | "tiktok";
+
+export interface InvoiceContactBranch {
+  id: string;
+  address: string;
+  phones: string;
+}
+
+export interface InvoiceSocialAccount {
+  id: string;
+  platform: InvoiceSocialPlatform;
+  label: string;
+}
+
+export const INVOICE_SOCIAL_PLATFORMS: ReadonlyArray<{
+  value: InvoiceSocialPlatform;
+  label: string;
+}> = [
+  { value: "facebook", label: "فيسبوك" },
+  { value: "whatsapp", label: "واتساب" },
+  { value: "instagram", label: "انستجرام" },
+  { value: "tiktok", label: "تيك توك" },
+];
+
 export interface PrintSettings {
   paperSize: PrintPaperSize;
   headerTitle: string;
@@ -38,6 +62,10 @@ export interface PrintSettings {
   showInvoiceNumberOnInvoice: boolean;
   /** إظهار اسم حساب من أنشأ الفاتورة */
   showInvoiceCreatorOnInvoice: boolean;
+  /** عناوين الفروع وأرقام التواصل — أسفل الفاتورة */
+  invoiceContactBranches: InvoiceContactBranch[];
+  /** حسابات التواصل الاجتماعي — أسفل الفاتورة */
+  invoiceSocialAccounts: InvoiceSocialAccount[];
 }
 
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
@@ -55,7 +83,96 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   showBranchAddressOnInvoice: true,
   showInvoiceNumberOnInvoice: true,
   showInvoiceCreatorOnInvoice: true,
+  invoiceContactBranches: [],
+  invoiceSocialAccounts: [],
 };
+
+function createLocalId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createInvoiceContactBranch(
+  partial?: Partial<InvoiceContactBranch>
+): InvoiceContactBranch {
+  return {
+    id: partial?.id ?? createLocalId("branch"),
+    address: partial?.address ?? "",
+    phones: partial?.phones ?? "",
+  };
+}
+
+export function createInvoiceSocialAccount(
+  partial?: Partial<InvoiceSocialAccount>
+): InvoiceSocialAccount {
+  return {
+    id: partial?.id ?? createLocalId("social"),
+    platform: partial?.platform ?? "facebook",
+    label: partial?.label ?? "",
+  };
+}
+
+function normalizeContactBranches(value: unknown): InvoiceContactBranch[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Partial<InvoiceContactBranch>;
+      const address = typeof record.address === "string" ? record.address.trim() : "";
+      const phones = typeof record.phones === "string" ? record.phones.trim() : "";
+      if (!address && !phones) return null;
+
+      return {
+        id:
+          typeof record.id === "string" && record.id.trim()
+            ? record.id.trim()
+            : `branch-${index}`,
+        address,
+        phones,
+      };
+    })
+    .filter((item): item is InvoiceContactBranch => item !== null);
+}
+
+function normalizeSocialAccounts(value: unknown): InvoiceSocialAccount[] {
+  if (!Array.isArray(value)) return [];
+
+  const allowedPlatforms = new Set(INVOICE_SOCIAL_PLATFORMS.map((item) => item.value));
+
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Partial<InvoiceSocialAccount>;
+      const label = typeof record.label === "string" ? record.label.trim() : "";
+      if (!label) return null;
+
+      const platform =
+        typeof record.platform === "string" && allowedPlatforms.has(record.platform as InvoiceSocialPlatform)
+          ? (record.platform as InvoiceSocialPlatform)
+          : "facebook";
+
+      return {
+        id:
+          typeof record.id === "string" && record.id.trim()
+            ? record.id.trim()
+            : `social-${index}`,
+        platform,
+        label,
+      };
+    })
+    .filter((item): item is InvoiceSocialAccount => item !== null);
+}
+
+export function splitContactPhones(phones: string): string[] {
+  return phones
+    .split(/[\n,،;]+/)
+    .map((phone) => phone.trim())
+    .filter(Boolean);
+}
+
+export function hasInvoiceContactFooterContent(settings: PrintSettings): boolean {
+  return settings.invoiceContactBranches.length > 0 || settings.invoiceSocialAccounts.length > 0;
+}
 
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = Number(value);
@@ -157,6 +274,8 @@ export function normalizePrintSettings(
       typeof input?.showInvoiceCreatorOnInvoice === "boolean"
         ? input.showInvoiceCreatorOnInvoice
         : DEFAULT_PRINT_SETTINGS.showInvoiceCreatorOnInvoice,
+    invoiceContactBranches: normalizeContactBranches(input?.invoiceContactBranches),
+    invoiceSocialAccounts: normalizeSocialAccounts(input?.invoiceSocialAccounts),
   };
 }
 

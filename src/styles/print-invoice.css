@@ -288,6 +288,91 @@
   font-size: calc(var(--invoice-font-size, 13px) * 0.78);
 }
 
+.invoice-print-contact-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+  text-align: center;
+  color: #334155;
+  font-size: calc(var(--invoice-font-size, 13px) * 0.78);
+}
+
+.invoice-print-contact-footer--thermal {
+  margin-top: 8px;
+  padding-top: 8px;
+  font-size: calc(var(--invoice-font-size, 11px) * 0.78);
+}
+
+.invoice-print-contact-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.invoice-print-contact-branch + .invoice-print-contact-branch {
+  padding-top: 6px;
+  border-top: 1px dotted #e2e8f0;
+}
+
+.invoice-print-contact-address {
+  margin: 0;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.45;
+}
+
+.invoice-print-contact-phones {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.invoice-print-contact-phone {
+  margin: 0;
+  color: #475569;
+  direction: ltr;
+}
+
+.invoice-print-social-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+
+.invoice-print-social-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.invoice-print-social-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.invoice-print-social-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.invoice-print-social-label {
+  color: #111827;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.invoice-print-contact-footer--thermal .invoice-print-social-icon {
+  width: 12px;
+  height: 12px;
+}
+
 /* ─── Thermal receipt layout ─── */
 
 .invoice-print-thermal-header {
@@ -461,7 +546,9 @@
   .invoice-print-total-badge,
   .invoice-print-info-panel,
   .invoice-print-meta-box,
-  .invoice-print-totals--sheet {
+  .invoice-print-totals--sheet,
+  .invoice-print-social-row,
+  .invoice-print-social-icon-wrap {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
+import InvoiceContactFooter from "@/components/print/InvoiceContactFooter";
 import { formatCurrency } from "@/lib/utils";
 import { formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
 import {
@@ -412,6 +413,11 @@ export default function SaleInvoiceDocument({
         )}
 
         {sale.notes ? <div className="invoice-print-notes">ملاحظات: {sale.notes}</div> : null}
+
+        <InvoiceContactFooter
+          settings={settings}
+          variant={isThermal ? "thermal" : "sheet"}
+        />
 
         {settings.footerText ? (
           <footer

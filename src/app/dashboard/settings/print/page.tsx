@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
 import BarcodePrintSettingsPanel from "@/components/print/BarcodePrintSettingsPanel";
+import InvoiceContactSettingsPanel from "@/components/print/InvoiceContactSettingsPanel";
 import PrintPreviewModal from "@/components/print/PrintPreviewModal";
 import { em } from "@/components/ui/TableEmoji";
 import {
@@ -336,6 +337,8 @@ export default function PrintSettingsPage() {
             رقم الفاتورة والحساب في رأس الإيصال · هاتف وعنوان الفرع على A4 / B5 فقط · لا يظهر حساب السوبر أدمن
           </p>
         </section>
+
+        <InvoiceContactSettingsPanel settings={settings} onChange={setSettings} />
 
         <section className="space-y-3">
           <FieldLabel emoji={em.description}>نص أسفل الفاتورة</FieldLabel>
