@@ -309,7 +309,7 @@ export default function InventoryPage() {
 
   const handleStockValueClick = () => {
     if (!isFullAccessRole(userRole)) {
-      toast.error("هذه الميزة تتطلب حساب أدمن أو سوبر أدمن");
+      toast.error("هذه الميزة تتطلب حساب أدمن");
       return;
     }
     setStockValueError(null);
@@ -331,7 +331,7 @@ export default function InventoryPage() {
 
     if (!ok) {
       if (status === 403) {
-        toast.error(data.message || "هذه الميزة تتطلب حساب أدمن أو سوبر أدمن");
+        toast.error(data.message || "هذه الميزة تتطلب حساب أدمن");
         setStockValuePasswordOpen(false);
         return;
       }

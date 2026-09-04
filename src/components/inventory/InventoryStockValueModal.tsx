@@ -160,7 +160,7 @@ export default function InventoryStockValueModal({
       >
         <div className="space-y-4">
           <p className="text-sm text-muted">
-            أدخل كلمة مرور حسابك (أدمن / سوبر أدمن) لعرض قيمة مخزون الفرع.
+            أدخل كلمة مرور حسابك (أدمن) لعرض قيمة مخزون الفرع.
           </p>
           <div>
             <label className="block text-xs text-muted mb-1.5">كلمة المرور</label>

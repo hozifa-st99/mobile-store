@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   if (!auth) return unauthorizedResponse();
 
   if (!isFullAccessRole(auth.role)) {
-    return forbiddenResponse("هذه الميزة تتطلب حساب أدمن أو سوبر أدمن");
+    return forbiddenResponse("هذه الميزة تتطلب حساب أدمن");
   }
 
   try {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user || !isFullAccessRole(user.role)) {
-      return forbiddenResponse("هذه الميزة تتطلب حساب أدمن أو سوبر أدمن");
+      return forbiddenResponse("هذه الميزة تتطلب حساب أدمن");
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
