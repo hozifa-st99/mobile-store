@@ -134,12 +134,16 @@ function InvoiceBrandHeader({
   companyLogoUrl,
   subtitle,
   branchName,
+  branchPhone,
+  branchAddress,
   variant,
 }: {
   headerTitle: string;
   companyLogoUrl?: string | null;
   subtitle?: string;
   branchName?: string;
+  branchPhone?: string | null;
+  branchAddress?: string | null;
   variant: "sheet" | "thermal";
 }) {
   const logo =
@@ -155,13 +159,20 @@ function InvoiceBrandHeader({
       />
     ) : null;
 
+  const subtitleClass =
+    variant === "thermal" ? "invoice-print-thermal-subtitle" : "invoice-print-brand-subtitle";
+
   if (variant === "thermal") {
     return (
       <header className="invoice-print-thermal-header">
         {logo}
         <h1 className="invoice-print-thermal-title">{headerTitle}</h1>
-        {subtitle ? <p className="invoice-print-thermal-subtitle">{subtitle}</p> : null}
-        {branchName ? <p className="invoice-print-thermal-subtitle">{branchName}</p> : null}
+        {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
+        {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
+        {branchPhone ? (
+          <p className="invoice-print-thermal-branch">هاتف الفرع: {branchPhone}</p>
+        ) : null}
+        {branchAddress ? <p className="invoice-print-thermal-branch">{branchAddress}</p> : null}
       </header>
     );
   }
@@ -171,8 +182,12 @@ function InvoiceBrandHeader({
       {logo}
       <div>
         <h1 className="invoice-print-brand-title">{headerTitle}</h1>
-        {subtitle ? <p className="invoice-print-brand-subtitle">{subtitle}</p> : null}
-        {branchName ? <p className="invoice-print-brand-subtitle">{branchName}</p> : null}
+        {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
+        {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
+        {branchPhone ? (
+          <p className={subtitleClass}>هاتف الفرع: {branchPhone}</p>
+        ) : null}
+        {branchAddress ? <p className={subtitleClass}>{branchAddress}</p> : null}
       </div>
     </div>
   );
@@ -204,6 +219,12 @@ function SheetInvoiceBody({
           companyLogoUrl={context.companyLogoUrl}
           subtitle={settings.headerSubtitle}
           branchName={context.branchName}
+          branchPhone={
+            settings.showBranchPhoneOnInvoice ? context.branchPhone : null
+          }
+          branchAddress={
+            settings.showBranchAddressOnInvoice ? context.branchAddress : null
+          }
         />
 
         <div className="invoice-print-meta-box">
@@ -248,12 +269,6 @@ function SheetInvoiceBody({
           {sale.customer?.phone ? (
             <p className="invoice-print-info-sub">{sale.customer.phone}</p>
           ) : null}
-          {settings.showBranchPhoneOnInvoice && context.branchPhone ? (
-            <p className="invoice-print-info-sub">هاتف الفرع: {context.branchPhone}</p>
-          ) : null}
-          {settings.showBranchAddressOnInvoice && context.branchAddress ? (
-            <p className="invoice-print-info-sub">{context.branchAddress}</p>
-          ) : null}
         </div>
       </section>
 
@@ -288,6 +303,10 @@ function ThermalInvoiceBody({
         companyLogoUrl={context.companyLogoUrl}
         subtitle={settings.headerSubtitle}
         branchName={context.branchName}
+        branchPhone={settings.showBranchPhoneOnInvoice ? context.branchPhone : null}
+        branchAddress={
+          settings.showBranchAddressOnInvoice ? context.branchAddress : null
+        }
       />
 
       <div className="invoice-print-thermal-rule" />
