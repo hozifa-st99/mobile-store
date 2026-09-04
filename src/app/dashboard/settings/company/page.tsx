@@ -21,6 +21,7 @@ export default function CompanySettingsPage() {
   const { role } = useScreenAccess();
   const canEdit = isFullAccessRole(role);
   const updateCompanyName = useAuthStore((s) => s.updateCompanyName);
+  const updateCompanyLogoUrl = useAuthStore((s) => s.updateCompanyLogoUrl);
 
   const [form, setForm] = useState<CompanyForm>({ nameAr: "", logoUrl: null });
   const [loading, setLoading] = useState(true);
@@ -68,6 +69,7 @@ export default function CompanySettingsPage() {
         logoUrl: data.company.logoUrl ?? null,
       });
       updateCompanyName(data.company.nameAr);
+      updateCompanyLogoUrl(data.company.logoUrl ?? null);
       toast.success("تم حفظ بيانات الشركة");
     } catch {
       toast.error("تعذر الاتصال بالسيرفر");

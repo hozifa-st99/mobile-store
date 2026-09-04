@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { LogoDisplay } from "@/components/ui/LogoUpload";
 import { useScreenAccess } from "@/hooks/use-screen-access";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -196,7 +197,8 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { selectedBranch, branches, logout } = useAuthStore();
+  const { user, selectedBranch, branches, logout, companyLogoUrl, updateCompanyLogoUrl } =
+    useAuthStore();
   const canSwitchBranch = branches.length > 1;
   const pendingOperationBlocked = usePendingOperationStore((state) => state.count > 0);
   const { canAccessPath } = useScreenAccess();
@@ -225,6 +227,21 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   useEffect(() => {
     onMobileClose();
   }, [pathname, onMobileClose]);
+
+  useEffect(() => {
+    fetch("/api/settings/company", { credentials: "include" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.company) {
+          updateCompanyLogoUrl(data.company.logoUrl ?? null);
+        }
+      })
+      .catch(() => {
+        /* keep cached logo */
+      });
+  }, [updateCompanyLogoUrl]);
+
+  const companyName = user?.companyName || "MOBILE STORE";
 
   const toggleGroup = (id: string) => {
     setOpenGroups((prev) => {
@@ -255,12 +272,15 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     <>
       <div className="glass-sidebar__header p-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-sm ring-1 ring-white/20">
-              <span className="text-white font-black text-lg">M</span>
-            </div>
-            <div>
-              <h2 className="font-bold text-white text-sm tracking-wide">MOBILE STORE</h2>
+          <div className="flex items-center gap-3 min-w-0">
+            <LogoDisplay
+              url={companyLogoUrl}
+              name={companyName}
+              size="sm"
+              className="rounded-xl ring-1 ring-white/20 shadow-glow-sm shrink-0"
+            />
+            <div className="min-w-0">
+              <h2 className="font-bold text-white text-sm tracking-wide truncate">{companyName}</h2>
               <p className="text-[11px] font-normal text-muted-dark">الاختيار الذكي</p>
             </div>
           </div>
