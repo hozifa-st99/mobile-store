@@ -31,6 +31,17 @@
   width: 100%;
   max-width: 210mm;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.invoice-print-page[data-paper="a4"] {
+  min-height: 297mm;
+}
+
+.invoice-print-page[data-paper="b5"] {
+  min-height: 250mm;
+  max-width: 176mm;
 }
 
 .invoice-print-shell--sheet {
@@ -40,6 +51,33 @@
   padding: 14mm 12mm;
   font-size: var(--invoice-font-size, 13px);
   line-height: 1.5;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.invoice-print-sheet-body {
+  flex: 1 1 auto;
+}
+
+.invoice-print-sheet-page-footer {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.invoice-print-sheet-page-footer .invoice-print-contact-footer {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.invoice-print-sheet-page-footer .invoice-print-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
 }
 
 /* ─── A4 / B5 ─── */
@@ -573,6 +611,11 @@
     max-width: none !important;
     width: 100% !important;
     padding: 0 !important;
+    min-height: 277mm;
+  }
+
+  .invoice-print-page[data-paper="b5"] .invoice-print-shell--sheet {
+    min-height: 230mm;
   }
 
   .invoice-print-page[data-paper="a4"],

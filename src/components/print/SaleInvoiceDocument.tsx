@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
 import {
   getInvoiceTableStyleVars,
+  hasInvoiceContactFooterContent,
   PAYMENT_METHOD_LABELS,
   type PrintSettings,
   type SaleInvoicePrintContext,
@@ -413,6 +414,8 @@ export default function SaleInvoiceDocument({
   const paymentLabel = PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod;
   const fontSize = isThermal ? settings.thermalFontSize : settings.sheetFontSize;
   const tableStyleVars = getInvoiceTableStyleVars(settings, isThermal);
+  const hasSheetPageFooter =
+    hasInvoiceContactFooterContent(settings) || Boolean(settings.footerText?.trim());
 
   return (
     <div
@@ -430,43 +433,52 @@ export default function SaleInvoiceDocument({
         }`}
       >
         {isThermal ? (
-          <ThermalInvoiceBody
-            sale={sale}
-            context={context}
-            settings={settings}
-            headerTitle={headerTitle}
-            paymentLabel={paymentLabel}
-            date={date}
-            time={time}
-          />
+          <>
+            <ThermalInvoiceBody
+              sale={sale}
+              context={context}
+              settings={settings}
+              headerTitle={headerTitle}
+              paymentLabel={paymentLabel}
+              date={date}
+              time={time}
+            />
+
+            {sale.notes ? <div className="invoice-print-notes">ملاحظات: {sale.notes}</div> : null}
+
+            <InvoiceContactFooter settings={settings} variant="thermal" />
+
+            {settings.footerText ? (
+              <footer className="invoice-print-thermal-footer">{settings.footerText}</footer>
+            ) : null}
+          </>
         ) : (
-          <SheetInvoiceBody
-            sale={sale}
-            context={context}
-            settings={settings}
-            headerTitle={headerTitle}
-            paymentLabel={paymentLabel}
-            date={date}
-            time={time}
-          />
+          <>
+            <div className="invoice-print-sheet-body">
+              <SheetInvoiceBody
+                sale={sale}
+                context={context}
+                settings={settings}
+                headerTitle={headerTitle}
+                paymentLabel={paymentLabel}
+                date={date}
+                time={time}
+              />
+
+              {sale.notes ? <div className="invoice-print-notes">ملاحظات: {sale.notes}</div> : null}
+            </div>
+
+            {hasSheetPageFooter ? (
+              <div className="invoice-print-sheet-page-footer">
+                <InvoiceContactFooter settings={settings} variant="sheet" />
+
+                {settings.footerText ? (
+                  <footer className="invoice-print-footer">{settings.footerText}</footer>
+                ) : null}
+              </div>
+            ) : null}
+          </>
         )}
-
-        {sale.notes ? <div className="invoice-print-notes">ملاحظات: {sale.notes}</div> : null}
-
-        <InvoiceContactFooter
-          settings={settings}
-          variant={isThermal ? "thermal" : "sheet"}
-        />
-
-        {settings.footerText ? (
-          <footer
-            className={
-              isThermal ? "invoice-print-thermal-footer" : "invoice-print-footer"
-            }
-          >
-            {settings.footerText}
-          </footer>
-        ) : null}
       </article>
     </div>
   );
