@@ -61,7 +61,7 @@ const typeLabels: Record<string, string> = {
   laptop: "لابتوب",
 };
 
-const IMEI_LINE_PATTERN = /^\d{8,20}$/;
+const IMEI_LINE_PATTERN = /^\d{15}$/;
 
 function extractImeisFromDetail(detail: string | null): string[] {
   if (!detail) return [];

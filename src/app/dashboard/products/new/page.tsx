@@ -336,9 +336,11 @@ export default function NewProductPage() {
                 <div key={i} className="flex gap-2">
                   <input
                     value={imei}
+                    maxLength={15}
+                    inputMode="numeric"
                     onChange={(e) => {
                       const updated = [...imeis];
-                      updated[i] = e.target.value;
+                      updated[i] = e.target.value.replace(/\D/g, "").slice(0, 15);
                       setImeis(updated);
                     }}
                     className="glass-input flex-1"

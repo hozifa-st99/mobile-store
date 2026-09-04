@@ -331,9 +331,11 @@ export default function PhonePurchaseLineItem({
             <div key={i} className="flex gap-2">
               <input
                 value={imei}
+                maxLength={15}
+                inputMode="numeric"
                 onChange={(e) => {
                   const updated = [...item.imeis];
-                  updated[i] = e.target.value;
+                  updated[i] = e.target.value.replace(/\D/g, "").slice(0, 15);
                   onChange({ imeis: updated });
                 }}
                 className="glass-input text-sm flex-1"

@@ -2,7 +2,7 @@
 
 import { formatImeisSnapshot, parseImeisSnapshot } from "@/lib/purchase-return-number";
 
-const IMEI_PATTERN = /^\d{8,20}$/;
+const IMEI_PATTERN = /^\d{15}$/;
 
 export function isValidImeiFormat(imei: string): boolean {
   return IMEI_PATTERN.test(imei.trim());

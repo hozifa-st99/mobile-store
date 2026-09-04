@@ -742,7 +742,7 @@ export async function POST(request: NextRequest) {
         message = `IMEI مسجل مسبقاً: ${error.message.split(":")[1]}`;
         status = 400;
       } else if (error.message.startsWith("IMEI_INVALID:")) {
-        message = `IMEI غير صالح (8–20 رقم): ${error.message.split(":")[1]}`;
+        message = `IMEI غير صالح (15 رقم بالضبط): ${error.message.split(":")[1]}`;
         status = 400;
       }
     }

@@ -81,7 +81,7 @@ const serialStatusClass: Record<string, string> = {
     "px-3 py-1 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/20",
 };
 
-const IMEI_TOKEN_PATTERN = /\d{8,20}/g;
+const IMEI_TOKEN_PATTERN = /\d{15}/g;
 
 function extractImeisFromLabel(imei: string | null | undefined): string[] {
   if (!imei || imei === "—") return [];

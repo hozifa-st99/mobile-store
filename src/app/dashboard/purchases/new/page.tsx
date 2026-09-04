@@ -95,7 +95,7 @@ function validateSingleLine(
     if (imeis.length === 0) return `أدخل IMEI واحد على الأقل — ${model.nameAr}`;
     for (const imei of imeis) {
       if (excludeImeis.includes(imei)) return `IMEI مكرر: ${imei}`;
-      if (!isValidImeiFormat(imei)) return `IMEI غير صالح (8–20 رقم): ${imei}`;
+      if (!isValidImeiFormat(imei)) return `IMEI غير صالح (15 رقم بالضبط): ${imei}`;
     }
 
     if (item.deviceCondition === "used") {

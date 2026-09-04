@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
       if (error.message.startsWith("IMEI_INVALID:")) {
         const imei = error.message.split(":")[1];
         return NextResponse.json(
-          { message: `IMEI غير صالح (8–20 رقم): ${imei}` },
+          { message: `IMEI غير صالح (15 رقم بالضبط): ${imei}` },
           { status: 400 }
         );
       }
