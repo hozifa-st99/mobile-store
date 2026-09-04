@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import InvoiceContactFooter from "@/components/print/InvoiceContactFooter";
 import { formatCurrency } from "@/lib/utils";
@@ -147,58 +149,51 @@ function InvoiceBrandHeader({
   branchAddress?: string | null;
   variant: "sheet" | "thermal";
 }) {
-  const logo =
-    companyLogoUrl ? (
-      <div className="invoice-print-brand-logo-wrap">
-        <img
-          src={companyLogoUrl}
-          alt={headerTitle}
-          className={
-            variant === "thermal"
-              ? "invoice-print-brand-logo invoice-print-brand-logo--thermal"
-              : "invoice-print-brand-logo"
-          }
-        />
-      </div>
-    ) : null;
+  const sheetTextRef = useRef<HTMLDivElement>(null);
+  const [sheetTextHeight, setSheetTextHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (variant !== "sheet" || !companyLogoUrl) {
+      setSheetTextHeight(null);
+      return;
+    }
+
+    const node = sheetTextRef.current;
+    if (!node) return;
+
+    const syncHeight = () => {
+      setSheetTextHeight(node.offsetHeight > 0 ? node.offsetHeight : null);
+    };
+
+    syncHeight();
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    variant,
+    companyLogoUrl,
+    headerTitle,
+    subtitle,
+    branchName,
+    branchPhone,
+    branchAddress,
+  ]);
 
   const subtitleClass =
     variant === "thermal" ? "invoice-print-thermal-subtitle" : "invoice-print-brand-subtitle";
 
-  const brandText = (
-    <div className="invoice-print-brand-text">
-      <h1 className={variant === "thermal" ? "invoice-print-thermal-title" : "invoice-print-brand-title"}>
-        {headerTitle}
-      </h1>
-      {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
-      {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
-      {branchPhone ? (
-        <p className={variant === "thermal" ? "invoice-print-thermal-branch" : subtitleClass}>
-          هاتف الفرع: {branchPhone}
-        </p>
-      ) : null}
-      {branchAddress ? (
-        <p className={variant === "thermal" ? "invoice-print-thermal-branch" : subtitleClass}>
-          {branchAddress}
-        </p>
-      ) : null}
-    </div>
-  );
-
   if (variant === "thermal") {
-    if (logo) {
-      return (
-        <header className="invoice-print-thermal-header invoice-print-thermal-header--with-logo">
-          <div className="invoice-print-brand-block invoice-print-brand-block--thermal">
-            {logo}
-            {brandText}
-          </div>
-        </header>
-      );
-    }
+    const thermalLogo = companyLogoUrl ? (
+      <img
+        src={companyLogoUrl}
+        alt={headerTitle}
+        className="invoice-print-brand-logo invoice-print-brand-logo--thermal"
+      />
+    ) : null;
 
     return (
       <header className="invoice-print-thermal-header">
+        {thermalLogo}
         <h1 className="invoice-print-thermal-title">{headerTitle}</h1>
         {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
         {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
@@ -210,10 +205,30 @@ function InvoiceBrandHeader({
     );
   }
 
+  const sheetLogo = companyLogoUrl ? (
+    <div
+      className="invoice-print-brand-logo-wrap"
+      style={sheetTextHeight ? { height: sheetTextHeight } : undefined}
+    >
+      <img
+        src={companyLogoUrl}
+        alt={headerTitle}
+        className="invoice-print-brand-logo"
+        style={sheetTextHeight ? { height: sheetTextHeight } : undefined}
+      />
+    </div>
+  ) : null;
+
   return (
     <div className="invoice-print-brand-block">
-      {logo}
-      {brandText}
+      {sheetLogo}
+      <div ref={sheetTextRef} className="invoice-print-brand-text">
+        <h1 className="invoice-print-brand-title">{headerTitle}</h1>
+        {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
+        {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
+        {branchPhone ? <p className={subtitleClass}>هاتف الفرع: {branchPhone}</p> : null}
+        {branchAddress ? <p className={subtitleClass}>{branchAddress}</p> : null}
+      </div>
     </div>
   );
 }
