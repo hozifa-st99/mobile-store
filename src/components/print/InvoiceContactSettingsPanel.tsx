@@ -33,6 +33,52 @@ function FieldLabel({ emoji, children }: { emoji: string; children: ReactNode })
   );
 }
 
+function AddActionButton({
+  emoji,
+  label,
+  hint,
+  onClick,
+  tone = "sky",
+}: {
+  emoji: string;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  tone?: "sky" | "violet";
+}) {
+  const toneClasses =
+    tone === "violet"
+      ? "border-violet-400/45 bg-violet-500/10 hover:border-violet-300/70 hover:bg-violet-500/15 focus-visible:ring-violet-400/50"
+      : "border-sky-400/45 bg-sky-500/10 hover:border-sky-300/70 hover:bg-sky-500/15 focus-visible:ring-sky-400/50";
+
+  const iconClasses =
+    tone === "violet"
+      ? "bg-violet-500/20 border-violet-400/30"
+      : "bg-sky-500/20 border-sky-400/30";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group w-full flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 text-right transition-colors focus-visible:outline-none focus-visible:ring-2 ${toneClasses}`}
+    >
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl shadow-inner border transition-transform group-hover:scale-105 ${iconClasses}`}
+        aria-hidden
+      >
+        {emoji}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="inline-flex items-center gap-2 text-sm font-semibold text-white">
+          <span aria-hidden>{em.add}</span>
+          {label}
+        </span>
+        <span className="text-xs text-muted leading-relaxed">{hint}</span>
+      </span>
+    </button>
+  );
+}
+
 export default function InvoiceContactSettingsPanel({
   settings,
   onChange,
@@ -92,12 +138,16 @@ export default function InvoiceContactSettingsPanel({
                 className="rounded-xl border border-border/60 bg-black/20 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-white">عنوان {index + 1}</p>
+                  <p className="text-sm font-medium text-white inline-flex items-center gap-2">
+                    <span aria-hidden>{em.address}</span>
+                    عنوان {index + 1}
+                  </p>
                   <button
                     type="button"
                     onClick={() => removeBranch(branch.id)}
-                    className="text-xs text-red-300 hover:text-red-200"
+                    className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-red-200"
                   >
+                    <span aria-hidden>{em.delete}</span>
                     حذف
                   </button>
                 </div>
@@ -120,8 +170,10 @@ export default function InvoiceContactSettingsPanel({
             ))}
           </div>
         )}
-        <button
-          type="button"
+        <AddActionButton
+          emoji={em.branch}
+          label="إضافة عنوان / فرع"
+          hint={`${em.address} العنوان · ${em.phone} أرقام التواصل — تظهر في سطر واحد أسفل الفاتورة`}
           onClick={() =>
             onChange({
               ...settings,
@@ -131,10 +183,7 @@ export default function InvoiceContactSettingsPanel({
               ],
             })
           }
-          className="glass-btn-secondary text-sm px-4 py-2"
-        >
-          + إضافة عنوان / فرع
-        </button>
+        />
       </div>
 
       <div className="space-y-3 pt-2">
@@ -149,12 +198,16 @@ export default function InvoiceContactSettingsPanel({
                 className="rounded-xl border border-border/60 bg-black/20 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-white">حساب تواصل</p>
+                  <p className="text-sm font-medium text-white inline-flex items-center gap-2">
+                    <span aria-hidden>{em.link}</span>
+                    حساب تواصل
+                  </p>
                   <button
                     type="button"
                     onClick={() => removeSocial(account.id)}
-                    className="text-xs text-red-300 hover:text-red-200"
+                    className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-red-200"
                   >
+                    <span aria-hidden>{em.delete}</span>
                     حذف
                   </button>
                 </div>
@@ -192,8 +245,11 @@ export default function InvoiceContactSettingsPanel({
             ))}
           </div>
         )}
-        <button
-          type="button"
+        <AddActionButton
+          emoji={em.customers}
+          label="إضافة حساب تواصل اجتماعي"
+          hint="📘 فيسبوك · 💬 واتس · 📸 انستجرام · 🎵 تيك توك — تظهر في سطر واحد أسفل العناوين"
+          tone="violet"
           onClick={() =>
             onChange({
               ...settings,
@@ -203,10 +259,7 @@ export default function InvoiceContactSettingsPanel({
               ],
             })
           }
-          className="glass-btn-secondary text-sm px-4 py-2"
-        >
-          + إضافة فيسبوك / واتس / انستجرام / تيك توك
-        </button>
+        />
       </div>
     </section>
   );
