@@ -303,49 +303,61 @@
   font-size: calc(var(--invoice-font-size, 11px) * 0.78);
 }
 
-.invoice-print-contact-branches {
+.invoice-print-contact-branches-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
   gap: 8px;
   margin-bottom: 8px;
 }
 
-.invoice-print-contact-branch + .invoice-print-contact-branch {
-  padding-top: 6px;
-  border-top: 1px dotted #e2e8f0;
+.invoice-print-contact-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  max-width: 100%;
+  text-align: center;
 }
 
 .invoice-print-contact-address {
   margin: 0;
   font-weight: 700;
   color: #111827;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
-.invoice-print-contact-phones {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
-}
-
-.invoice-print-contact-phone {
+.invoice-print-contact-phone-line {
   margin: 0;
   color: #475569;
   direction: ltr;
+  font-size: calc(var(--invoice-font-size, 13px) * 0.72);
+  letter-spacing: 0.01em;
 }
 
-.invoice-print-social-list {
+.invoice-print-social-row-line {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
+  gap: 8px;
+  margin-top: 2px;
 }
 
-.invoice-print-social-row {
+.invoice-print-social-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
   max-width: 100%;
 }
 
@@ -366,6 +378,16 @@
   color: #111827;
   font-weight: 600;
   word-break: break-word;
+  line-height: 1.2;
+}
+
+.invoice-print-contact-footer--thermal .invoice-print-contact-chip {
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.invoice-print-contact-footer--thermal .invoice-print-social-chip {
+  padding: 3px 8px;
 }
 
 .invoice-print-contact-footer--thermal .invoice-print-social-icon {
@@ -547,7 +569,8 @@
   .invoice-print-info-panel,
   .invoice-print-meta-box,
   .invoice-print-totals--sheet,
-  .invoice-print-social-row,
+  .invoice-print-social-chip,
+  .invoice-print-contact-chip,
   .invoice-print-social-icon-wrap {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

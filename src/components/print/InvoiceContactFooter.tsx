@@ -85,24 +85,18 @@ export default function InvoiceContactFooter({ settings, variant }: InvoiceConta
   return (
     <section className={rootClass} aria-label="بيانات التواصل">
       {branches.length > 0 ? (
-        <div className="invoice-print-contact-branches">
+        <div className="invoice-print-contact-branches-row">
           {branches.map((branch) => {
             const phones = splitContactPhones(branch.phones);
             if (!branch.address && phones.length === 0) return null;
 
             return (
-              <div key={branch.id} className="invoice-print-contact-branch">
+              <div key={branch.id} className="invoice-print-contact-chip">
                 {branch.address ? (
-                  <p className="invoice-print-contact-address">{branch.address}</p>
+                  <span className="invoice-print-contact-address">{branch.address}</span>
                 ) : null}
                 {phones.length > 0 ? (
-                  <div className="invoice-print-contact-phones">
-                    {phones.map((phone) => (
-                      <p key={`${branch.id}-${phone}`} className="invoice-print-contact-phone">
-                        {phone}
-                      </p>
-                    ))}
-                  </div>
+                  <span className="invoice-print-contact-phone-line">{phones.join(" · ")}</span>
                 ) : null}
               </div>
             );
@@ -111,9 +105,9 @@ export default function InvoiceContactFooter({ settings, variant }: InvoiceConta
       ) : null}
 
       {socialAccounts.length > 0 ? (
-        <div className="invoice-print-social-list">
+        <div className="invoice-print-social-row-line">
           {socialAccounts.map((account) => (
-            <div key={account.id} className="invoice-print-social-row">
+            <div key={account.id} className="invoice-print-social-chip">
               <span
                 className="invoice-print-social-icon-wrap"
                 style={{ color: platformColor(account.platform) }}
