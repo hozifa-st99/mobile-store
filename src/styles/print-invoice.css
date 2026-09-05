@@ -36,13 +36,11 @@
 }
 
 .invoice-print-page[data-paper="a4"] {
-  --invoice-sheet-area-height: 257mm;
-  min-height: 297mm;
+  --invoice-sheet-footer-gap: 16mm;
 }
 
 .invoice-print-page[data-paper="b5"] {
-  --invoice-sheet-area-height: 210mm;
-  min-height: 250mm;
+  --invoice-sheet-footer-gap: 12mm;
   max-width: 176mm;
 }
 
@@ -54,20 +52,18 @@
   font-size: var(--invoice-font-size, 13px);
   line-height: 1.5;
   display: flex;
-  flex: 1 1 auto;
   flex-direction: column;
-  min-height: var(--invoice-sheet-area-height, 257mm);
 }
 
 .invoice-print-sheet-body {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 
 .invoice-print-sheet-page-footer {
-  margin-top: auto;
+  margin-top: var(--invoice-sheet-footer-gap, 16mm);
   flex-shrink: 0;
   padding-top: 10px;
-  padding-bottom: 14mm;
+  padding-bottom: 0;
   border-top: 1px solid #e2e8f0;
 }
 
@@ -111,18 +107,21 @@
 
 .invoice-print-brand-logo-wrap {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
+  height: auto;
 }
 
 .invoice-print-brand-logo {
   display: block;
   width: auto;
   max-width: 120px;
+  max-height: 64px;
+  height: auto;
   object-fit: contain;
-  object-position: center;
+  object-position: top center;
 }
 
 .invoice-print-brand-logo--thermal {
@@ -624,7 +623,27 @@
     max-width: none !important;
     width: 100% !important;
     padding: 0 !important;
-    min-height: var(--invoice-sheet-area-height, 257mm) !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .invoice-print-sheet-body {
+    flex: 0 0 auto !important;
+  }
+
+  .invoice-print-sheet-page-footer {
+    margin-top: var(--invoice-sheet-footer-gap, 16mm) !important;
+    padding-bottom: 0 !important;
+  }
+
+  .invoice-print-brand-logo-wrap {
+    height: auto !important;
+    align-self: flex-start !important;
+  }
+
+  .invoice-print-brand-logo {
+    height: auto !important;
+    max-height: 64px !important;
   }
 
   .invoice-print-page[data-paper="a4"],
