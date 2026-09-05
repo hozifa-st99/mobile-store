@@ -24,6 +24,43 @@ type TimelineEvent = {
 };
 
 const BUNDLED_PAYMENT_NOTE = "دفعة عند التسجيل";
+const MANUAL_LEDGER_TZ = "Africa/Cairo";
+
+function cairoWallClockNow() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: MANUAL_LEDGER_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+
+  const pick = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
+  return {
+    year: pick("year"),
+    month: pick("month"),
+    day: pick("day"),
+    hour: pick("hour"),
+    minute: pick("minute"),
+    second: pick("second"),
+  };
+}
+
+function cairoLocalDateTimeToDate(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  millisecond = 0
+) {
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}.${String(millisecond).padStart(3, "0")}+02:00`;
+  return new Date(iso);
+}
 
 export const LEDGER_NOTES_MAX = 500;
 
@@ -65,22 +102,31 @@ export function parseOptionalPaidAt(value: unknown): Date {
   return parsed;
 }
 
-/** تاريخ من حقل date (YYYY-MM-DD) مع وقت التسجيل الفعلي */
+/** تاريخ من حقل date (YYYY-MM-DD) + وقت التسجيل الفعلي بتوقيت القاهرة */
 export function parseLedgerEntryDate(value: unknown): Date {
-  if (value == null || value === "") return new Date();
+  if (value == null || value === "") {
+    const now = cairoWallClockNow();
+    return cairoLocalDateTimeToDate(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+      now.second
+    );
+  }
   if (typeof value === "string") {
     const trimmed = value.trim();
     const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
     if (dateOnly) {
-      const now = new Date();
-      return new Date(
+      const now = cairoWallClockNow();
+      return cairoLocalDateTimeToDate(
         Number(dateOnly[1]),
-        Number(dateOnly[2]) - 1,
+        Number(dateOnly[2]),
         Number(dateOnly[3]),
-        now.getHours(),
-        now.getMinutes(),
-        now.getSeconds(),
-        now.getMilliseconds()
+        now.hour,
+        now.minute,
+        now.second
       );
     }
   }
@@ -249,15 +295,15 @@ function movementLabel(type: string) {
   return "بداية الدين / الأجل";
 }
 
-function compareEntryOrder(
-  a: { entryDate: Date; createdAt?: Date },
-  b: { entryDate: Date; createdAt?: Date }
-) {
-  const byDate = a.entryDate.getTime() - b.entryDate.getTime();
-  if (byDate !== 0) return byDate;
-  const aCreated = a.createdAt?.getTime() ?? 0;
-  const bCreated = b.createdAt?.getTime() ?? 0;
-  return aCreated - bCreated;
+/** وقت العرض والترتيب في شاشة الديون اليدوية — createdAt أدق من paidAt */
+function manualLedgerTimelineInstant(movement: { paidAt: Date; createdAt?: Date }) {
+  if (movement.createdAt) return movement.createdAt;
+  return movementTimelineInstant(movement);
+}
+
+function compareTimelineEvents(a: TimelineEvent, b: TimelineEvent) {
+  if (a.sortTs !== b.sortTs) return a.sortTs - b.sortTs;
+  return a.sortOrder - b.sortOrder;
 }
 
 export function buildPartyTimeline(
@@ -271,50 +317,26 @@ export function buildPartyTimeline(
     createdAt?: Date;
     createdBy?: { fullNameAr: string } | null;
   }[],
-  entries: { id: string; entryDate: Date; createdAt?: Date }[]
+  _entries: { id: string; entryDate: Date; createdAt?: Date }[]
 ) {
-  const candidates: TimelineEvent[] = [];
-  let orderCounter = 0;
+  const candidates: TimelineEvent[] = movements.map((movement) => {
+    const isPayment = movement.movementType === "payment";
+    const instant = manualLedgerTimelineInstant(movement);
+    return {
+      id: movement.id,
+      type: isPayment ? "payment" : "credit",
+      label: movementLabel(movement.movementType),
+      date: instant.toISOString(),
+      amount: movement.amount,
+      balanceAfter: 0,
+      notes: movement.notes,
+      recordedByName: movement.createdBy?.fullNameAr ?? null,
+      sortTs: instant.getTime(),
+      sortOrder: movementChronoPriority(movement.movementType),
+    };
+  });
 
-  const sortedEntries = [...entries].sort(compareEntryOrder);
-
-  for (const entry of sortedEntries) {
-    const entryMovements = movements.filter((m) => m.entryId === entry.id);
-    const creditMovements = entryMovements
-      .filter((m) => m.movementType !== "payment")
-      .sort((a, b) => {
-        const diff =
-          movementTimelineInstant(a).getTime() - movementTimelineInstant(b).getTime();
-        if (diff !== 0) return diff;
-        return movementChronoPriority(a.movementType) - movementChronoPriority(b.movementType);
-      });
-    const paymentMovements = entryMovements
-      .filter((m) => m.movementType === "payment")
-      .sort((a, b) => {
-        const aCreated = a.createdAt?.getTime() ?? movementTimelineInstant(a).getTime();
-        const bCreated = b.createdAt?.getTime() ?? movementTimelineInstant(b).getTime();
-        if (aCreated !== bCreated) return aCreated - bCreated;
-        return movementTimelineInstant(a).getTime() - movementTimelineInstant(b).getTime();
-      });
-
-    for (const movement of [...creditMovements, ...paymentMovements]) {
-      const isPayment = movement.movementType === "payment";
-      const instant = movementTimelineInstant(movement);
-      candidates.push({
-        id: movement.id,
-        type: isPayment ? "payment" : "credit",
-        label: movementLabel(movement.movementType),
-        date: instant.toISOString(),
-        amount: movement.amount,
-        balanceAfter: 0,
-        notes: movement.notes,
-        recordedByName: movement.createdBy?.fullNameAr ?? null,
-        sortTs: orderCounter++,
-        sortOrder: movementChronoPriority(movement.movementType),
-      });
-    }
-  }
-
+  candidates.sort(compareTimelineEvents);
   const displayEvents = mergePairedCreditPayments(candidates);
 
   let balance = 0;
