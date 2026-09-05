@@ -284,6 +284,10 @@
   color: #64748b;
 }
 
+.invoice-print-account-employee-line {
+  white-space: pre-wrap;
+}
+
 .invoice-print-phone-meta-sep {
   font-size: calc(var(--invoice-font-size, 13px) * 0.78);
   font-weight: 700;

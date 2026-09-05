@@ -1,6 +1,6 @@
 import type { PrintSettings } from "@/lib/print-settings";
 
-const PRINT_ACCOUNT_EMPLOYEE_GAP = "       ";
+const PRINT_ACCOUNT_EMPLOYEE_GAP = "\u00A0".repeat(7);
 
 interface InvoicePrintAccountEmployeeLineProps {
   settings: PrintSettings;
@@ -27,7 +27,7 @@ export default function InvoicePrintAccountEmployeeLine({
   if (!showAccount && !showEmployee) return null;
 
   return (
-    <p className={className}>
+    <p className={`invoice-print-account-employee-line ${className}`.trim()}>
       {showAccount ? (
         <>
           {accountLabel}: {invoiceCreatorName}
