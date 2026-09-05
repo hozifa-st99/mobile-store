@@ -12,6 +12,7 @@ import { apiJson } from "@/lib/api-client";
 import { toast } from "@/lib/toast";
 import { runPendingOperation } from "@/store/pending-operation-store";
 import { cn, formatAmountExact, formatCurrency } from "@/lib/utils";
+import { formatDocumentDate, formatDocumentTime } from "@/lib/document-datetime";
 import { useAuthStore } from "@/store/auth-store";
 
 type PartyType = "supplier" | "customer";
@@ -82,19 +83,11 @@ interface TimelineEvent {
 }
 
 function formatLedgerDate(value: string) {
-  return new Intl.DateTimeFormat("ar-EG", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
+  return formatDocumentDate(value);
 }
 
 function formatLedgerTime(value: string) {
-  return new Intl.DateTimeFormat("ar-EG", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(value));
+  return formatDocumentTime(value);
 }
 
 function todayInputValue() {

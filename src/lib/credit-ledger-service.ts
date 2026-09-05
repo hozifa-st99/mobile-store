@@ -65,6 +65,32 @@ export function parseOptionalPaidAt(value: unknown): Date {
   return parsed;
 }
 
+/** تاريخ من حقل date (YYYY-MM-DD) مع وقت التسجيل الفعلي */
+export function parseLedgerEntryDate(value: unknown): Date {
+  if (value == null || value === "") return new Date();
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (dateOnly) {
+      const now = new Date();
+      return new Date(
+        Number(dateOnly[1]),
+        Number(dateOnly[2]) - 1,
+        Number(dateOnly[3]),
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds()
+      );
+    }
+  }
+  const parsed = new Date(value as string);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new LedgerValidationError("التاريخ غير صالح", "INVALID_DATE");
+  }
+  return parsed;
+}
+
 export async function assertPartyBelongsToCompany(
   db: Tx | PrismaClient,
   companyId: string,
@@ -223,20 +249,6 @@ function movementLabel(type: string) {
   return "بداية الدين / الأجل";
 }
 
-function movementDisplayInstant(
-  movement: { paidAt: Date; createdAt?: Date; movementType: string },
-  entry: { entryDate: Date }
-) {
-  const instant = movementTimelineInstant(movement);
-  if (movement.movementType !== "payment") return instant;
-
-  const recorded = movement.createdAt ?? instant;
-  if (recorded.getTime() < entry.entryDate.getTime()) {
-    return entry.entryDate;
-  }
-  return instant;
-}
-
 function compareEntryOrder(
   a: { entryDate: Date; createdAt?: Date },
   b: { entryDate: Date; createdAt?: Date }
@@ -287,7 +299,7 @@ export function buildPartyTimeline(
 
     for (const movement of [...creditMovements, ...paymentMovements]) {
       const isPayment = movement.movementType === "payment";
-      const instant = movementDisplayInstant(movement, entry);
+      const instant = movementTimelineInstant(movement);
       candidates.push({
         id: movement.id,
         type: isPayment ? "payment" : "credit",
@@ -478,15 +490,13 @@ export async function applyPartyPayment(
     if (due <= 0.0001) continue;
 
     const pay = Math.min(remaining, due);
-    const effectivePaidAt =
-      paidAt.getTime() < entry.entryDate.getTime() ? entry.entryDate : paidAt;
 
     await tx.creditLedgerPayment.create({
       data: {
         entryId: entry.id,
         movementType: "payment",
         amount: pay,
-        paidAt: effectivePaidAt,
+        paidAt,
         notes,
         createdByUserId,
       },

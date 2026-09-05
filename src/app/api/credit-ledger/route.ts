@@ -8,6 +8,7 @@ import {
   MANUAL_LEDGER_ENTRY_WHERE,
   manualBranchEntryWhere,
   outstanding,
+  parseLedgerEntryDate,
   parseLedgerNotes,
   parseManualBranchFilter,
   partyBranchReportKey,
@@ -18,23 +19,6 @@ import {
 function parsePartyType(value: string | null): PartyType | null {
   if (value === "supplier" || value === "customer") return value;
   return null;
-}
-
-function staggeredPaidAt(baseMs: number, step: number) {
-  return new Date(baseMs + step * 1000);
-}
-
-function entryDateWithStaggeredTime(entryDate: Date, baseMs: number, step: number) {
-  const t = staggeredPaidAt(baseMs, step);
-  return new Date(
-    entryDate.getFullYear(),
-    entryDate.getMonth(),
-    entryDate.getDate(),
-    t.getHours(),
-    t.getMinutes(),
-    t.getSeconds(),
-    t.getMilliseconds()
-  );
 }
 
 function mapEntry(entry: {
@@ -240,7 +224,7 @@ export async function POST(request: NextRequest) {
     const creditAmount = Number(body.creditAmount);
     const paidAmount = body.paidAmount != null ? Number(body.paidAmount) : 0;
     const notes = parseLedgerNotes(body.notes);
-    const entryDate = body.entryDate ? new Date(body.entryDate) : new Date();
+    const entryDate = parseLedgerEntryDate(body.entryDate);
 
     if (!partyType || !partyId) {
       return NextResponse.json({ message: "نوع الطرف والاسم مطلوبان" }, { status: 400 });
@@ -284,15 +268,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const movementBase = Date.now();
-      let step = 0;
-
       await tx.creditLedgerPayment.create({
         data: {
           entryId: created.id,
           movementType: "credit_open",
           amount: creditAmount,
-          paidAt: entryDateWithStaggeredTime(entryDate, movementBase, step++),
+          paidAt: entryDate,
           notes,
           createdByUserId: auth.userId,
         },
@@ -304,7 +285,7 @@ export async function POST(request: NextRequest) {
             entryId: created.id,
             movementType: "payment",
             amount: paidAmount,
-            paidAt: entryDateWithStaggeredTime(entryDate, movementBase, step++),
+            paidAt: new Date(entryDate.getTime() + 1000),
             notes: "دفعة عند التسجيل",
             createdByUserId: auth.userId,
           },
