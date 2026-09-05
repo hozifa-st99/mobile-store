@@ -13,6 +13,16 @@ export const SHEET_PAPER_SIZES = PRINT_PAPER_SIZES.filter((size) => size.kind ==
 
 export type PrintPaperSize = (typeof PRINT_PAPER_SIZES)[number]["value"];
 
+export type InvoiceLanguage = "ar" | "en";
+
+export const INVOICE_LANGUAGE_OPTIONS: ReadonlyArray<{
+  value: InvoiceLanguage;
+  label: string;
+}> = [
+  { value: "ar", label: "عربي" },
+  { value: "en", label: "English" },
+];
+
 export type InvoiceSocialPlatform = "facebook" | "whatsapp" | "instagram" | "tiktok";
 
 export interface InvoiceContactBranch {
@@ -39,9 +49,15 @@ export const INVOICE_SOCIAL_PLATFORMS: ReadonlyArray<{
 
 export interface PrintSettings {
   paperSize: PrintPaperSize;
+  /** لغة عرض فاتورة المبيعات عند الطباعة */
+  invoiceLanguage: InvoiceLanguage;
   headerTitle: string;
   headerSubtitle: string;
+  /** عنوان فرعي للفاتورة الإنجليزية */
+  headerSubtitleEn: string;
   footerText: string;
+  /** نص أسفل الفاتورة الإنجليزية */
+  footerTextEn: string;
   /** حجم الخط الأساسي للفواتير الحرارية (بكسل) */
   thermalFontSize: number;
   /** حجم الخط الأساسي لفواتير A4 و B5 (بكسل) */
@@ -70,9 +86,12 @@ export interface PrintSettings {
 
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   paperSize: "80",
+  invoiceLanguage: "ar",
   headerTitle: "",
   headerSubtitle: "فاتورة مبيعات",
+  headerSubtitleEn: "Sales Invoice",
   footerText: "شكراً لتعاملكم معنا",
+  footerTextEn: "Thank you for your business",
   thermalFontSize: 11,
   sheetFontSize: 13,
   autoPrintCopies: 0,
@@ -231,17 +250,29 @@ export function normalizePrintSettings(
     ? (input!.paperSize as PrintPaperSize)
     : DEFAULT_PRINT_SETTINGS.paperSize;
 
+  const invoiceLanguage: InvoiceLanguage =
+    input?.invoiceLanguage === "en" ? "en" : "ar";
+
   return {
     paperSize,
+    invoiceLanguage,
     headerTitle: typeof input?.headerTitle === "string" ? input.headerTitle : "",
     headerSubtitle:
       typeof input?.headerSubtitle === "string" && input.headerSubtitle.trim()
         ? input.headerSubtitle
         : DEFAULT_PRINT_SETTINGS.headerSubtitle,
+    headerSubtitleEn:
+      typeof input?.headerSubtitleEn === "string" && input.headerSubtitleEn.trim()
+        ? input.headerSubtitleEn.trim()
+        : DEFAULT_PRINT_SETTINGS.headerSubtitleEn,
     footerText:
       typeof input?.footerText === "string" && input.footerText.trim()
         ? input.footerText
         : DEFAULT_PRINT_SETTINGS.footerText,
+    footerTextEn:
+      typeof input?.footerTextEn === "string" && input.footerTextEn.trim()
+        ? input.footerTextEn.trim()
+        : DEFAULT_PRINT_SETTINGS.footerTextEn,
     thermalFontSize: clampInt(
       input?.thermalFontSize,
       DEFAULT_PRINT_SETTINGS.thermalFontSize,
@@ -300,6 +331,9 @@ export function getPaperSizeMeta(paperSize: PrintPaperSize) {
 }
 
 export interface SaleInvoicePhoneDisplay {
+  deviceCondition: string;
+  taxStatus: string;
+  boxCondition: string | null;
   deviceConditionLabel: string;
   color: string | null;
   storage: string | null;
@@ -375,4 +409,10 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: "نقدي",
   card: "بطاقة",
   installment: "أقساط",
+};
+
+export const PAYMENT_METHOD_LABELS_EN: Record<string, string> = {
+  cash: "Cash",
+  card: "Card",
+  installment: "Installment",
 };

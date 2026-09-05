@@ -9,6 +9,7 @@ import InvoiceContactSettingsPanel from "@/components/print/InvoiceContactSettin
 import PrintPreviewModal from "@/components/print/PrintPreviewModal";
 import { em } from "@/components/ui/TableEmoji";
 import {
+  INVOICE_LANGUAGE_OPTIONS,
   DEFAULT_PRINT_SETTINGS,
   SHEET_PAPER_SIZES,
   THERMAL_PAPER_SIZES,
@@ -225,6 +226,66 @@ export default function PrintSettingsPage() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionHeading emoji="🌐">لغة فاتورة المبيعات</SectionHeading>
+          <div className="grid grid-cols-2 gap-2 max-w-md">
+            {INVOICE_LANGUAGE_OPTIONS.map((option) => {
+              const selected = settings.invoiceLanguage === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    setSettings((current) => ({ ...current, invoiceLanguage: option.value }))
+                  }
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    selected
+                      ? "border-primary/70 bg-primary/25 text-white shadow-[0_0_0_1px_rgba(99,102,241,0.25)]"
+                      : "border-border/60 bg-black/20 text-muted hover:border-primary/40 hover:text-white"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted">
+            العربي يبقى كما هو. الإنجليزي قالب منفصل للعرض والطباعة فقط — بدون تأثير على الحفظ أو
+            المعادلات.
+          </p>
+          {settings.invoiceLanguage === "en" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4">
+              <div>
+                <FieldLabel emoji={em.description}>Subtitle (English)</FieldLabel>
+                <input
+                  type="text"
+                  value={settings.headerSubtitleEn}
+                  onChange={(event) =>
+                    setSettings((current) => ({
+                      ...current,
+                      headerSubtitleEn: event.target.value,
+                    }))
+                  }
+                  className="glass-input w-full"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <FieldLabel emoji={em.description}>Footer (English)</FieldLabel>
+                <input
+                  type="text"
+                  value={settings.footerTextEn}
+                  onChange={(event) =>
+                    setSettings((current) => ({ ...current, footerTextEn: event.target.value }))
+                  }
+                  className="glass-input w-full"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="space-y-3">

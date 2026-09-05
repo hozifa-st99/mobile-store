@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 
-import SaleInvoiceDocument from "@/components/print/SaleInvoiceDocument";
+import SaleInvoicePrintSwitch from "@/components/print/SaleInvoicePrintSwitch";
 import { apiJson } from "@/lib/api-client";
 import { invoiceCreatorAccountName } from "@/lib/invoice-creator";
 import {
@@ -23,6 +23,9 @@ interface SaleApiItem {
   imei: string | null;
   barcode: string | null;
   phoneDisplay?: {
+    deviceCondition: string;
+    taxStatus: string;
+    boxCondition: string | null;
     deviceConditionLabel: string;
     color: string | null;
     storage: string | null;
@@ -177,7 +180,7 @@ export default function SalePrintPage() {
       </div>
 
       <div ref={printRef} className="invoice-print-viewport bg-white">
-        <SaleInvoiceDocument sale={sale} context={context} settings={settings} />
+        <SaleInvoicePrintSwitch sale={sale} context={context} settings={settings} />
       </div>
     </div>
   );

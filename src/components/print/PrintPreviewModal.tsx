@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import SaleInvoiceDocument from "@/components/print/SaleInvoiceDocument";
+import SaleInvoicePrintSwitch from "@/components/print/SaleInvoicePrintSwitch";
 import {
   SAMPLE_SALE_INVOICE,
   type PrintSettings,
@@ -63,7 +63,7 @@ export default function PrintPreviewModal({
         </div>
 
         <div ref={previewRef} className="invoice-print-viewport bg-white">
-          <SaleInvoiceDocument sale={SAMPLE_SALE_INVOICE} context={context} settings={settings} />
+          <SaleInvoicePrintSwitch sale={SAMPLE_SALE_INVOICE} context={context} settings={settings} />
         </div>
       </div>
     </div>

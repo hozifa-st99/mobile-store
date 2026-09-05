@@ -705,3 +705,52 @@
 @page :blank {
   display: none;
 }
+
+/* ─── English invoice layout (display only) ─── */
+
+.invoice-print-page--en {
+  direction: ltr;
+  text-align: left;
+}
+
+.invoice-print-shell--en {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.invoice-print-page--en .invoice-print-table th,
+.invoice-print-page--en .invoice-print-table td {
+  text-align: left;
+}
+
+.invoice-print-page--en .invoice-print-meta-box {
+  text-align: left;
+}
+
+.invoice-print-page--en .invoice-print-meta-row {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.invoice-print-page--en .invoice-print-total-row {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.invoice-print-page--en .invoice-print-thermal-meta-row {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.invoice-print-page--en .invoice-print-thermal-total-line {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.invoice-print-page--en .invoice-print-info-panel {
+  text-align: left;
+}
+
+.invoice-print-page--en .invoice-print-contact-inline-line,
+.invoice-print-page--en .invoice-print-social-row-line {
+  text-align: center;
+}

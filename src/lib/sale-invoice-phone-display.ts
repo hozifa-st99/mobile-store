@@ -7,6 +7,9 @@ import type { PhoneDeviceRow } from "@/lib/phone-device-serial-details";
 
 /** حقول عرض فقط — لا تُستخدم في حسابات الفاتورة */
 export interface SaleInvoicePhoneDisplay {
+  deviceCondition: string;
+  taxStatus: string;
+  boxCondition: string | null;
   deviceConditionLabel: string;
   color: string | null;
   storage: string | null;
@@ -34,6 +37,9 @@ function buildFromFields(fields: {
 }): SaleInvoicePhoneDisplay {
   const isUsed = fields.deviceCondition === "used";
   return {
+    deviceCondition: fields.deviceCondition,
+    taxStatus: fields.taxStatus,
+    boxCondition: fields.boxCondition,
     deviceConditionLabel: deviceConditionLabel(fields.deviceCondition),
     color: fields.color,
     storage: fields.storage,
