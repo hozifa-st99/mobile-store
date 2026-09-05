@@ -36,23 +36,30 @@ function InvoicePhoneMeta({
 }: {
   phone: NonNullable<SaleInvoicePrintData["items"][number]["phoneDisplay"]>;
 }) {
+  const parts = [
+    `الحالة: ${phone.deviceConditionLabel}`,
+    ...(phone.storage ? [`المساحة: ${phone.storage}`] : []),
+    ...(phone.color ? [`اللون: ${phone.color}`] : []),
+    `الضريبة: ${phone.taxStatusLabel}`,
+    ...(phone.batteryPercent != null ? [`البطارية: ${phone.batteryPercent}%`] : []),
+    ...(phone.boxConditionLabel ? [`الكارتونة: ${phone.boxConditionLabel}`] : []),
+  ];
+
   return (
-    <>
-      <div className="invoice-print-item-meta">الحالة: {phone.deviceConditionLabel}</div>
-      {phone.storage ? (
-        <div className="invoice-print-item-meta">المساحة: {phone.storage}</div>
-      ) : null}
-      {phone.color ? (
-        <div className="invoice-print-item-meta">اللون: {phone.color}</div>
-      ) : null}
-      <div className="invoice-print-item-meta">الضريبة: {phone.taxStatusLabel}</div>
-      {phone.batteryPercent != null ? (
-        <div className="invoice-print-item-meta">البطارية: {phone.batteryPercent}%</div>
-      ) : null}
-      {phone.boxConditionLabel ? (
-        <div className="invoice-print-item-meta">الكارتونة: {phone.boxConditionLabel}</div>
-      ) : null}
-    </>
+    <div className="invoice-print-item-meta invoice-print-phone-meta">
+      {parts.map((part, index) => (
+        <span key={`phone-meta-${index}`}>
+          {index > 0 ? (
+            <>
+              {"  "}
+              <span className="invoice-print-phone-meta-sep">،</span>
+              {"  "}
+            </>
+          ) : null}
+          {part}
+        </span>
+      ))}
+    </div>
   );
 }
 

@@ -284,6 +284,12 @@
   color: #64748b;
 }
 
+.invoice-print-phone-meta-sep {
+  font-size: calc(var(--invoice-font-size, 13px) * 0.78);
+  font-weight: 700;
+  color: #64748b;
+}
+
 .invoice-print-totals--sheet {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
