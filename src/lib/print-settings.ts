@@ -299,6 +299,15 @@ export function getPaperSizeMeta(paperSize: PrintPaperSize) {
   return PRINT_PAPER_SIZES.find((size) => size.value === paperSize) ?? PRINT_PAPER_SIZES[4];
 }
 
+export interface SaleInvoicePhoneDisplay {
+  deviceConditionLabel: string;
+  color: string | null;
+  storage: string | null;
+  taxStatusLabel: string;
+  batteryPercent: number | null;
+  boxConditionLabel: string | null;
+}
+
 export interface SaleInvoicePrintItem {
   description: string;
   quantity: number;
@@ -306,6 +315,7 @@ export interface SaleInvoicePrintItem {
   total: number;
   imei?: string | null;
   barcode?: string | null;
+  phoneDisplay?: SaleInvoicePhoneDisplay | null;
 }
 
 export interface SaleInvoicePrintData {

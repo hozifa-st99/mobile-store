@@ -22,6 +22,14 @@ interface SaleApiItem {
   total: number;
   imei: string | null;
   barcode: string | null;
+  phoneDisplay?: {
+    deviceConditionLabel: string;
+    color: string | null;
+    storage: string | null;
+    taxStatusLabel: string;
+    batteryPercent: number | null;
+    boxConditionLabel: string | null;
+  } | null;
 }
 
 interface SaleApiResponse {

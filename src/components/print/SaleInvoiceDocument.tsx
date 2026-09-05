@@ -31,6 +31,31 @@ function formatSaleDate(value: string) {
   };
 }
 
+function InvoicePhoneMeta({
+  phone,
+}: {
+  phone: NonNullable<SaleInvoicePrintData["items"][number]["phoneDisplay"]>;
+}) {
+  return (
+    <>
+      <div className="invoice-print-item-meta">الحالة: {phone.deviceConditionLabel}</div>
+      {phone.storage ? (
+        <div className="invoice-print-item-meta">المساحة: {phone.storage}</div>
+      ) : null}
+      {phone.color ? (
+        <div className="invoice-print-item-meta">اللون: {phone.color}</div>
+      ) : null}
+      <div className="invoice-print-item-meta">الضريبة: {phone.taxStatusLabel}</div>
+      {phone.batteryPercent != null ? (
+        <div className="invoice-print-item-meta">البطارية: {phone.batteryPercent}%</div>
+      ) : null}
+      {phone.boxConditionLabel ? (
+        <div className="invoice-print-item-meta">الكارتونة: {phone.boxConditionLabel}</div>
+      ) : null}
+    </>
+  );
+}
+
 function InvoiceItemsTable({
   sale,
   variant,
@@ -66,6 +91,7 @@ function InvoiceItemsTable({
                     IMEI: {formatStoredDeviceImeis(item.imei)}
                   </div>
                 ) : null}
+                {item.phoneDisplay ? <InvoicePhoneMeta phone={item.phoneDisplay} /> : null}
                 {!item.imei && item.barcode ? (
                   <div className="invoice-print-item-meta">باركود: {item.barcode}</div>
                 ) : null}

@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { readSaleReturnStatus } from "@/lib/sale-item-return-fields";
 import { attachInvoiceCreators } from "@/lib/invoice-creator-server";
+import {
+  mapSerialToPhoneDeviceRow,
+  phoneSerialDetailsInclude,
+} from "@/lib/phone-device-serial-details";
+import {
+  saleInvoicePhoneDisplayFromDeviceRow,
+  saleInvoicePhoneDisplayFromProduct,
+} from "@/lib/sale-invoice-phone-display";
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +26,20 @@ export async function GET(
     include: {
       customer: { select: { nameAr: true, phone: true } },
       items: {
-        include: { product: { select: { type: true, barcode: true } } },
+        include: {
+          product: {
+            select: {
+              type: true,
+              barcode: true,
+              color: true,
+              storage: true,
+              deviceCondition: true,
+              boxCondition: true,
+              batteryPercent: true,
+              taxStatus: true,
+            },
+          },
+        },
         orderBy: { id: "asc" },
       },
     },
@@ -29,6 +50,25 @@ export async function GET(
   }
 
   const [saleWithCreator] = await attachInvoiceCreators(prisma, [sale]);
+
+  const phoneSerialIds = saleWithCreator.items
+    .map((item) => item.serialId)
+    .filter((serialId): serialId is string => Boolean(serialId));
+
+  const phoneSerialRows =
+    phoneSerialIds.length > 0
+      ? await prisma.productSerial.findMany({
+          where: { id: { in: phoneSerialIds }, branchId: auth.branchId },
+          include: phoneSerialDetailsInclude(auth.branchId),
+        })
+      : [];
+
+  const phoneSerialDisplayById = new Map(
+    phoneSerialRows.map((serial) => [
+      serial.id,
+      saleInvoicePhoneDisplayFromDeviceRow(mapSerialToPhoneDeviceRow(serial)),
+    ])
+  );
 
   let returnStatus = "none";
   let returns: {
@@ -99,6 +139,14 @@ export async function GET(
       returnStatus,
       items: saleWithCreator.items.map((item) => {
         const isPhone = item.product?.type === "phone";
+        const phoneDisplay =
+          isPhone && item.product
+            ? item.serialId
+              ? phoneSerialDisplayById.get(item.serialId) ??
+                saleInvoicePhoneDisplayFromProduct(item.product)
+              : saleInvoicePhoneDisplayFromProduct(item.product)
+            : null;
+
         return {
           id: item.id,
           description: item.description,
@@ -109,6 +157,7 @@ export async function GET(
           imei: item.imei,
           barcode: item.barcode ?? (!isPhone ? item.product?.barcode ?? null : null),
           isPhone,
+          phoneDisplay,
         };
       }),
     },
