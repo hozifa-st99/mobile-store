@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import InvoiceContactFooter from "@/components/print/InvoiceContactFooter";
 import InvoicePrintAccountEmployeeLine from "@/components/print/InvoicePrintAccountEmployeeLine";
@@ -184,36 +182,6 @@ function InvoiceBrandHeader({
   branchAddress?: string | null;
   variant: "sheet" | "thermal";
 }) {
-  const sheetTextRef = useRef<HTMLDivElement>(null);
-  const [sheetTextHeight, setSheetTextHeight] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (variant !== "sheet" || !companyLogoUrl) {
-      setSheetTextHeight(null);
-      return;
-    }
-
-    const node = sheetTextRef.current;
-    if (!node) return;
-
-    const syncHeight = () => {
-      setSheetTextHeight(node.offsetHeight > 0 ? node.offsetHeight : null);
-    };
-
-    syncHeight();
-    const observer = new ResizeObserver(syncHeight);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [
-    variant,
-    companyLogoUrl,
-    headerTitle,
-    subtitle,
-    branchName,
-    branchPhone,
-    branchAddress,
-  ]);
-
   const subtitleClass =
     variant === "thermal" ? "invoice-print-thermal-subtitle" : "invoice-print-brand-subtitle";
 
@@ -241,23 +209,15 @@ function InvoiceBrandHeader({
   }
 
   const sheetLogo = companyLogoUrl ? (
-    <div
-      className="invoice-print-brand-logo-wrap"
-      style={sheetTextHeight ? { height: sheetTextHeight } : undefined}
-    >
-      <img
-        src={companyLogoUrl}
-        alt={headerTitle}
-        className="invoice-print-brand-logo"
-        style={sheetTextHeight ? { height: sheetTextHeight } : undefined}
-      />
+    <div className="invoice-print-brand-logo-wrap">
+      <img src={companyLogoUrl} alt={headerTitle} className="invoice-print-brand-logo" />
     </div>
   ) : null;
 
   return (
     <div className="invoice-print-brand-block">
       {sheetLogo}
-      <div ref={sheetTextRef} className="invoice-print-brand-text">
+      <div className="invoice-print-brand-text">
         <h1 className="invoice-print-brand-title">{headerTitle}</h1>
         {subtitle ? <p className={subtitleClass}>{subtitle}</p> : null}
         {branchName ? <p className={subtitleClass}>{branchName}</p> : null}
