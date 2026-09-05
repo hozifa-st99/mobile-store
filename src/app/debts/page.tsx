@@ -73,8 +73,6 @@ interface TimelineEvent {
   type: "credit" | "payment" | "combined";
   label: string;
   date: string;
-  displayDate?: string;
-  displayTime?: string;
   amount: number;
   creditAmount?: number;
   paidAmount?: number;
@@ -83,28 +81,12 @@ interface TimelineEvent {
   recordedByName?: string | null;
 }
 
-function parseLedgerDisplayInstant(value: string) {
-  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-  if (dateOnly) {
-    return new Date(
-      Number(dateOnly[1]),
-      Number(dateOnly[2]) - 1,
-      Number(dateOnly[3]),
-      12,
-      0,
-      0,
-      0
-    );
-  }
-  return new Date(value);
-}
-
 function formatLedgerDate(value: string) {
   return new Intl.DateTimeFormat("ar-EG", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }).format(parseLedgerDisplayInstant(value));
+  }).format(new Date(value));
 }
 
 function formatLedgerTime(value: string) {
@@ -112,7 +94,7 @@ function formatLedgerTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-  }).format(parseLedgerDisplayInstant(value));
+  }).format(new Date(value));
 }
 
 function todayInputValue() {
@@ -1041,11 +1023,9 @@ export default function DebtsPage() {
                       {detailsTimeline.map((event) => (
                         <tr key={event.id} className="border-b border-border/50">
                           <td className="p-3 text-sm text-muted leading-snug">
-                            <div className="whitespace-nowrap">
-                              {formatLedgerDate(event.displayDate ?? event.date)}
-                            </div>
+                            <div className="whitespace-nowrap">{formatLedgerDate(event.date)}</div>
                             <div className="whitespace-nowrap text-xs text-muted-dark tabular-nums mt-0.5">
-                              {formatLedgerTime(event.displayTime ?? event.date)}
+                              {formatLedgerTime(event.date)}
                             </div>
                           </td>
                           <td className="p-3">

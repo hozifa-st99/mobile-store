@@ -10,7 +10,6 @@ import {
   outstanding,
   parseLedgerNotes,
   parseManualBranchFilter,
-  parseLedgerEntryDate,
   partyBranchReportKey,
   syncEntryPaidAmountFromMovements,
   type PartyType,
@@ -241,7 +240,7 @@ export async function POST(request: NextRequest) {
     const creditAmount = Number(body.creditAmount);
     const paidAmount = body.paidAmount != null ? Number(body.paidAmount) : 0;
     const notes = parseLedgerNotes(body.notes);
-    const entryDate = parseLedgerEntryDate(body.entryDate);
+    const entryDate = body.entryDate ? new Date(body.entryDate) : new Date();
 
     if (!partyType || !partyId) {
       return NextResponse.json({ message: "نوع الطرف والاسم مطلوبان" }, { status: 400 });

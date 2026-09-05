@@ -13,8 +13,6 @@ type TimelineEvent = {
   type: "credit" | "payment" | "combined";
   label: string;
   date: string;
-  displayDate: string;
-  displayTime: string;
   amount: number;
   creditAmount?: number;
   paidAmount?: number;
@@ -26,7 +24,6 @@ type TimelineEvent = {
 };
 
 const BUNDLED_PAYMENT_NOTE = "دفعة عند التسجيل";
-const PAIR_WINDOW_MS = 5000;
 
 export const LEDGER_NOTES_MAX = 500;
 
@@ -59,39 +56,8 @@ export function parseLedgerNotes(value: unknown): string | null {
   return trimmed;
 }
 
-function parseDateOnlyLocal(value: string) {
-  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-  if (!dateOnly) return null;
-  return new Date(
-    Number(dateOnly[1]),
-    Number(dateOnly[2]) - 1,
-    Number(dateOnly[3]),
-    12,
-    0,
-    0,
-    0
-  );
-}
-
-export function parseLedgerEntryDate(value: unknown): Date {
-  if (value == null || value === "") return new Date();
-  if (typeof value === "string") {
-    const localDate = parseDateOnlyLocal(value);
-    if (localDate) return localDate;
-  }
-  const parsed = new Date(value as string);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new LedgerValidationError("التاريخ غير صالح", "INVALID_DATE");
-  }
-  return parsed;
-}
-
 export function parseOptionalPaidAt(value: unknown): Date {
   if (value == null || value === "") return new Date();
-  if (typeof value === "string") {
-    const localDate = parseDateOnlyLocal(value);
-    if (localDate) return localDate;
-  }
   const parsed = new Date(value as string);
   if (Number.isNaN(parsed.getTime())) {
     throw new LedgerValidationError("التاريخ غير صالح", "INVALID_DATE");
@@ -156,16 +122,13 @@ function mergePairedCreditPayments(events: TimelineEvent[]) {
     if (
       credit.type === "credit" &&
       payment?.type === "payment" &&
-      payment.sortTs - credit.sortTs <= PAIR_WINDOW_MS &&
       isBundledPayment(payment.notes)
     ) {
       merged.push({
         id: `${credit.id}+${payment.id}`,
         type: "combined",
         label: combinedLabel(credit.label),
-        date: credit.displayDate,
-        displayDate: credit.displayDate,
-        displayTime: credit.displayTime,
+        date: credit.date,
         amount: credit.amount,
         creditAmount: credit.amount,
         paidAmount: payment.amount,
@@ -193,18 +156,7 @@ function movementChronoPriority(movementType: string) {
   return 1;
 }
 
-function timelineChronoPriority(event: Pick<TimelineEvent, "type" | "label">) {
-  if (event.type === "payment") return 3;
-  if (event.label.includes("إضافة")) return 2;
-  return 1;
-}
-
-function compareTimelineEvents(a: TimelineEvent, b: TimelineEvent) {
-  if (a.sortTs !== b.sortTs) return a.sortTs - b.sortTs;
-  return timelineChronoPriority(a) - timelineChronoPriority(b);
-}
-
-function isUtcDateOnlyTimestamp(value: Date) {
+function isDateOnlyTimestamp(value: Date) {
   return (
     value.getUTCHours() === 0 &&
     value.getUTCMinutes() === 0 &&
@@ -213,71 +165,12 @@ function isUtcDateOnlyTimestamp(value: Date) {
   );
 }
 
-function isLocalDateOnlyTimestamp(value: Date) {
-  return (
-    value.getHours() === 0 &&
-    value.getMinutes() === 0 &&
-    value.getSeconds() === 0 &&
-    value.getMilliseconds() === 0
-  );
-}
-
-function isDateOnlyPaidAt(value: Date) {
-  return isUtcDateOnlyTimestamp(value) || isLocalDateOnlyTimestamp(value);
-}
-
-function calendarDateFromPaidAt(paidAt: Date) {
-  if (isUtcDateOnlyTimestamp(paidAt) && !isLocalDateOnlyTimestamp(paidAt)) {
-    return new Date(
-      paidAt.getUTCFullYear(),
-      paidAt.getUTCMonth(),
-      paidAt.getUTCDate(),
-      12,
-      0,
-      0,
-      0
-    );
+/** وقت العرض والترتيب — يفضّل createdAt عندما paidAt تاريخ فقط (منتصف الليل) */
+export function movementTimelineInstant(movement: { paidAt: Date; createdAt?: Date }) {
+  if (movement.createdAt && isDateOnlyTimestamp(movement.paidAt)) {
+    return movement.createdAt;
   }
-  return new Date(paidAt.getFullYear(), paidAt.getMonth(), paidAt.getDate(), 12, 0, 0, 0);
-}
-
-function movementSortInstant(movement: { paidAt: Date; createdAt?: Date }) {
-  const paidAt = new Date(movement.paidAt);
-  const createdAt = movement.createdAt ? new Date(movement.createdAt) : paidAt;
-
-  if (isDateOnlyPaidAt(paidAt)) {
-    const sortInstant = calendarDateFromPaidAt(paidAt);
-    sortInstant.setHours(
-      createdAt.getHours(),
-      createdAt.getMinutes(),
-      createdAt.getSeconds(),
-      createdAt.getMilliseconds()
-    );
-    return sortInstant;
-  }
-
-  return paidAt;
-}
-
-function movementDisplayMeta(movement: { paidAt: Date; createdAt?: Date }) {
-  const paidAt = new Date(movement.paidAt);
-  const createdAt = movement.createdAt ? new Date(movement.createdAt) : null;
-  const sortInstant = movementSortInstant(movement);
-
-  if (createdAt && isDateOnlyPaidAt(paidAt)) {
-    return {
-      sortTs: sortInstant.getTime(),
-      displayDate: calendarDateFromPaidAt(paidAt).toISOString(),
-      displayTime: createdAt.toISOString(),
-    };
-  }
-
-  const displayInstant = createdAt ?? paidAt;
-  return {
-    sortTs: sortInstant.getTime(),
-    displayDate: paidAt.toISOString(),
-    displayTime: displayInstant.toISOString(),
-  };
+  return movement.paidAt;
 }
 
 export function outstanding(creditAmount: number, paidAmount: number) {
@@ -330,6 +223,31 @@ function movementLabel(type: string) {
   return "بداية الدين / الأجل";
 }
 
+function movementDisplayInstant(
+  movement: { paidAt: Date; createdAt?: Date; movementType: string },
+  entry: { entryDate: Date }
+) {
+  const instant = movementTimelineInstant(movement);
+  if (movement.movementType !== "payment") return instant;
+
+  const recorded = movement.createdAt ?? instant;
+  if (recorded.getTime() < entry.entryDate.getTime()) {
+    return entry.entryDate;
+  }
+  return instant;
+}
+
+function compareEntryOrder(
+  a: { entryDate: Date; createdAt?: Date },
+  b: { entryDate: Date; createdAt?: Date }
+) {
+  const byDate = a.entryDate.getTime() - b.entryDate.getTime();
+  if (byDate !== 0) return byDate;
+  const aCreated = a.createdAt?.getTime() ?? 0;
+  const bCreated = b.createdAt?.getTime() ?? 0;
+  return aCreated - bCreated;
+}
+
 export function buildPartyTimeline(
   movements: {
     id: string;
@@ -341,44 +259,51 @@ export function buildPartyTimeline(
     createdAt?: Date;
     createdBy?: { fullNameAr: string } | null;
   }[],
-  entries: { id: string; entryDate: Date }[]
+  entries: { id: string; entryDate: Date; createdAt?: Date }[]
 ) {
   const candidates: TimelineEvent[] = [];
-  const sortedEntries = [...entries].sort(
-    (a, b) => a.entryDate.getTime() - b.entryDate.getTime()
-  );
+  let orderCounter = 0;
+
+  const sortedEntries = [...entries].sort(compareEntryOrder);
 
   for (const entry of sortedEntries) {
-    const entryMovements = movements
-      .filter((m) => m.entryId === entry.id)
+    const entryMovements = movements.filter((m) => m.entryId === entry.id);
+    const creditMovements = entryMovements
+      .filter((m) => m.movementType !== "payment")
       .sort((a, b) => {
-        const diff = movementSortInstant(a).getTime() - movementSortInstant(b).getTime();
+        const diff =
+          movementTimelineInstant(a).getTime() - movementTimelineInstant(b).getTime();
         if (diff !== 0) return diff;
         return movementChronoPriority(a.movementType) - movementChronoPriority(b.movementType);
       });
+    const paymentMovements = entryMovements
+      .filter((m) => m.movementType === "payment")
+      .sort((a, b) => {
+        const aCreated = a.createdAt?.getTime() ?? movementTimelineInstant(a).getTime();
+        const bCreated = b.createdAt?.getTime() ?? movementTimelineInstant(b).getTime();
+        if (aCreated !== bCreated) return aCreated - bCreated;
+        return movementTimelineInstant(a).getTime() - movementTimelineInstant(b).getTime();
+      });
 
-    for (const movement of entryMovements) {
+    for (const movement of [...creditMovements, ...paymentMovements]) {
       const isPayment = movement.movementType === "payment";
-      const meta = movementDisplayMeta(movement);
+      const instant = movementDisplayInstant(movement, entry);
       candidates.push({
         id: movement.id,
         type: isPayment ? "payment" : "credit",
         label: movementLabel(movement.movementType),
-        date: meta.displayDate,
-        displayDate: meta.displayDate,
-        displayTime: meta.displayTime,
+        date: instant.toISOString(),
         amount: movement.amount,
         balanceAfter: 0,
         notes: movement.notes,
         recordedByName: movement.createdBy?.fullNameAr ?? null,
-        sortTs: meta.sortTs,
+        sortTs: orderCounter++,
         sortOrder: movementChronoPriority(movement.movementType),
       });
     }
   }
 
-  candidates.sort(compareTimelineEvents);
-  const displayEvents = mergePairedCreditPayments(candidates).sort(compareTimelineEvents);
+  const displayEvents = mergePairedCreditPayments(candidates);
 
   let balance = 0;
   for (const event of displayEvents) {
@@ -553,12 +478,15 @@ export async function applyPartyPayment(
     if (due <= 0.0001) continue;
 
     const pay = Math.min(remaining, due);
+    const effectivePaidAt =
+      paidAt.getTime() < entry.entryDate.getTime() ? entry.entryDate : paidAt;
+
     await tx.creditLedgerPayment.create({
       data: {
         entryId: entry.id,
         movementType: "payment",
         amount: pay,
-        paidAt,
+        paidAt: effectivePaidAt,
         notes,
         createdByUserId,
       },
