@@ -34,6 +34,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 
   const phoneNormalized = normalizePartyPhone(body.phone);
+  if (!phoneNormalized) {
+    return NextResponse.json({ message: "رقم الهاتف غير صالح" }, { status: 400 });
+  }
   if (existing.supplierKind === SUPPLIER_KIND_WHOLESALE) {
     const phoneConflict = await findWholesaleSupplierPhoneConflict(
       prisma,

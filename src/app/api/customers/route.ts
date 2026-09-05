@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
   }
 
   const phoneNormalized = normalizePartyPhone(phone);
+  if (!phoneNormalized) {
+    return NextResponse.json({ message: "رقم الهاتف غير صالح" }, { status: 400 });
+  }
   const phoneConflict = await findCustomerPhoneConflict(prisma, auth.companyId, phoneNormalized);
   if (phoneConflict) {
     return NextResponse.json(
