@@ -15,6 +15,8 @@ import {
   getInvoiceTableStyleVars,
   hasInvoiceContactFooterContent,
   PAYMENT_METHOD_LABELS_EN,
+  resolveEnglishInvoiceFooterText,
+  resolveEnglishInvoiceSubtitle,
   type PrintSettings,
   type SaleInvoicePrintContext,
   type SaleInvoicePrintData,
@@ -299,7 +301,7 @@ function SheetInvoiceBodyEn({
           variant="sheet"
           headerTitle={headerTitle}
           companyLogoUrl={context.companyLogoUrl}
-          subtitle={settings.headerSubtitleEn}
+          subtitle={resolveEnglishInvoiceSubtitle(settings)}
           branchName={context.branchName}
           branchPhone={settings.showBranchPhoneOnInvoice ? context.branchPhone : null}
           branchAddress={settings.showBranchAddressOnInvoice ? context.branchAddress : null}
@@ -379,7 +381,7 @@ function ThermalInvoiceBodyEn({
         variant="thermal"
         headerTitle={headerTitle}
         companyLogoUrl={context.companyLogoUrl}
-        subtitle={settings.headerSubtitleEn}
+        subtitle={resolveEnglishInvoiceSubtitle(settings)}
         branchName={context.branchName}
         branchPhone={settings.showBranchPhoneOnInvoice ? context.branchPhone : null}
         branchAddress={settings.showBranchAddressOnInvoice ? context.branchAddress : null}
@@ -451,8 +453,9 @@ export default function SaleInvoiceDocumentEn({
   const paymentLabel = PAYMENT_METHOD_LABELS_EN[sale.paymentMethod] || sale.paymentMethod;
   const fontSize = isThermal ? settings.thermalFontSize : settings.sheetFontSize;
   const tableStyleVars = getInvoiceTableStyleVars(settings, isThermal);
+  const footerText = resolveEnglishInvoiceFooterText(settings);
   const hasSheetPageFooter =
-    hasInvoiceContactFooterContent(settings) || Boolean(settings.footerTextEn?.trim());
+    hasInvoiceContactFooterContent(settings) || Boolean(footerText);
 
   return (
     <div
@@ -487,8 +490,8 @@ export default function SaleInvoiceDocumentEn({
 
             <InvoiceContactFooter settings={settings} variant="thermal" />
 
-            {settings.footerTextEn ? (
-              <footer className="invoice-print-thermal-footer">{settings.footerTextEn}</footer>
+            {footerText ? (
+              <footer className="invoice-print-thermal-footer">{footerText}</footer>
             ) : null}
           </>
         ) : (
@@ -511,8 +514,8 @@ export default function SaleInvoiceDocumentEn({
               <div className="invoice-print-sheet-page-footer">
                 <InvoiceContactFooter settings={settings} variant="sheet" />
 
-                {settings.footerTextEn ? (
-                  <footer className="invoice-print-footer">{settings.footerTextEn}</footer>
+                {footerText ? (
+                  <footer className="invoice-print-footer">{footerText}</footer>
                 ) : null}
               </div>
             ) : null}

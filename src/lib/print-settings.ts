@@ -326,6 +326,14 @@ export function normalizePrintSettings(
   };
 }
 
+export function resolveEnglishInvoiceFooterText(settings: PrintSettings): string {
+  return (settings.footerTextEn?.trim() || settings.footerText?.trim() || "").trim();
+}
+
+export function resolveEnglishInvoiceSubtitle(settings: PrintSettings): string {
+  return (settings.headerSubtitleEn?.trim() || settings.headerSubtitle?.trim() || "").trim();
+}
+
 export function getPaperSizeMeta(paperSize: PrintPaperSize) {
   return PRINT_PAPER_SIZES.find((size) => size.value === paperSize) ?? PRINT_PAPER_SIZES[4];
 }

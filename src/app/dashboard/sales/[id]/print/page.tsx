@@ -9,6 +9,7 @@ import { apiJson } from "@/lib/api-client";
 import { invoiceCreatorAccountName } from "@/lib/invoice-creator";
 import {
   DEFAULT_PRINT_SETTINGS,
+  normalizePrintSettings,
   type PrintSettings,
   type SaleInvoicePrintData,
 } from "@/lib/print-settings";
@@ -104,7 +105,7 @@ export default function SalePrintPage() {
       }
 
       if (settingsResult.settings) {
-        setSettings(settingsResult.settings);
+        setSettings(normalizePrintSettings(settingsResult.settings));
       }
       if (companyResult.company?.logoUrl) {
         setCompanyLogoUrl(companyResult.company.logoUrl);
