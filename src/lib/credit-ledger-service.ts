@@ -13,6 +13,8 @@ type TimelineEvent = {
   type: "credit" | "payment" | "combined";
   label: string;
   date: string;
+  displayDate: string;
+  displayTime: string;
   amount: number;
   creditAmount?: number;
   paidAmount?: number;
@@ -57,8 +59,39 @@ export function parseLedgerNotes(value: unknown): string | null {
   return trimmed;
 }
 
+function parseDateOnlyLocal(value: string) {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!dateOnly) return null;
+  return new Date(
+    Number(dateOnly[1]),
+    Number(dateOnly[2]) - 1,
+    Number(dateOnly[3]),
+    12,
+    0,
+    0,
+    0
+  );
+}
+
+export function parseLedgerEntryDate(value: unknown): Date {
+  if (value == null || value === "") return new Date();
+  if (typeof value === "string") {
+    const localDate = parseDateOnlyLocal(value);
+    if (localDate) return localDate;
+  }
+  const parsed = new Date(value as string);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new LedgerValidationError("التاريخ غير صالح", "INVALID_DATE");
+  }
+  return parsed;
+}
+
 export function parseOptionalPaidAt(value: unknown): Date {
   if (value == null || value === "") return new Date();
+  if (typeof value === "string") {
+    const localDate = parseDateOnlyLocal(value);
+    if (localDate) return localDate;
+  }
   const parsed = new Date(value as string);
   if (Number.isNaN(parsed.getTime())) {
     throw new LedgerValidationError("التاريخ غير صالح", "INVALID_DATE");
@@ -130,7 +163,9 @@ function mergePairedCreditPayments(events: TimelineEvent[]) {
         id: `${credit.id}+${payment.id}`,
         type: "combined",
         label: combinedLabel(credit.label),
-        date: credit.date,
+        date: credit.displayDate,
+        displayDate: credit.displayDate,
+        displayTime: credit.displayTime,
         amount: credit.amount,
         creditAmount: credit.amount,
         paidAmount: payment.amount,
@@ -169,7 +204,7 @@ function compareTimelineEvents(a: TimelineEvent, b: TimelineEvent) {
   return timelineChronoPriority(a) - timelineChronoPriority(b);
 }
 
-function isDateOnlyTimestamp(value: Date) {
+function isUtcDateOnlyTimestamp(value: Date) {
   return (
     value.getUTCHours() === 0 &&
     value.getUTCMinutes() === 0 &&
@@ -178,12 +213,71 @@ function isDateOnlyTimestamp(value: Date) {
   );
 }
 
-/** وقت العرض والترتيب — يفضّل createdAt عندما paidAt تاريخ فقط (منتصف الليل) */
-export function movementTimelineInstant(movement: { paidAt: Date; createdAt?: Date }) {
-  if (movement.createdAt && isDateOnlyTimestamp(movement.paidAt)) {
-    return movement.createdAt;
+function isLocalDateOnlyTimestamp(value: Date) {
+  return (
+    value.getHours() === 0 &&
+    value.getMinutes() === 0 &&
+    value.getSeconds() === 0 &&
+    value.getMilliseconds() === 0
+  );
+}
+
+function isDateOnlyPaidAt(value: Date) {
+  return isUtcDateOnlyTimestamp(value) || isLocalDateOnlyTimestamp(value);
+}
+
+function calendarDateFromPaidAt(paidAt: Date) {
+  if (isUtcDateOnlyTimestamp(paidAt) && !isLocalDateOnlyTimestamp(paidAt)) {
+    return new Date(
+      paidAt.getUTCFullYear(),
+      paidAt.getUTCMonth(),
+      paidAt.getUTCDate(),
+      12,
+      0,
+      0,
+      0
+    );
   }
-  return movement.paidAt;
+  return new Date(paidAt.getFullYear(), paidAt.getMonth(), paidAt.getDate(), 12, 0, 0, 0);
+}
+
+function movementSortInstant(movement: { paidAt: Date; createdAt?: Date }) {
+  const paidAt = new Date(movement.paidAt);
+  const createdAt = movement.createdAt ? new Date(movement.createdAt) : paidAt;
+
+  if (isDateOnlyPaidAt(paidAt)) {
+    const sortInstant = calendarDateFromPaidAt(paidAt);
+    sortInstant.setHours(
+      createdAt.getHours(),
+      createdAt.getMinutes(),
+      createdAt.getSeconds(),
+      createdAt.getMilliseconds()
+    );
+    return sortInstant;
+  }
+
+  return paidAt;
+}
+
+function movementDisplayMeta(movement: { paidAt: Date; createdAt?: Date }) {
+  const paidAt = new Date(movement.paidAt);
+  const createdAt = movement.createdAt ? new Date(movement.createdAt) : null;
+  const sortInstant = movementSortInstant(movement);
+
+  if (createdAt && isDateOnlyPaidAt(paidAt)) {
+    return {
+      sortTs: sortInstant.getTime(),
+      displayDate: calendarDateFromPaidAt(paidAt).toISOString(),
+      displayTime: createdAt.toISOString(),
+    };
+  }
+
+  const displayInstant = createdAt ?? paidAt;
+  return {
+    sortTs: sortInstant.getTime(),
+    displayDate: paidAt.toISOString(),
+    displayTime: displayInstant.toISOString(),
+  };
 }
 
 export function outstanding(creditAmount: number, paidAmount: number) {
@@ -258,32 +352,33 @@ export function buildPartyTimeline(
     const entryMovements = movements
       .filter((m) => m.entryId === entry.id)
       .sort((a, b) => {
-        const diff =
-          movementTimelineInstant(a).getTime() - movementTimelineInstant(b).getTime();
+        const diff = movementSortInstant(a).getTime() - movementSortInstant(b).getTime();
         if (diff !== 0) return diff;
         return movementChronoPriority(a.movementType) - movementChronoPriority(b.movementType);
       });
 
     for (const movement of entryMovements) {
       const isPayment = movement.movementType === "payment";
-      const instant = movementTimelineInstant(movement);
+      const meta = movementDisplayMeta(movement);
       candidates.push({
         id: movement.id,
         type: isPayment ? "payment" : "credit",
         label: movementLabel(movement.movementType),
-        date: instant.toISOString(),
+        date: meta.displayDate,
+        displayDate: meta.displayDate,
+        displayTime: meta.displayTime,
         amount: movement.amount,
         balanceAfter: 0,
         notes: movement.notes,
         recordedByName: movement.createdBy?.fullNameAr ?? null,
-        sortTs: instant.getTime(),
+        sortTs: meta.sortTs,
         sortOrder: movementChronoPriority(movement.movementType),
       });
     }
   }
 
   candidates.sort(compareTimelineEvents);
-  const displayEvents = mergePairedCreditPayments(candidates);
+  const displayEvents = mergePairedCreditPayments(candidates).sort(compareTimelineEvents);
 
   let balance = 0;
   for (const event of displayEvents) {
