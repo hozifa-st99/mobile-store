@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import InvoiceContactFooter from "@/components/print/InvoiceContactFooter";
-import { formatCurrency } from "@/lib/utils";
 import { formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
 import {
   boxConditionLabelEn,
@@ -38,8 +37,21 @@ function formatSaleDateEn(value: string) {
   };
 }
 
+const ENGLISH_CASH_CUSTOMER_LABEL = "Customer";
+
+const englishNumberFormatter = new Intl.NumberFormat("en-GB", {
+  style: "decimal",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/** تنسيق عرض للفاتورة الإنجليزية فقط — لا يغيّر القيم المخزّنة */
+function formatCurrencyEn(amount: number): string {
+  return englishNumberFormatter.format(amount);
+}
+
 function formatMoney(value: number) {
-  return `${formatCurrency(value)} EGP`;
+  return `${formatCurrencyEn(value)} EGP`;
 }
 
 function InvoicePhoneMetaEn({
@@ -120,8 +132,8 @@ function InvoiceItemsTableEn({
                 ) : null}
               </td>
               <td>{item.quantity}</td>
-              {variant === "sheet" ? <td>{formatCurrency(item.unitPrice)}</td> : null}
-              <td>{formatCurrency(item.total)}</td>
+              {variant === "sheet" ? <td>{formatCurrencyEn(item.unitPrice)}</td> : null}
+              <td>{formatCurrencyEn(item.total)}</td>
             </tr>
           ))}
         </tbody>
@@ -140,7 +152,7 @@ function SheetTotalsBlockEn({ sale }: { sale: SaleInvoicePrintData }) {
       <div className="invoice-print-total-row">
         <span>Discount</span>
         <span className="invoice-print-total-badge invoice-print-total-badge--discount">
-          {sale.discount > 0 ? `- ${formatCurrency(sale.discount)}` : formatCurrency(0)} EGP
+          {sale.discount > 0 ? `- ${formatCurrencyEn(sale.discount)}` : formatCurrencyEn(0)} EGP
         </span>
       </div>
       <div className="invoice-print-total-row">
@@ -169,7 +181,7 @@ function ThermalTotalsBlockEn({ sale }: { sale: SaleInvoicePrintData }) {
       <div className="invoice-print-thermal-total-line">
         <span>Discount</span>
         <strong>
-          {sale.discount > 0 ? `- ${formatCurrency(sale.discount)}` : formatCurrency(0)} EGP
+          {sale.discount > 0 ? `- ${formatCurrencyEn(sale.discount)}` : formatCurrencyEn(0)} EGP
         </strong>
       </div>
       <div className="invoice-print-thermal-total-line">
@@ -345,7 +357,7 @@ function SheetInvoiceBodyEn({
 
         <div className="invoice-print-info-block">
           <p className="invoice-print-info-label">Customer</p>
-          <p className="invoice-print-info-value">{sale.customer?.nameAr || "Walk-in customer"}</p>
+          <p className="invoice-print-info-value">{sale.customer?.nameAr || ENGLISH_CASH_CUSTOMER_LABEL}</p>
           {sale.customer?.phone ? (
             <p className="invoice-print-info-sub">{sale.customer.phone}</p>
           ) : null}
@@ -415,7 +427,7 @@ function ThermalInvoiceBodyEn({
       <section className="invoice-print-thermal-customer">
         <p className="invoice-print-thermal-label">Customer</p>
         <p className="invoice-print-thermal-customer-name">
-          {sale.customer?.nameAr || "Walk-in customer"}
+          {sale.customer?.nameAr || ENGLISH_CASH_CUSTOMER_LABEL}
         </p>
         {sale.customer?.phone ? (
           <p className="invoice-print-thermal-customer-phone">{sale.customer.phone}</p>
