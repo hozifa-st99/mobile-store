@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import InvoiceContactFooter from "@/components/print/InvoiceContactFooter";
+import InvoicePrintAccountEmployeeLine from "@/components/print/InvoicePrintAccountEmployeeLine";
 import { formatCurrency } from "@/lib/utils";
 import { formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
 import {
@@ -332,9 +333,13 @@ function SheetInvoiceBody({
           <div className="invoice-print-barcode-wrap">
             <InvoiceBarcode value={sale.invoiceNumber} />
           </div>
-          {settings.showInvoiceCreatorOnInvoice && context.invoiceCreatorName ? (
-            <p className="invoice-print-info-sub">الحساب: {context.invoiceCreatorName}</p>
-          ) : null}
+          <InvoicePrintAccountEmployeeLine
+            settings={settings}
+            invoiceCreatorName={context.invoiceCreatorName}
+            servedByName={sale.servedByName}
+            accountLabel="الحساب"
+            employeeLabel="الموظف"
+          />
         </div>
 
         <div className="invoice-print-info-block">
@@ -414,11 +419,14 @@ function ThermalInvoiceBody({
         {sale.customer?.phone ? (
           <p className="invoice-print-thermal-customer-phone">{sale.customer.phone}</p>
         ) : null}
-        {settings.showInvoiceCreatorOnInvoice && context.invoiceCreatorName ? (
-          <p className="invoice-print-thermal-customer-phone">
-            الحساب: {context.invoiceCreatorName}
-          </p>
-        ) : null}
+        <InvoicePrintAccountEmployeeLine
+          settings={settings}
+          invoiceCreatorName={context.invoiceCreatorName}
+          servedByName={sale.servedByName}
+          accountLabel="الحساب"
+          employeeLabel="الموظف"
+          className="invoice-print-thermal-customer-phone"
+        />
       </section>
 
       <div className="invoice-print-thermal-barcode">

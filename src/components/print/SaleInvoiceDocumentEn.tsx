@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import InvoiceContactFooter from "@/components/print/InvoiceContactFooter";
+import InvoicePrintAccountEmployeeLine from "@/components/print/InvoicePrintAccountEmployeeLine";
 import { formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
 import {
   boxConditionLabelEn,
@@ -350,9 +351,13 @@ function SheetInvoiceBodyEn({
           <div className="invoice-print-barcode-wrap">
             <InvoiceBarcode value={sale.invoiceNumber} />
           </div>
-          {settings.showInvoiceCreatorOnInvoice && context.invoiceCreatorName ? (
-            <p className="invoice-print-info-sub">Account: {context.invoiceCreatorName}</p>
-          ) : null}
+          <InvoicePrintAccountEmployeeLine
+            settings={settings}
+            invoiceCreatorName={context.invoiceCreatorName}
+            servedByName={sale.servedByName}
+            accountLabel="Account"
+            employeeLabel="Employee"
+          />
         </div>
 
         <div className="invoice-print-info-block">
@@ -432,11 +437,14 @@ function ThermalInvoiceBodyEn({
         {sale.customer?.phone ? (
           <p className="invoice-print-thermal-customer-phone">{sale.customer.phone}</p>
         ) : null}
-        {settings.showInvoiceCreatorOnInvoice && context.invoiceCreatorName ? (
-          <p className="invoice-print-thermal-customer-phone">
-            Account: {context.invoiceCreatorName}
-          </p>
-        ) : null}
+        <InvoicePrintAccountEmployeeLine
+          settings={settings}
+          invoiceCreatorName={context.invoiceCreatorName}
+          servedByName={sale.servedByName}
+          accountLabel="Account"
+          employeeLabel="Employee"
+          className="invoice-print-thermal-customer-phone"
+        />
       </section>
 
       <div className="invoice-print-thermal-barcode">

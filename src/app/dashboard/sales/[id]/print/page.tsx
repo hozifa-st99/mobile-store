@@ -49,6 +49,7 @@ interface SaleApiResponse {
     paidAmount?: number;
     notes: string | null;
     customer?: { nameAr: string; phone?: string | null } | null;
+    servedByName?: string | null;
     createdBy?: { username: string; fullNameAr: string | null } | null;
     items: SaleApiItem[];
   };
@@ -91,6 +92,7 @@ export default function SalePrintPage() {
           total: currentSale.total,
           paidAmount: currentSale.paidAmount,
           notes: currentSale.notes,
+          servedByName: currentSale.servedByName ?? null,
           customer: currentSale.customer
             ? {
                 nameAr: currentSale.customer.nameAr,

@@ -371,6 +371,7 @@ export interface SaleInvoicePrintData {
   total: number;
   paidAmount?: number;
   notes?: string | null;
+  servedByName?: string | null;
   customer?: { nameAr: string; phone?: string | null } | null;
   items: SaleInvoicePrintItem[];
 }
