@@ -56,7 +56,7 @@ export async function assertBranchImeisAvailable(
       where: {
         branchId,
         imei,
-        serial: { status: "available" },
+        serial: { status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] } },
         ...(excludeSerialId ? { serialId: { not: excludeSerialId } } : {}),
       },
       select: { serialId: true },

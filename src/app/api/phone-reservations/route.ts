@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
+import { getAuthFromRequest, requireScreenAccess, unauthorizedResponse } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import {
   createPhoneReservation,
@@ -10,6 +10,9 @@ import {
 } from "@/lib/phone-reservation-service";
 
 export async function GET(request: NextRequest) {
+  const { error: accessError } = await requireScreenAccess(request, "phone_reservations");
+  if (accessError) return accessError;
+
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
 
@@ -37,6 +40,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error: accessError } = await requireScreenAccess(request, "phone_reservations");
+  if (accessError) return accessError;
+
   const auth = await getAuthFromRequest(request);
   if (!auth) return unauthorizedResponse();
 

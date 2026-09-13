@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
+import {
+  forbiddenResponse,
+  getAuthFromRequest,
+  requireScreenAccess,
+  unauthorizedResponse,
+} from "@/lib/api-auth";
+import { hasScreenAccess } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { getAllowedScreensForUser } from "@/lib/user-permissions-service";
 import {
   cancelPhoneReservation,
   getPhoneReservationById,
@@ -14,6 +21,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const auth = await getAuthFromRequest(_request);
   if (!auth) return unauthorizedResponse();
 
+  const allowedScreens = await getAllowedScreensForUser(auth.userId, auth.role);
+  const canLoadForReservation =
+    hasScreenAccess(auth.role, allowedScreens, "phone_reservations") ||
+    hasScreenAccess(auth.role, allowedScreens, "sales_new");
+  if (!canLoadForReservation) return forbiddenResponse();
+
   const { id } = await params;
   const reservation = await getPhoneReservationById(prisma, auth.branchId, id);
   if (!reservation) {
@@ -24,6 +37,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+  const { error: accessError } = await requireScreenAccess(_request, "phone_reservations");
+  if (accessError) return accessError;
+
   const auth = await getAuthFromRequest(_request);
   if (!auth) return unauthorizedResponse();
 
