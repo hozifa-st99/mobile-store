@@ -2,7 +2,9 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PageHeader from "@/components/layout/PageHeader";
 import Modal from "@/components/ui/Modal";
 import { em, ThEmoji } from "@/components/ui/TableEmoji";
@@ -66,6 +68,7 @@ export default function PhoneReservationsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("available");
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [phones, setPhones] = useState<AvailablePhone[]>([]);
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
@@ -195,12 +198,23 @@ export default function PhoneReservationsPage() {
     router.push(`/dashboard/sales/new?reservationId=${encodeURIComponent(id)}`);
   };
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setSearch(value.trim());
+  }, []);
+
   return (
     <>
       <PageHeader
         title="حجز هاتف"
         subtitle="حجز موبايلات الفرع — المحجوز لا يظهر «متاح» في استعلام الفروع الأخرى"
         showHomeButton
+      />
+
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
       />
 
       <div className="glass-card p-4 mb-4 space-y-4">
@@ -248,13 +262,25 @@ export default function PhoneReservationsPage() {
           </span>
         </div>
 
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="بحث: اسم الموبايل · IMEI · باركود"
-          className="glass-input w-full"
-        />
+        <div className="flex items-center w-full rounded-xl border border-border bg-background-input focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30 transition-all">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="بحث: اسم الموبايل · IMEI · باركود"
+            className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
+          />
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            disabled={loading}
+            className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="مسح باركود / IMEI بالكاميرا"
+            aria-label="مسح باركود / IMEI بالكاميرا"
+          >
+            <ScanLine className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
       </div>
 
       <div className="glass-card overflow-hidden">

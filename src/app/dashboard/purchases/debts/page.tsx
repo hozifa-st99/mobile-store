@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PageHeader from "@/components/layout/PageHeader";
 import KpiCard from "@/components/dashboard/KpiCard";
 import SupplierStatementModal, {
@@ -411,6 +413,7 @@ export default function PurchaseDebtsPage() {
   const [debtTab, setDebtTab] = useState<DebtTab>(SUPPLIER_KIND_WHOLESALE);
   const [supplierId, setSupplierId] = useState("");
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>("all");
 
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -629,12 +632,23 @@ export default function PurchaseDebtsPage() {
     matchesBalanceFilter(row, balanceFilter)
   );
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setSearch(value.trim());
+  }, []);
+
   return (
     <>
       <PageHeader
         title="تقرير الأجل والمديونات"
         subtitle="مديونيات فواتير المشتريات وسداد الأجل"
         showHomeButton
+      />
+
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
       />
 
       <div className="flex flex-wrap gap-2 mb-5">
@@ -755,13 +769,26 @@ export default function PurchaseDebtsPage() {
           </div>
           <div>
             <label className="block text-xs text-muted mb-1.5">بحث</label>
-            <ClearableInput
-              value={search}
-              onChange={setSearch}
-              onClear={() => setSearch("")}
-              placeholder={searchPlaceholder}
-              inputMode="search"
-            />
+            <div className="flex items-center gap-2">
+              <ClearableInput
+                value={search}
+                onChange={setSearch}
+                onClear={() => setSearch("")}
+                placeholder={searchPlaceholder}
+                inputMode="search"
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                disabled={loading}
+                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="مسح بالكاميرا"
+                aria-label="مسح بالكاميرا"
+              >
+                <ScanLine className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           </div>
         </div>
         <div className="mt-3 pt-3 border-t border-border/40">

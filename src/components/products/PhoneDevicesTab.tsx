@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PhoneDeviceDetailsContent from "@/components/products/PhoneDeviceDetailsContent";
 import ProductNameCell from "@/components/products/ProductNameCell";
 import { PhoneConditionBadge } from "@/components/products/PhoneConditionBadge";
@@ -27,6 +29,7 @@ export default function PhoneDevicesTab({
   const [brands, setBrands] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState("");
   const [conditionFilter, setConditionFilter] = useState("");
   const [selected, setSelected] = useState<PhoneDeviceRow | null>(null);
@@ -75,18 +78,29 @@ export default function PhoneDevicesTab({
 
   const visibleCount = visibleDevices.length;
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setSearch(value.trim());
+  }, []);
+
   return (
     <>
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
+      />
+
       <div className="glass-card p-4 mb-5">
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-dark">🔍</span>
+          <div className="flex flex-1 items-center min-w-0 rounded-xl border border-border bg-background-input focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30 transition-all">
+            <span className="shrink-0 ps-3 text-muted-dark">🔍</span>
             <input
               type="text"
               placeholder="بحث بـ IMEI أو اسم الموبايل أو الشركة..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`w-full bg-background-input border border-border rounded-xl py-2.5 pr-10 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:border-primary/50 ${search ? "pl-10" : "pl-4"}`}
+              className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
             />
             {search ? (
               <button
@@ -94,11 +108,21 @@ export default function PhoneDevicesTab({
                 onClick={() => setSearch("")}
                 title="مسح البحث"
                 aria-label="مسح البحث"
-                className="absolute left-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border text-base text-muted hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border text-base text-muted hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
               >
                 <span aria-hidden>❌</span>
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              disabled={loading}
+              className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="مسح IMEI بالكاميرا"
+              aria-label="مسح IMEI بالكاميرا"
+            >
+              <ScanLine className="h-4 w-4" aria-hidden />
+            </button>
           </div>
 
           <div className="flex gap-2 flex-wrap items-center">

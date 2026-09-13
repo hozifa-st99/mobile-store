@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PhoneModelSpecSelect from "@/components/phones/PhoneModelSpecSelect";
 import DualSimImeiSuggestion from "@/components/purchases/DualSimImeiSuggestion";
 import { LogoDisplay } from "@/components/ui/LogoUpload";
@@ -146,6 +148,21 @@ export default function PhonePurchaseLineItem({
   );
   const [cyclePreview, setCyclePreview] = useState<ImeiCyclePreview | null>(null);
   const [cycleLoading, setCycleLoading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanningImeiIndex, setScanningImeiIndex] = useState<number | null>(null);
+
+  const handleBarcodeScan = useCallback(
+    (value: string) => {
+      setScannerOpen(false);
+      if (scanningImeiIndex === null) return;
+      const cleaned = value.replace(/\D/g, "").slice(0, 15);
+      const updated = [...item.imeis];
+      updated[scanningImeiIndex] = cleaned;
+      onChange({ imeis: updated });
+      setScanningImeiIndex(null);
+    },
+    [item.imeis, onChange, scanningImeiIndex]
+  );
 
   useEffect(() => {
     if (filledImeis.length === 0 || filledImeis.some((imei) => !isValidImeiFormat(imei))) {
@@ -194,6 +211,16 @@ export default function PhonePurchaseLineItem({
   };
 
   return (
+    <>
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => {
+          setScannerOpen(false);
+          setScanningImeiIndex(null);
+        }}
+        onScan={handleBarcodeScan}
+      />
+
     <div className="glass-card p-5 space-y-5 border border-white/[0.06]">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-bold text-white">موبايل #{index + 1}</p>
@@ -329,19 +356,33 @@ export default function PhonePurchaseLineItem({
         <div className="space-y-2">
           {item.imeis.map((imei, i) => (
             <div key={i} className="flex gap-2">
-              <input
-                value={imei}
-                maxLength={15}
-                inputMode="numeric"
-                onChange={(e) => {
-                  const updated = [...item.imeis];
-                  updated[i] = e.target.value.replace(/\D/g, "").slice(0, 15);
-                  onChange({ imeis: updated });
-                }}
-                className="glass-input text-sm flex-1"
-                placeholder="352099001761481"
-                autoComplete="off"
-              />
+              <div className="flex flex-1 items-center min-w-0 rounded-xl border border-border bg-background-input focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30 transition-all">
+                <input
+                  value={imei}
+                  maxLength={15}
+                  inputMode="numeric"
+                  onChange={(e) => {
+                    const updated = [...item.imeis];
+                    updated[i] = e.target.value.replace(/\D/g, "").slice(0, 15);
+                    onChange({ imeis: updated });
+                  }}
+                  className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
+                  placeholder="352099001761481"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScanningImeiIndex(i);
+                    setScannerOpen(true);
+                  }}
+                  className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 transition-colors"
+                  title="مسح IMEI بالكاميرا"
+                  aria-label="مسح IMEI بالكاميرا"
+                >
+                  <ScanLine className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
               {item.imeis.length > 1 && (
                 <button
                   type="button"
@@ -560,5 +601,6 @@ export default function PhonePurchaseLineItem({
         />
       </div>
     </div>
+    </>
   );
 }

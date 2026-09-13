@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PageHeader from "@/components/layout/PageHeader";
 import { apiJson } from "@/lib/api-client";
 import { toast } from "@/lib/toast";
@@ -166,6 +168,7 @@ function AnimatedBackdrop() {
 
 export default function ImeiTrackerPage() {
   const [query, setQuery] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timeline, setTimeline] = useState<TimelineResult | null>(null);
   const [searchedImei, setSearchedImei] = useState("");
@@ -199,11 +202,22 @@ export default function ImeiTrackerPage() {
     setSearchedImei(data.timeline.imei);
   };
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setQuery(value.replace(/\D/g, "").slice(0, 15));
+  }, []);
+
   return (
     <>
       <PageHeader
         title="تتبع IMEI"
         subtitle="استعلام فقط — تاريخ كامل للجهاز عبر كل دورة دخول"
+      />
+
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
       />
 
       <section className="relative mb-8 overflow-hidden rounded-3xl border border-primary/20 bg-background-card/70 p-6 sm:p-10 shadow-[0_20px_80px_rgba(99,57,249,0.12)]">
@@ -224,10 +238,8 @@ export default function ImeiTrackerPage() {
           </p>
 
           <div className="mx-auto flex max-w-xl flex-col gap-3 sm:flex-row">
-            <label className="relative flex-1">
-              <span className="pointer-events-none absolute inset-y-0 start-4 flex items-center text-lg">
-                📱
-              </span>
+            <div className="flex flex-1 items-center min-w-0 h-14 rounded-2xl border border-primary/25 bg-background-input/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(99,57,249,0.08)] focus-within:border-primary/50 focus-within:shadow-[0_0_0_4px_rgba(99,57,249,0.15)] transition-all">
+              <span className="shrink-0 ps-4 text-lg">📱</span>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -236,9 +248,19 @@ export default function ImeiTrackerPage() {
                 }}
                 placeholder="اكتب IMEI هنا..."
                 inputMode="numeric"
-                className="h-14 w-full rounded-2xl border border-primary/25 bg-background-input/80 pe-4 ps-12 text-base font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(99,57,249,0.08)] outline-none transition-all placeholder:text-muted focus:border-primary/50 focus:shadow-[0_0_0_4px_rgba(99,57,249,0.15)]"
+                className="flex-1 min-w-0 h-full bg-transparent border-0 px-3 text-base font-semibold text-white outline-none placeholder:text-muted"
               />
-            </label>
+              <button
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                disabled={loading}
+                className="shrink-0 mx-2 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="مسح IMEI بالكاميرا"
+                aria-label="مسح IMEI بالكاميرا"
+              >
+                <ScanLine className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => void handleSearch()}

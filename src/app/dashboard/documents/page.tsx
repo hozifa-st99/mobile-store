@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PageHeader from "@/components/layout/PageHeader";
 import { CellEmoji, ThEmoji, em } from "@/components/ui/TableEmoji";
 import DocumentDateTimeStack from "@/components/ui/DocumentDateTimeStack";
@@ -79,6 +81,7 @@ function buildQuery(filters: QueryFilters): string {
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [documentNumber, setDocumentNumber] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [type, setType] = useState<DocumentType>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -124,6 +127,11 @@ export default function DocumentsPage() {
   const hasPendingDateFilters =
     dateFrom !== appliedDates.dateFrom || dateTo !== appliedDates.dateTo;
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setDocumentNumber(value.trim());
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -131,17 +139,35 @@ export default function DocumentsPage() {
         subtitle="فواتير المبيعات والمشتريات ومرتجعاتها — إدخال الرصيد — تسوية / جرد"
       />
 
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
+      />
+
       <div className="glass-card p-4 mb-4 space-y-4">
         <p className="text-sm font-semibold text-white">تصفية السجل</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs text-muted mb-1.5">رقم المستند</label>
-            <input
-              value={documentNumber}
-              onChange={(e) => setDocumentNumber(e.target.value)}
-              placeholder="PUR / SAL / STK / OB..."
-              className="glass-input text-sm"
-            />
+            <div className="flex items-center w-full rounded-xl border border-border bg-background-input focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30 transition-all">
+              <input
+                value={documentNumber}
+                onChange={(e) => setDocumentNumber(e.target.value)}
+                placeholder="PUR / SAL / STK / OB..."
+                className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
+              />
+              <button
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                disabled={loading}
+                className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="مسح رقم المستند بالكاميرا"
+                aria-label="مسح رقم المستند بالكاميرا"
+              >
+                <ScanLine className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-xs text-muted mb-1.5">نوع المستند</label>

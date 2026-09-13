@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import ProductNameCell from "@/components/products/ProductNameCell";
 import { ProductTypeWithCondition } from "@/components/products/PhoneConditionBadge";
 import PhoneDevicesTab from "@/components/products/PhoneDevicesTab";
@@ -96,6 +98,7 @@ function ProductsPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState("");
   const [conditionFilter, setConditionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProductStatus | "">("");
@@ -194,12 +197,23 @@ function ProductsPageContent() {
     setConfirmProduct(product);
   };
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setSearch(value.trim());
+  }, []);
+
   return (
     <>
       <PageHeader
         title="المنتجات"
         subtitle="إدارة منتجات الفرع"
         action={{ label: "منتج جديد", href: "/dashboard/products/new" }}
+      />
+
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
       />
 
       <div className="flex items-center justify-between gap-3 mb-5 w-full">
@@ -285,9 +299,9 @@ function ProductsPageContent() {
 
       <div className="glass-card p-4 mb-5">
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
+          <div className="flex flex-1 items-center min-w-0 rounded-xl border border-border bg-background-input focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30 transition-all">
             <span
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-dark inline-flex items-center justify-center text-lg leading-none"
+              className="shrink-0 ps-3 text-muted-dark inline-flex items-center justify-center text-lg leading-none"
               title="Search"
             >
               🔍
@@ -297,7 +311,7 @@ function ProductsPageContent() {
               placeholder="بحث بالاسم، الباركود، الماركة..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`w-full bg-background-input border border-border rounded-xl py-2.5 pr-10 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:border-primary/50 ${search ? "pl-10" : "pl-4"}`}
+              className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
             />
             {search ? (
               <button
@@ -305,11 +319,21 @@ function ProductsPageContent() {
                 onClick={() => setSearch("")}
                 title="مسح البحث"
                 aria-label="مسح البحث"
-                className="absolute left-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border text-base text-muted hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border text-base text-muted hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
               >
                 <span aria-hidden>❌</span>
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              disabled={loading}
+              className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="مسح بالكاميرا"
+              aria-label="مسح بالكاميرا"
+            >
+              <ScanLine className="h-4 w-4" aria-hidden />
+            </button>
           </div>
           <div className="flex gap-2 flex-wrap items-center">
             <select

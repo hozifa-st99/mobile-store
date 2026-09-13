@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import ProductMovementModal from "@/components/inventory/ProductMovementModal";
 import ProductPurchasePriceModal from "@/components/inventory/ProductPurchasePriceModal";
 import InventoryStockValueModal from "@/components/inventory/InventoryStockValueModal";
@@ -145,6 +147,7 @@ export default function InventoryPage() {
   const [serials, setSerials] = useState<Serial[]>([]);
   const [filterOptions, setFilterOptions] = useState<InventoryFilters | null>(null);
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [tab, setTab] = useState<"stock" | "serials">("stock");
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState("");
@@ -375,6 +378,11 @@ export default function InventoryPage() {
     setStockValueSnapshot(null);
   };
 
+  const handleBarcodeScan = useCallback((value: string) => {
+    setScannerOpen(false);
+    setSearch(value.trim());
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -392,6 +400,12 @@ export default function InventoryPage() {
         }
       />
 
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
+      />
+
       <ProductCatalogViewFilter
         value={catalogViewFilter}
         onChange={setCatalogViewFilter}
@@ -400,9 +414,9 @@ export default function InventoryPage() {
 
       <div className="glass-card p-4 mb-5 space-y-3">
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
+          <div className="flex flex-1 items-center min-w-0 rounded-xl border border-border bg-background-input focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30 transition-all">
             <span
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-dark inline-flex items-center justify-center text-lg leading-none"
+              className="shrink-0 ps-3 text-muted-dark inline-flex items-center justify-center text-lg leading-none"
               title="Search"
             >
               🔍
@@ -411,13 +425,21 @@ export default function InventoryPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="بحث بالاسم أو الباركود أو IMEI..."
-              className={`w-full bg-background-input border border-border rounded-xl py-2.5 pr-10 text-sm text-white focus:outline-none focus:border-primary/50 ${search ? "pl-10" : "pl-4"}`}
+              className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
             />
             {search ? (
-              <span className="absolute left-2 top-1/2 -translate-y-1/2">
-                <ClearFilterButton onClick={() => setSearch("")} label="مسح البحث" />
-              </span>
+              <ClearFilterButton onClick={() => setSearch("")} label="مسح البحث" />
             ) : null}
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              disabled={loading}
+              className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="مسح بالكاميرا"
+              aria-label="مسح بالكاميرا"
+            >
+              <ScanLine className="h-4 w-4" aria-hidden />
+            </button>
           </div>
           <div className="flex gap-2">
             <button
