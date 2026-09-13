@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Flashlight, ScanLine } from "lucide-react";
-import { BarcodeFormat, BrowserMultiFormatReader, DecodeHintType } from "@zxing/browser";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 import Modal from "@/components/ui/Modal";
 
@@ -243,7 +244,9 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
       BarcodeFormat.QR_CODE,
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
-    readerRef.current = new BrowserMultiFormatReader(hints, 500);
+    readerRef.current = new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 500,
+    });
 
     const start = async () => {
       setStatus("starting");
