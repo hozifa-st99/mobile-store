@@ -81,6 +81,8 @@ export default function PhoneReservationsPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<ReservationRow | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const customerLookupRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -171,16 +173,21 @@ export default function PhoneReservationsPage() {
     void load();
   };
 
-  const cancelReservation = async (id: string) => {
-    if (!confirm("إلغاء الحجز؟")) return;
-    const { ok, data } = await apiJson<{ message?: string }>(`/api/phone-reservations/${id}`, {
-      method: "DELETE",
-    });
+  const confirmCancelReservation = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    const { ok, data } = await apiJson<{ message?: string }>(
+      `/api/phone-reservations/${cancelTarget.id}`,
+      { method: "DELETE" }
+    );
+    setCancelling(false);
     if (!ok) {
       toast.error(data.message || "تعذّر الإلغاء");
       return;
     }
     toast.success("تم إلغاء الحجز");
+    if (expandedId === cancelTarget.id) setExpandedId(null);
+    setCancelTarget(null);
     void load();
   };
 
@@ -351,7 +358,7 @@ export default function PhoneReservationsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => void cancelReservation(row.id)}
+                            onClick={() => setCancelTarget(row)}
                             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/35 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300"
                           >
                             <span className="text-base leading-none">{em.delete}</span>
@@ -512,6 +519,64 @@ export default function PhoneReservationsPage() {
                 className="btn-secondary px-6"
               >
                 إلغاء
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={cancelTarget !== null}
+        onClose={() => !cancelling && setCancelTarget(null)}
+        title="إلغاء الحجز"
+        size="sm"
+      >
+        {cancelTarget ? (
+          <div className="space-y-5">
+            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-4 space-y-2">
+              <p className="text-sm text-muted leading-relaxed">
+                هل تريد إلغاء حجز هذا الجهاز؟ سيعود الجهاز{" "}
+                <span className="text-white font-semibold">متاحاً</span> في المخزون.
+              </p>
+              <div className="pt-2 border-t border-white/10 space-y-1.5 text-sm">
+                <p>
+                  <span className="text-muted">الجهاز: </span>
+                  <span className="text-white font-medium">{phoneTitle(cancelTarget.serial)}</span>
+                </p>
+                <p>
+                  <span className="text-muted">IMEI: </span>
+                  <span className="text-primary-light">{cancelTarget.serial.imeiLabel}</span>
+                </p>
+                <p>
+                  <span className="text-muted">العميل: </span>
+                  <span className="text-white">{cancelTarget.customer.nameAr}</span>
+                  {cancelTarget.customer.phone ? (
+                    <span className="text-muted" dir="ltr">
+                      {" "}
+                      — {cancelTarget.customer.phone}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+              <button
+                type="button"
+                disabled={cancelling}
+                onClick={() => setCancelTarget(null)}
+                className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted hover:text-white transition-colors disabled:opacity-50"
+              >
+                تراجع
+              </button>
+              <button
+                type="button"
+                disabled={cancelling}
+                onClick={() => void confirmCancelReservation()}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/15 px-5 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300 transition-colors disabled:opacity-50"
+              >
+                <span className="text-base leading-none">{em.delete}</span>
+                {cancelling ? "جاري الإلغاء..." : "نعم، إلغاء الحجز"}
               </button>
             </div>
           </div>
