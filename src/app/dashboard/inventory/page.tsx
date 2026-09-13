@@ -131,6 +131,7 @@ const selectClass =
   "bg-background-input border border-border rounded-xl px-4 py-2.5 text-sm text-muted focus:outline-none focus:border-primary/50 min-w-[140px]";
 
 type StockStatus = "available" | "low" | "out";
+type DeviceSerialStatus = "available" | "reserved" | "sold" | "removed";
 
 function renderRetailPrice(item: InvItem): string {
   if (item.type === "phone" && item.retailPriceRange) {
@@ -156,6 +157,7 @@ export default function InventoryPage() {
   const [itemNameFilter, setItemNameFilter] = useState("");
   const [conditionFilter, setConditionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<StockStatus | "">("");
+  const [serialStatusFilter, setSerialStatusFilter] = useState<DeviceSerialStatus | "">("");
   const [movementProductId, setMovementProductId] = useState<string | null>(null);
   const [movementProductName, setMovementProductName] = useState("");
   const [purchaseProductId, setPurchaseProductId] = useState<string | null>(null);
@@ -201,7 +203,7 @@ export default function InventoryPage() {
   }, [catalogFilteredItems, statusFilter]);
 
   const visibleSerials = useMemo(() => {
-    return applyCatalogViewFilter(
+    const catalogFiltered = applyCatalogViewFilter(
       serials.map((serial) => ({
         serial,
         type: serial.product.type || "",
@@ -210,7 +212,10 @@ export default function InventoryPage() {
       })),
       catalogViewFilter
     ).map((entry) => entry.serial);
-  }, [serials, catalogViewFilter]);
+
+    if (!serialStatusFilter) return catalogFiltered;
+    return catalogFiltered.filter((serial) => serial.status === serialStatusFilter);
+  }, [serials, catalogViewFilter, serialStatusFilter]);
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -301,6 +306,7 @@ export default function InventoryPage() {
     !!search ||
     !!typeFilter ||
     !!statusFilter ||
+    !!serialStatusFilter ||
     !!productBrandFilter ||
     !!supplierFilter ||
     !!phoneEntryKey ||
@@ -314,6 +320,7 @@ export default function InventoryPage() {
     setSearch("");
     setTypeFilter("");
     setStatusFilter("");
+    setSerialStatusFilter("");
     setProductBrandFilter("");
     setSupplierFilter("");
     setPhoneEntryKey("");
@@ -484,21 +491,45 @@ export default function InventoryPage() {
             ))}
           </select>
 
-          <div className="flex items-center gap-1.5">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StockStatus | "")}
-              className={selectClass}
-            >
-              <option value="">كل الحالات</option>
-              <option value="available">متوفر</option>
-              <option value="low">منخفض</option>
-              <option value="out">نفد</option>
-            </select>
-            {statusFilter ? (
-              <ClearFilterButton onClick={() => setStatusFilter("")} label="مسح فلتر الحالة" />
-            ) : null}
-          </div>
+          {tab === "stock" ? (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StockStatus | "")}
+                className={selectClass}
+              >
+                <option value="">كل الحالات</option>
+                <option value="available">متوفر</option>
+                <option value="low">منخفض</option>
+                <option value="out">نفد</option>
+              </select>
+              {statusFilter ? (
+                <ClearFilterButton onClick={() => setStatusFilter("")} label="مسح فلتر الحالة" />
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={serialStatusFilter}
+                onChange={(e) =>
+                  setSerialStatusFilter(e.target.value as DeviceSerialStatus | "")
+                }
+                className={selectClass}
+              >
+                <option value="">كل حالات الجهاز</option>
+                <option value="available">متاح</option>
+                <option value="reserved">محجوز</option>
+                <option value="sold">مباع</option>
+                <option value="removed">محذوف</option>
+              </select>
+              {serialStatusFilter ? (
+                <ClearFilterButton
+                  onClick={() => setSerialStatusFilter("")}
+                  label="مسح فلتر حالة الجهاز"
+                />
+              ) : null}
+            </div>
+          )}
 
           {hasActiveFilters ? (
             <button

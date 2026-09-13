@@ -203,6 +203,25 @@ export default function PhoneReservationsPage() {
           </button>
         </div>
 
+        <div
+          className={`inline-flex items-center gap-3 rounded-xl border px-4 py-3 ${
+            tab === "available"
+              ? "border-primary/30 bg-primary/10"
+              : "border-accent-orange/30 bg-accent-orange/10"
+          }`}
+        >
+          <span
+            className={`text-2xl font-bold tabular-nums ${
+              tab === "available" ? "text-primary-light" : "text-accent-orange"
+            }`}
+          >
+            {tab === "available" ? phones.length : reservations.length}
+          </span>
+          <span className="text-sm text-muted">
+            {tab === "available" ? "جهاز متاح للحجز" : "حجز نشط"}
+          </span>
+        </div>
+
         <input
           type="search"
           value={search}
