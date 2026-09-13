@@ -9,6 +9,7 @@ import {
 import { filterPhoneSerialsForProduct } from "@/lib/phone-serial-product-filter";
 import { normalizeDeviceImeis } from "@/lib/product-serial-imeis";
 import { assertBranchImeisAvailable, createPhoneDeviceSerial } from "@/lib/product-serial-service";
+import { PHONE_SERIAL_IN_STOCK_STATUSES, PHONE_SERIAL_STATUS } from "@/lib/phone-serial-status";
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
           where: {
             branchId: auth.branchId,
             productId: { in: phoneProductIds },
-            status: "available",
+            status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] },
           },
           select: {
             productId: true,
@@ -86,20 +87,22 @@ export async function GET(request: NextRequest) {
 
   for (const inv of inventories) {
     if (inv.product.type !== "phone") continue;
-    const availableCount = (serialsByProduct.get(inv.product.id) ?? []).length;
-    if (availableCount !== inv.quantity) {
+    const physicalCount = (serialsByProduct.get(inv.product.id) ?? []).length;
+    if (physicalCount !== inv.quantity) {
       await prisma.branchInventory.update({
         where: { id: inv.id },
-        data: { quantity: availableCount },
+        data: { quantity: physicalCount },
       });
-      inv.quantity = availableCount;
+      inv.quantity = physicalCount;
     }
   }
 
   const products = inventories.map((inv) => {
     const isPhone = inv.product.type === "phone";
     const serials = isPhone
-      ? (serialsByProduct.get(inv.product.id) ?? []).filter((serial) => serial.status === "available")
+      ? (serialsByProduct.get(inv.product.id) ?? []).filter(
+          (serial) => serial.status === PHONE_SERIAL_STATUS.AVAILABLE
+        )
       : [];
 
     let purchasePrice = inv.purchasePrice;

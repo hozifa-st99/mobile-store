@@ -3,9 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { resolveSaleUnitCost, markDeviceSerialSold, markDeviceSerialSoldIfExists, resolveProductIdFromDevice } from "@/lib/phone-serial-cost";
 import {
+  completePhoneReservationForSale,
+  loadActiveReservationForSale,
+  PhoneReservationError,
+} from "@/lib/phone-reservation-service";
+import {
   countAvailablePhoneSerials,
+  countPhysicalPhoneSerials,
   findDeviceSerialByIdentifiers,
   markDeviceSerialSoldById,
+  markDeviceSerialSoldFromReservedById,
 } from "@/lib/product-serial-service";
 import { formatDeviceImeisSnapshot, getDeviceImeis } from "@/lib/product-serial-imeis";
 import { readSaleReturnStatus } from "@/lib/sale-item-return-fields";
@@ -132,6 +139,7 @@ export async function POST(request: NextRequest) {
       items = [],
       paidAmount,
       branchEmployeeId,
+      phoneReservationId: rawPhoneReservationId,
     } = body;
 
     if (!items.length) {
@@ -172,6 +180,13 @@ export async function POST(request: NextRequest) {
         customerPhone,
       });
 
+      const phoneReservationId =
+        typeof rawPhoneReservationId === "string" ? rawPhoneReservationId.trim() : "";
+
+      const reservationContext = phoneReservationId
+        ? await loadActiveReservationForSale(tx, auth.branchId, phoneReservationId)
+        : null;
+
       const invNum = await allocateSaleInvoiceNumber(tx, auth.branchId);
       const resolvedItems: {
         productId?: string;
@@ -183,7 +198,10 @@ export async function POST(request: NextRequest) {
         scannedImei?: string;
         barcode?: string;
         serialId?: string;
+        fromReservation?: boolean;
       }[] = [];
+
+      let reservationSerialUsed = false;
 
       for (const item of items as {
         productId?: string;
@@ -219,18 +237,35 @@ export async function POST(request: NextRequest) {
 
           if (isPhone) {
             if (item.quantity !== 1) throw new Error("PHONE_QTY_MUST_BE_ONE");
-            if (!deviceIds.imei && !deviceIds.barcode) {
-              throw new Error("PHONE_DEVICE_ID_REQUIRED");
-            }
 
-            const serial = await findDeviceSerialByIdentifiers(tx, auth.branchId, deviceIds, {
-              productId,
-              status: "available",
-            });
-            if (serial) {
+            const reservationMatches =
+              reservationContext &&
+              reservationContext.serial.productId === productId &&
+              !reservationSerialUsed;
+
+            if (reservationMatches) {
+              const serial = reservationContext.serial;
               const snapshot = formatDeviceImeisSnapshot(getDeviceImeis(serial));
               if (snapshot) storedImei = snapshot;
               serialId = serial.id;
+              if (serial.barcode) deviceIds.barcode = serial.barcode;
+              const imeis = getDeviceImeis(serial);
+              if (imeis[0]) deviceIds.imei = imeis[0];
+              reservationSerialUsed = true;
+            } else {
+              if (!deviceIds.imei && !deviceIds.barcode) {
+                throw new Error("PHONE_DEVICE_ID_REQUIRED");
+              }
+
+              const serial = await findDeviceSerialByIdentifiers(tx, auth.branchId, deviceIds, {
+                productId,
+                status: "available",
+              });
+              if (serial) {
+                const snapshot = formatDeviceImeisSnapshot(getDeviceImeis(serial));
+                if (snapshot) storedImei = snapshot;
+                serialId = serial.id;
+              }
             }
           } else if (item.imei?.trim()) {
             storedImei = item.imei.trim();
@@ -248,13 +283,25 @@ export async function POST(request: NextRequest) {
             throw new Error("INSUFFICIENT_STOCK");
           }
           if (isPhone) {
-            const availableSerials = await countAvailablePhoneSerials(
-              tx,
-              auth.branchId,
-              productId
-            );
-            if (availableSerials < item.quantity) {
-              throw new Error("INSUFFICIENT_STOCK");
+            const reservationMatches =
+              reservationContext &&
+              reservationContext.serial.productId === productId &&
+              serialId === reservationContext.serial.id;
+
+            if (reservationMatches) {
+              const physicalSerials = await countPhysicalPhoneSerials(tx, auth.branchId, productId);
+              if (physicalSerials < item.quantity) {
+                throw new Error("INSUFFICIENT_STOCK");
+              }
+            } else {
+              const availableSerials = await countAvailablePhoneSerials(
+                tx,
+                auth.branchId,
+                productId
+              );
+              if (availableSerials < item.quantity) {
+                throw new Error("INSUFFICIENT_STOCK");
+              }
             }
           }
           unitCost = isPhone
@@ -274,13 +321,27 @@ export async function POST(request: NextRequest) {
           imei: storedImei,
           scannedImei: deviceIds.imei,
           serialId,
+          fromReservation: Boolean(
+            reservationContext && serialId === reservationContext.serial.id
+          ),
         });
       }
+
+      if (reservationContext && !reservationSerialUsed) {
+        throw new PhoneReservationError(
+          "يجب إضافة الجهاز المحجوز إلى الفاتورة",
+          "RESERVATION_ITEM_REQUIRED"
+        );
+      }
+
+      const saleCustomerId = reservationContext
+        ? reservationContext.customer.id
+        : resolvedCustomerId;
 
       const s = await tx.sale.create({
         data: {
           branchId: auth.branchId,
-          customerId: resolvedCustomerId,
+          customerId: saleCustomerId,
           invoiceNumber: invNum,
           saleDate: documentRecordedAt(),
           status: "completed",
@@ -334,7 +395,9 @@ export async function POST(request: NextRequest) {
         });
 
         if (product?.type === "phone") {
-          if (item.serialId) {
+          if (item.serialId && item.fromReservation) {
+            await markDeviceSerialSoldFromReservedById(tx, item.serialId);
+          } else if (item.serialId) {
             await markDeviceSerialSoldById(tx, item.serialId);
           } else {
             await markDeviceSerialSold(tx, auth.branchId, item.productId, {
@@ -348,6 +411,10 @@ export async function POST(request: NextRequest) {
             barcode: item.barcode,
           });
         }
+      }
+
+      if (reservationContext) {
+        await completePhoneReservationForSale(tx, auth.branchId, reservationContext.id, s.id);
       }
 
       return s;
@@ -373,6 +440,9 @@ export async function POST(request: NextRequest) {
           { message: "الجهاز غير موجود في المخزون أو مباع مسبقاً" },
           { status: 400 }
         );
+      }
+      if (error instanceof PhoneReservationError) {
+        return NextResponse.json({ message: error.message, code: error.code }, { status: 400 });
       }
       if (error.message === "CUSTOMER_NOT_FOUND") {
         return NextResponse.json({ message: "العميل غير موجود" }, { status: 400 });

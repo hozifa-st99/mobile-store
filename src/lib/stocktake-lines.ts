@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { buildPurchaseItemDescription } from "@/lib/phone-product";
 import { formatDeviceImeisLabel, getDeviceImeis } from "@/lib/product-serial-imeis";
+import { PHONE_SERIAL_IN_STOCK_STATUSES } from "@/lib/phone-serial-status";
 import type { StocktakeLine, StocktakeSerialLine } from "@/lib/stocktake-line-types";
 import {
   buildPhoneGroupDetails,
@@ -80,7 +81,7 @@ export async function loadStocktakeLines(
     where: {
       branchId,
       productId: { in: ids },
-      status: "available",
+      status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] },
     },
     select: {
       id: true,

@@ -7,6 +7,7 @@ import {
   getSerialEffectiveRetailPrice,
   summarizePriceRange,
 } from "@/lib/phone-serial-pricing";
+import { PHONE_SERIAL_IN_STOCK_STATUSES } from "@/lib/phone-serial-status";
 
 function buildProductWhere(
   auth: { branchId: string; companyId: string },
@@ -192,7 +193,7 @@ export async function GET(request: NextRequest) {
           where: {
             branchId: auth.branchId,
             productId: { in: phoneProductIds },
-            status: "available",
+            status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] },
           },
           select: {
             productId: true,
@@ -212,26 +213,26 @@ export async function GET(request: NextRequest) {
     serialsByProduct.set(serial.productId, list);
   }
 
-  const serialCountByProduct = new Map<string, number>();
+  const physicalCountByProduct = new Map<string, number>();
   serialsByProduct.forEach((serials, productId) => {
-    serialCountByProduct.set(productId, serials.length);
+    physicalCountByProduct.set(productId, serials.length);
   });
 
   for (const inv of phoneInventories) {
-    const availableCount = serialCountByProduct.get(inv.productId) ?? 0;
-    if (availableCount !== inv.quantity) {
+    const physicalCount = physicalCountByProduct.get(inv.productId) ?? 0;
+    if (physicalCount !== inv.quantity) {
       await prisma.branchInventory.update({
         where: { id: inv.id },
-        data: { quantity: availableCount },
+        data: { quantity: physicalCount },
       });
-      inv.quantity = availableCount;
+      inv.quantity = physicalCount;
     }
   }
 
   const items = inventories.map((inv) => {
     const isPhone = inv.product.type === "phone";
     const quantity = isPhone
-      ? (serialCountByProduct.get(inv.productId) ?? inv.quantity)
+      ? (physicalCountByProduct.get(inv.productId) ?? inv.quantity)
       : inv.quantity;
 
     let retailPrice = inv.retailPrice;

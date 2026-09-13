@@ -12,6 +12,11 @@ import {
   findDeviceSerialByImei,
   syncPhoneInventoryQuantity,
 } from "@/lib/product-serial-service";
+import {
+  PHONE_RESERVATION_STATUS,
+  PHONE_SERIAL_IN_STOCK_STATUSES,
+  PHONE_SERIAL_STATUS,
+} from "@/lib/phone-serial-status";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -112,9 +117,15 @@ async function deleteAbsentPhoneSerials(
     for (const imei of snap.imeis) {
       const found = await findDeviceSerialByImei(tx, branchId, imei, {
         productId,
-        status: "available",
       });
+      if (found && !PHONE_SERIAL_IN_STOCK_STATUSES.includes(found.status as (typeof PHONE_SERIAL_IN_STOCK_STATUSES)[number])) {
+        continue;
+      }
       if (!found || deleted.has(found.id)) continue;
+      await tx.phoneReservation.updateMany({
+        where: { serialId: found.id, status: PHONE_RESERVATION_STATUS.ACTIVE },
+        data: { status: PHONE_RESERVATION_STATUS.CANCELLED, cancelledAt: new Date() },
+      });
       await deleteDeviceSerialById(tx, found.id);
       deleted.add(found.id);
     }
@@ -130,8 +141,13 @@ async function deleteAbsentPhoneSerials(
       existing &&
       existing.branchId === branchId &&
       existing.productId === productId &&
-      existing.status === "available"
+      (existing.status === PHONE_SERIAL_STATUS.AVAILABLE ||
+        existing.status === PHONE_SERIAL_STATUS.RESERVED)
     ) {
+      await tx.phoneReservation.updateMany({
+        where: { serialId: existing.id, status: PHONE_RESERVATION_STATUS.ACTIVE },
+        data: { status: PHONE_RESERVATION_STATUS.CANCELLED, cancelledAt: new Date() },
+      });
       await deleteDeviceSerialById(tx, existing.id);
       deleted.add(existing.id);
     }

@@ -10,7 +10,7 @@ import {
 } from "@/lib/phone-serial-pricing";
 import { loadPhoneProductSerials } from "@/lib/phone-product-serials";
 import { formatDeviceImeisSnapshot, getDeviceImeis, formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
-import { serialWithImeisSelect } from "@/lib/product-serial-service";
+import { countPhysicalPhoneSerials, serialWithImeisSelect } from "@/lib/product-serial-service";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -54,7 +54,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ? summarizePriceRange(phoneSerials.map((serial) => serial.retailPrice))
       : null;
 
-  const phoneQuantity = isPhone ? phoneSerials.length : inventory.quantity;
+  const phoneQuantity = isPhone
+    ? await countPhysicalPhoneSerials(prisma, auth.branchId, id)
+    : inventory.quantity;
 
   if (isPhone && phoneQuantity !== inventory.quantity) {
     await prisma.branchInventory.update({

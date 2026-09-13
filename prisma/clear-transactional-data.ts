@@ -37,6 +37,7 @@ async function clearTransactionalData() {
     await tx.stocktake.deleteMany();
 
     await tx.retailPriceChange.deleteMany();
+    await tx.phoneReservation.deleteMany();
     await tx.productSerialImei.deleteMany();
     await tx.productSerial.deleteMany();
 

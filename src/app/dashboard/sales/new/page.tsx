@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
@@ -131,6 +131,9 @@ export default function NewSalePage() {
   const [catalogAvailabilityOpen, setCatalogAvailabilityOpen] = useState(false);
   const [branchEmployees, setBranchEmployees] = useState<BranchEmployee[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [phoneReservationId, setPhoneReservationId] = useState("");
+  const reservationPrefillRef = useRef(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     apiJson<{ products?: Product[] }>("/api/products").then(({ data }) =>
@@ -177,6 +180,60 @@ export default function NewSalePage() {
     setCustomerResults([]);
     setShowCustomerLookup(false);
   };
+
+  useEffect(() => {
+    const reservationId = searchParams.get("reservationId")?.trim();
+    if (!reservationId || reservationPrefillRef.current) return;
+
+    reservationPrefillRef.current = true;
+    setPhoneReservationId(reservationId);
+
+    void apiJson<{
+      reservation?: {
+        id: string;
+        customer: { id: string; nameAr: string; phone?: string | null };
+        serial: {
+          productId: string;
+          barcode: string | null;
+          imeiLabel: string;
+          imeis: string[];
+          retailPrice: number;
+          product: { nameAr: string; brand: string | null };
+        };
+      };
+    }>(`/api/phone-reservations/${reservationId}`).then(({ ok, data }) => {
+      if (!ok || !data.reservation) {
+        toast.error("تعذّر تحميل الحجز");
+        return;
+      }
+
+      const row = data.reservation;
+      pickCustomer(row.customer);
+      setPhoneReservationId(row.id);
+
+      const productName = [row.serial.product.nameAr, row.serial.product.brand]
+        .filter(Boolean)
+        .join(" — ");
+
+      setCart([
+        {
+          lineId: newLineId(),
+          productId: row.serial.productId,
+          description: productName || row.serial.product.nameAr,
+          quantity: 1,
+          unitPrice: row.serial.retailPrice,
+          minUnitPrice: 0,
+          catalogUnitPrice: row.serial.retailPrice,
+          maxQty: 1,
+          imei: row.serial.imeiLabel,
+          scannedImei: row.serial.imeis[0],
+          deviceImeis: row.serial.imeis,
+          barcode: row.serial.barcode || undefined,
+        },
+      ]);
+      toast.success("تم تحميل جهاز الحجز — أكمل البيع");
+    });
+  }, [searchParams]);
 
   const checkPhoneRegistered = async (phone: string) => {
     const normalized = normalizePhone(phone);
@@ -459,6 +516,7 @@ export default function NewSalePage() {
             taxEnabled,
             taxRate: effectiveTaxRate,
             branchEmployeeId: selectedEmployeeId,
+            ...(phoneReservationId ? { phoneReservationId } : {}),
             items: cart.map((c) => ({
               productId: c.productId,
               description: c.description,

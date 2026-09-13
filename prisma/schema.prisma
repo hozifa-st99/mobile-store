@@ -68,6 +68,7 @@ model Branch {
   branchEmployees   BranchEmployee[]
   supplierReceivables PurchaseSupplierReceivable[]
   receivableCollections PurchaseReceivableCollection[]
+  phoneReservations      PhoneReservation[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -103,6 +104,7 @@ model User {
   salesCreated      Sale[]     @relation("SaleCreator")
   purchasesCreated  Purchase[] @relation("PurchaseCreator")
   receivableCollectionsCreated PurchaseReceivableCollection[] @relation("PurchaseReceivableCollectionCreator")
+  phoneReservationsCreated     PhoneReservation[]             @relation("PhoneReservationCreator")
 
   @@index([companyId])
   @@map("users")
@@ -280,7 +282,8 @@ model ProductSerial {
   stockEntryItem StockEntryItem? @relation(fields: [stockEntryItemId], references: [id])
   retailPriceChanges RetailPriceChange[]
   imeiEntries  ProductSerialImei[]
-  saleItems    SaleItem[]
+  saleItems         SaleItem[]
+  phoneReservations PhoneReservation[]
 
   @@unique([branchId, barcode])
   @@index([branchId, productId])
@@ -794,9 +797,38 @@ model Customer {
   maintenanceOrders MaintenanceOrder[]
   creditLedgerEntries CreditLedgerEntry[]
   individualSupplier Supplier?
+  phoneReservations  PhoneReservation[]
 
   @@index([companyId])
   @@map("customers")
+}
+
+/// حجز موبايل — جهاز محجوز لعميل داخل الفرع (لا يظهر «متاح» في استعلام الفروع الأخرى)
+model PhoneReservation {
+  id          String    @id @default(uuid())
+  branchId    String    @map("branch_id")
+  serialId    String    @map("serial_id")
+  customerId  String    @map("customer_id")
+  userId      String?   @map("user_id")
+  notes       String?
+  status      String    @default("active")
+  reservedAt  DateTime  @default(now()) @map("reserved_at")
+  completedAt DateTime? @map("completed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  saleId      String?   @map("sale_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  branch   Branch        @relation(fields: [branchId], references: [id])
+  serial   ProductSerial @relation(fields: [serialId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
+  user     User?         @relation("PhoneReservationCreator", fields: [userId], references: [id])
+  sale     Sale?         @relation(fields: [saleId], references: [id])
+
+  @@index([branchId, status])
+  @@index([serialId])
+  @@index([customerId])
+  @@map("phone_reservations")
 }
 
 model BranchEmployee {
@@ -843,8 +875,9 @@ model Sale {
   customer       Customer?       @relation(fields: [customerId], references: [id])
   branchEmployee BranchEmployee? @relation(fields: [branchEmployeeId], references: [id])
   createdBy      User?           @relation("SaleCreator", fields: [createdByUserId], references: [id])
-  items          SaleItem[]
-  returns        SaleReturn[]
+  items             SaleItem[]
+  returns           SaleReturn[]
+  phoneReservations PhoneReservation[]
 
   @@unique([branchId, invoiceNumber])
   @@index([branchId, saleDate])

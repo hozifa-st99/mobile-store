@@ -8,6 +8,10 @@ import {
   validateDeviceImeis,
 } from "@/lib/product-serial-imeis";
 import { resolveNextCycleIndex } from "@/lib/device-cycle";
+import {
+  PHONE_SERIAL_IN_STOCK_STATUSES,
+  PHONE_SERIAL_STATUS,
+} from "@/lib/phone-serial-status";
 type Db = Prisma.TransactionClient | PrismaClient;
 
 const serialWithImeisSelect = {
@@ -225,9 +229,20 @@ export async function findDeviceSerialByIdentifiers(
 
 export async function markDeviceSerialSoldById(tx: Db, serialId: string): Promise<void> {
   await tx.productSerial.updateMany({
-    where: { id: serialId, status: "available" },
-    data: { status: "sold" },
+    where: { id: serialId, status: PHONE_SERIAL_STATUS.AVAILABLE },
+    data: { status: PHONE_SERIAL_STATUS.SOLD },
   });
+}
+
+/** بيع جهاز كان محجوزاً — لا يمر عبر «متاح» */
+export async function markDeviceSerialSoldFromReservedById(tx: Db, serialId: string): Promise<void> {
+  const updated = await tx.productSerial.updateMany({
+    where: { id: serialId, status: PHONE_SERIAL_STATUS.RESERVED },
+    data: { status: PHONE_SERIAL_STATUS.SOLD },
+  });
+  if (updated.count !== 1) {
+    throw new Error("PHONE_SERIAL_NOT_FOUND");
+  }
 }
 
 export async function restoreDeviceSerialAvailableById(tx: Db, serialId: string): Promise<void> {
@@ -250,8 +265,11 @@ export async function restoreDeviceSerialAvailableById(tx: Db, serialId: string)
 
 export async function markDeviceSerialRemovedById(tx: Db, serialId: string): Promise<void> {
   await tx.productSerial.updateMany({
-    where: { id: serialId, status: "available" },
-    data: { status: "removed" },
+    where: {
+      id: serialId,
+      status: { in: [PHONE_SERIAL_STATUS.AVAILABLE, PHONE_SERIAL_STATUS.RESERVED] },
+    },
+    data: { status: PHONE_SERIAL_STATUS.REMOVED },
   });
 }
 
@@ -265,22 +283,51 @@ export async function countAvailablePhoneSerials(
   productId: string
 ): Promise<number> {
   const serials = await tx.productSerial.findMany({
-    where: { branchId, productId, status: "available" },
+    where: { branchId, productId, status: PHONE_SERIAL_STATUS.AVAILABLE },
     select: serialWithImeisSelect,
   });
   return serials.filter((serial) => serialBelongsToProduct(serial, productId)).length;
 }
 
-/** يوحّد branchInventory.quantity مع عدد الأجهزة المتاحة */
+export async function countReservedPhoneSerials(
+  tx: Db,
+  branchId: string,
+  productId: string
+): Promise<number> {
+  const serials = await tx.productSerial.findMany({
+    where: { branchId, productId, status: PHONE_SERIAL_STATUS.RESERVED },
+    select: serialWithImeisSelect,
+  });
+  return serials.filter((serial) => serialBelongsToProduct(serial, productId)).length;
+}
+
+/** متاح + محجوز — الجهاز لا يزال في المحل */
+export async function countPhysicalPhoneSerials(
+  tx: Db,
+  branchId: string,
+  productId: string
+): Promise<number> {
+  const serials = await tx.productSerial.findMany({
+    where: {
+      branchId,
+      productId,
+      status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] },
+    },
+    select: serialWithImeisSelect,
+  });
+  return serials.filter((serial) => serialBelongsToProduct(serial, productId)).length;
+}
+
+/** يوحّد branchInventory.quantity مع الأجهزة «في المحل» (متاح + محجوز) */
 export async function syncPhoneInventoryQuantity(
   tx: Db,
   branchId: string,
   productId: string
 ): Promise<number> {
-  const availableCount = await countAvailablePhoneSerials(tx, branchId, productId);
+  const physicalCount = await countPhysicalPhoneSerials(tx, branchId, productId);
   await tx.branchInventory.updateMany({
     where: { branchId, productId },
-    data: { quantity: availableCount },
+    data: { quantity: physicalCount },
   });
-  return availableCount;
+  return physicalCount;
 }

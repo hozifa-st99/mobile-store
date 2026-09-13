@@ -9,6 +9,7 @@ export type AppRole = (typeof ROLES)[keyof typeof ROLES];
 export const APP_SCREENS = [
   { key: "dashboard", label: "الرئيسية", path: "/dashboard" },
   { key: "sales_new", label: "فاتورة مبيعات", path: "/dashboard/sales/new" },
+  { key: "phone_reservations", label: "حجز هاتف", path: "/dashboard/phone-reservations" },
   { key: "sales_returns", label: "مرتجع مبيعات", path: "/dashboard/sales/returns" },
   { key: "sales_list", label: "استعراض فواتير المبيعات", path: "/dashboard/sales" },
   { key: "purchases_new", label: "فاتورة مشتريات", path: "/dashboard/purchases/new" },

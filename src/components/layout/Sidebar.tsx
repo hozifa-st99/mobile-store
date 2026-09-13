@@ -39,6 +39,7 @@ const menuStructure: MenuEntry[] = [
     emoji: "🛒",
     children: [
       { href: "/dashboard/sales/new", label: "فاتورة مبيعات" },
+      { href: "/dashboard/phone-reservations", label: "حجز هاتف" },
       { href: "/dashboard/sales/returns", label: "مرتجع مبيعات" },
       { href: "/dashboard/sales", label: "استعراض فواتير المبيعات" },
     ],
@@ -136,6 +137,7 @@ function isListViewPath(href: string, pathname: string): boolean {
       pathname === href ||
       (pathname.startsWith("/dashboard/sales/") &&
         !pathname.startsWith("/dashboard/sales/new") &&
+        !pathname.startsWith("/dashboard/phone-reservations") &&
         !pathname.startsWith("/dashboard/sales/returns"))
     );
   }
