@@ -7,6 +7,7 @@ import {
   validateDeviceImeis,
 } from "@/lib/product-serial-imeis";
 import type { ImeiCyclePreview } from "@/lib/imei-cycle-preview-types";
+import { PHONE_SERIAL_IN_STOCK_STATUSES } from "@/lib/phone-serial-status";
 
 export type { ImeiCyclePreview } from "@/lib/imei-cycle-preview-types";
 
@@ -45,7 +46,7 @@ export async function findActiveSerialIdForImei(
     where: {
       branchId,
       imei,
-      serial: { status: "available" },
+      serial: { status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] } },
       ...(excludeSerialId ? { serialId: { not: excludeSerialId } } : {}),
     },
     select: { serialId: true },
