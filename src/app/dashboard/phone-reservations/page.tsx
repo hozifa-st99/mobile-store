@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import PageHeader from "@/components/layout/PageHeader";
@@ -73,11 +73,15 @@ export default function PhoneReservationsPage() {
 
   const [reserveOpen, setReserveOpen] = useState(false);
   const [selectedPhone, setSelectedPhone] = useState<AvailablePhone | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [showCustomerLookup, setShowCustomerLookup] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerResults, setCustomerResults] = useState<CustomerOption[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const customerLookupRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,27 +105,42 @@ export default function PhoneReservationsPage() {
   }, [load, search]);
 
   useEffect(() => {
-    if (!reserveOpen) {
+    if (!reserveOpen || !showCustomerLookup) {
       setCustomerResults([]);
       return;
     }
     const q = customerSearch.trim();
-    if (q.length < 1) {
-      setCustomerResults([]);
-      return;
-    }
     const timer = setTimeout(() => {
       void apiJson<{ customers?: CustomerOption[] }>(
         `/api/customers?search=${encodeURIComponent(q)}`
       ).then(({ data }) => setCustomerResults(data.customers || []));
-    }, 280);
+    }, q ? 280 : 0);
     return () => clearTimeout(timer);
-  }, [customerSearch, reserveOpen]);
+  }, [customerSearch, reserveOpen, showCustomerLookup]);
+
+  useEffect(() => {
+    if (showCustomerLookup) {
+      customerLookupRef.current?.focus();
+    }
+  }, [showCustomerLookup]);
+
+  const pickCustomer = (customer: CustomerOption) => {
+    setSelectedCustomerId(customer.id);
+    setCustomerName(customer.nameAr);
+    setCustomerPhone(customer.phone?.trim() || "");
+    setCustomerSearch("");
+    setCustomerResults([]);
+    setShowCustomerLookup(false);
+  };
 
   const openReserve = (phone: AvailablePhone) => {
     setSelectedPhone(phone);
     setSelectedCustomerId("");
+    setCustomerName("");
+    setCustomerPhone("");
     setCustomerSearch("");
+    setCustomerResults([]);
+    setShowCustomerLookup(false);
     setNotes("");
     setReserveOpen(true);
   };
@@ -312,28 +331,30 @@ export default function PhoneReservationsPage() {
                         {new Date(row.reservedAt).toLocaleString("ar-EG")}
                       </td>
                       <td className="p-4">
-                        <div className="flex flex-wrap gap-2 justify-end">
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 justify-end min-w-[11rem]">
                           <button
                             type="button"
                             onClick={() =>
                               setExpandedId((current) => (current === row.id ? null : row.id))
                             }
-                            className="btn-secondary text-xs px-3 py-1.5"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary-light transition-colors hover:bg-primary/20 hover:text-white"
                           >
-                            {expandedId === row.id ? "إخفاء" : "عرض التفاصيل"}
+                            <span className="text-base leading-none">{em.view}</span>
+                            {expandedId === row.id ? "إخفاء التفاصيل" : "عرض التفاصيل"}
                           </button>
                           <button
                             type="button"
                             onClick={() => completeSale(row.id)}
-                            className="btn-primary text-xs px-3 py-1.5"
+                            className="btn-primary text-xs px-3.5 py-2 font-semibold"
                           >
                             إكمال البيع
                           </button>
                           <button
                             type="button"
                             onClick={() => void cancelReservation(row.id)}
-                            className="btn-secondary text-xs px-3 py-1.5 text-accent-orange"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/35 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300"
                           >
+                            <span className="text-base leading-none">{em.delete}</span>
                             إلغاء الحجز
                           </button>
                         </div>
@@ -385,33 +406,84 @@ export default function PhoneReservationsPage() {
               <p className="text-xs text-muted mt-1">{selectedPhone.imeiLabel}</p>
             </div>
 
-            <div>
-              <label className="block text-xs text-muted mb-1.5">بحث عن العميل</label>
-              <input
-                type="search"
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                className="glass-input w-full"
-                placeholder="اسم أو رقم هاتف"
-              />
-              {customerResults.length > 0 ? (
-                <ul className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5">
-                  {customerResults.map((customer) => (
-                    <li key={customer.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCustomerId(customer.id)}
-                        className={`w-full text-right px-3 py-2 text-sm hover:bg-white/5 ${
-                          selectedCustomerId === customer.id ? "bg-primary/15 text-primary-light" : ""
-                        }`}
-                      >
-                        {customer.nameAr}
-                        {customer.phone ? ` — ${customer.phone}` : ""}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs text-muted inline-flex items-center gap-1.5">
+                  <span>{em.customer}</span>
+                  العميل
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerLookup((open) => !open)}
+                  className={`w-9 h-9 rounded-xl border flex items-center justify-center text-base transition-colors ${
+                    showCustomerLookup
+                      ? "border-primary/50 bg-primary/20 text-primary-light"
+                      : "border-white/15 bg-white/5 text-muted hover:border-primary/40 hover:text-primary-light"
+                  }`}
+                  title="بحث واختيار عميل"
+                >
+                  {em.search}
+                </button>
+              </div>
+
+              {showCustomerLookup ? (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <input
+                    ref={customerLookupRef}
+                    type="search"
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    className="glass-input w-full text-sm"
+                    placeholder="بحث بالاسم أو رقم الهاتف..."
+                  />
+                  {customerResults.length === 0 ? (
+                    <p className="text-xs text-muted px-1 py-2 text-center">
+                      {customerSearch.trim() ? "لا توجد نتائج" : "لا يوجد عملاء"}
+                    </p>
+                  ) : (
+                    <ul className="max-h-44 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5 bg-background-card/80">
+                      {customerResults.map((customer) => (
+                        <li key={customer.id}>
+                          <button
+                            type="button"
+                            onClick={() => pickCustomer(customer)}
+                            className="w-full text-right px-3 py-2.5 hover:bg-primary/10 transition-colors"
+                          >
+                            <p className="text-sm font-medium text-white">{customer.nameAr}</p>
+                            {customer.phone ? (
+                              <p className="text-xs text-muted mt-0.5" dir="ltr">
+                                {customer.phone}
+                              </p>
+                            ) : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               ) : null}
+
+              <div>
+                <label className="block text-xs text-muted mb-1.5">اسم العميل</label>
+                <input
+                  type="text"
+                  value={customerName}
+                  readOnly
+                  placeholder="اختر عميلاً من القائمة 🔍"
+                  className="glass-input w-full bg-white/[0.03] cursor-default"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1.5">رقم الهاتف</label>
+                <input
+                  type="text"
+                  value={customerPhone}
+                  readOnly
+                  placeholder="—"
+                  dir="ltr"
+                  className="glass-input w-full bg-white/[0.03] text-left cursor-default"
+                />
+              </div>
             </div>
 
             <div>
