@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ScanLine } from "lucide-react";
 
+import BarcodeScannerModal from "@/components/barcode/BarcodeScannerModal";
 import PageHeader from "@/components/layout/PageHeader";
 import CatalogAvailabilityModal from "@/components/sales/CatalogAvailabilityModal";
 import SaleConfirmModal from "@/components/sales/SaleConfirmModal";
@@ -113,6 +115,7 @@ export default function NewSalePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerId, setCustomerId] = useState("");
@@ -388,41 +391,54 @@ export default function NewSalePage() {
     toast.success("تمت إضافة الموبايل");
   };
 
-  const handleSearchSubmit = async () => {
-    const q = search.trim();
-    if (!q) return;
+  const handleSearchSubmit = useCallback(
+    async (overrideQuery?: string) => {
+      const q = (overrideQuery ?? search).trim();
+      if (!q) return;
 
-    setSearching(true);
-    try {
-      const deviceRes = await apiFetch(`/api/devices/lookup?q=${encodeURIComponent(q)}`);
-      if (deviceRes.ok) {
-        const data = await deviceRes.json();
-        addPhoneToCart(data.device);
-        return;
+      setSearch(q);
+      setProductPickerOpen(false);
+      setSearching(true);
+      try {
+        const deviceRes = await apiFetch(`/api/devices/lookup?q=${encodeURIComponent(q)}`);
+        if (deviceRes.ok) {
+          const data = await deviceRes.json();
+          addPhoneToCart(data.device);
+          return;
+        }
+
+        const matches = products.filter(
+          (p) =>
+            p.name.toLowerCase().includes(q.toLowerCase()) ||
+            p.brand.toLowerCase().includes(q.toLowerCase()) ||
+            (p.barcode?.toLowerCase().includes(q.toLowerCase()) ?? false)
+        );
+
+        if (matches.length === 1) {
+          addAccessoryToCart(matches[0]);
+          return;
+        }
+
+        if (matches.length > 1) {
+          toast.error("اختر الصنف من القائمة");
+          return;
+        }
+
+        toast.error("لم يُعثر على صنف أو جهاز");
+      } finally {
+        setSearching(false);
       }
+    },
+    [search, products]
+  );
 
-      const matches = products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q.toLowerCase()) ||
-          p.brand.toLowerCase().includes(q.toLowerCase()) ||
-          (p.barcode?.toLowerCase().includes(q.toLowerCase()) ?? false)
-      );
-
-      if (matches.length === 1) {
-        addAccessoryToCart(matches[0]);
-        return;
-      }
-
-      if (matches.length > 1) {
-        toast.error("اختر الصنف من القائمة");
-        return;
-      }
-
-      toast.error("لم يُعثر على صنف أو جهاز");
-    } finally {
-      setSearching(false);
-    }
-  };
+  const handleBarcodeScan = useCallback(
+    (value: string) => {
+      setScannerOpen(false);
+      void handleSearchSubmit(value);
+    },
+    [handleSearchSubmit]
+  );
 
   const removeFromCart = (lineId: string) => {
     setCart((prev) => prev.filter((c) => c.lineId !== lineId));
@@ -607,6 +623,12 @@ export default function NewSalePage() {
         onClose={() => setCatalogAvailabilityOpen(false)}
       />
 
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
+      />
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
         {/* الوسط/اليمين — بحث + جدول الأصnaف */}
         <div className="xl:col-span-8 space-y-0">
@@ -639,6 +661,16 @@ export default function NewSalePage() {
                     disabled={searching}
                     autoFocus
                   />
+                  <button
+                    type="button"
+                    onClick={() => setScannerOpen(true)}
+                    disabled={searching}
+                    className="shrink-0 ms-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="مسح باركود / IMEI بالكاميرا"
+                    aria-label="مسح باركود / IMEI بالكاميرا"
+                  >
+                    <ScanLine className="h-4 w-4" aria-hidden />
+                  </button>
                   <button
                     type="button"
                     onClick={() => void handleSearchSubmit()}
