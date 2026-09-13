@@ -173,13 +173,13 @@ export default function SalesPage() {
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
                 placeholder="INV-..."
-                className="flex-1 min-w-0 bg-transparent border-0 py-2.5 px-3 text-sm text-white placeholder:text-muted-dark focus:outline-none focus:ring-0"
+                className="flex-1 min-w-0 bg-transparent border-0 py-3.5 px-4 text-sm font-medium text-white placeholder:text-muted-dark placeholder:font-normal focus:outline-none focus:ring-0"
               />
               <button
                 type="button"
                 onClick={() => setScannerOpen(true)}
                 disabled={loading}
-                className="shrink-0 mx-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="shrink-0 mx-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 title="مسح رقم الفاتورة بالكاميرا"
                 aria-label="مسح رقم الفاتورة بالكاميرا"
               >
