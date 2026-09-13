@@ -7,7 +7,10 @@ import {
   getSerialEffectiveRetailPrice,
   summarizePriceRange,
 } from "@/lib/phone-serial-pricing";
-import { PHONE_SERIAL_IN_STOCK_STATUSES } from "@/lib/phone-serial-status";
+import {
+  PHONE_SERIAL_IN_STOCK_STATUSES,
+  PHONE_SERIAL_STATUS,
+} from "@/lib/phone-serial-status";
 
 function buildProductWhere(
   auth: { branchId: string; companyId: string },
@@ -197,6 +200,7 @@ export async function GET(request: NextRequest) {
           },
           select: {
             productId: true,
+            status: true,
             unitCost: true,
             retailPrice: true,
             purchaseItem: { select: { retailPrice: true, productId: true } },
@@ -231,8 +235,10 @@ export async function GET(request: NextRequest) {
 
   const items = inventories.map((inv) => {
     const isPhone = inv.product.type === "phone";
-    const quantity = isPhone
-      ? (physicalCountByProduct.get(inv.productId) ?? inv.quantity)
+    const inStockSerials = isPhone ? (serialsByProduct.get(inv.productId) ?? []) : [];
+    const quantity = isPhone ? inStockSerials.length : inv.quantity;
+    const availableQuantity = isPhone
+      ? inStockSerials.filter((serial) => serial.status === PHONE_SERIAL_STATUS.AVAILABLE).length
       : inv.quantity;
 
     let retailPrice = inv.retailPrice;
@@ -276,6 +282,7 @@ export async function GET(request: NextRequest) {
       itemBrandName: inv.product.itemBrand?.nameAr || null,
       itemNameLabel: inv.product.itemName?.nameAr || null,
       quantity,
+      ...(isPhone ? { availableQuantity } : {}),
       minQuantity: inv.minQuantity,
       purchasePrice: inv.purchasePrice,
       retailPrice,

@@ -31,6 +31,7 @@ interface InvItem {
   brand: string;
   type: string;
   quantity: number;
+  availableQuantity?: number;
   minQuantity: number;
   retailPrice: number;
   retailPriceRange?: PriceRangeSummary | null;
@@ -98,6 +99,22 @@ const statusMap: Record<string, { label: string; class: string }> = {
   sold: {
     label: "مباع",
     class: "px-3 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20",
+  },
+};
+
+const deviceSerialStatusMap: Record<string, { label: string; class: string }> = {
+  available: { label: "متاح", class: "status-complete" },
+  reserved: {
+    label: "محجوز",
+    class: "px-3 py-1 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20",
+  },
+  sold: {
+    label: "مباع",
+    class: "px-3 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20",
+  },
+  removed: {
+    label: "محذوف",
+    class: "px-3 py-1 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/20",
   },
 };
 
@@ -642,7 +659,17 @@ export default function InventoryPage() {
                           deviceCondition={item.deviceCondition}
                         />
                       </td>
-                      <td className="p-4 text-sm font-semibold text-white">{item.quantity}</td>
+                      <td className="p-4 text-sm font-semibold text-white">
+                        <span>{item.quantity}</span>
+                        {item.type === "phone" &&
+                        item.availableQuantity != null &&
+                        item.availableQuantity < item.quantity ? (
+                          <span className="block text-[11px] font-normal text-muted mt-0.5">
+                            متاح {item.availableQuantity} · محجوز{" "}
+                            {item.quantity - item.availableQuantity}
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="p-4 text-sm text-muted">{item.minQuantity}</td>
                       <td className="p-4 text-sm text-white">{renderRetailPrice(item)}</td>
                       <td className="p-4">
@@ -727,12 +754,12 @@ export default function InventoryPage() {
                         {s.cycleIndex ?? "—"}
                       </td>
                       <td className="p-4">
-                        <span className={statusMap[s.status]?.class || "status-pending"}>
-                          {statusMap[s.status]?.label === "مباع"
-                            ? "مباع"
-                            : s.status === "available"
-                              ? "متاح"
-                              : s.status}
+                        <span
+                          className={
+                            deviceSerialStatusMap[s.status]?.class || "status-pending"
+                          }
+                        >
+                          {deviceSerialStatusMap[s.status]?.label ?? s.status}
                         </span>
                       </td>
                     </tr>
