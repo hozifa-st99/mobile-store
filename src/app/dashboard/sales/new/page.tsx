@@ -22,6 +22,7 @@ interface Product {
   type: string;
   barcode?: string | null;
   quantity: number;
+  availableQuantity?: number;
   purchasePrice: number;
   retailPrice: number;
 }
@@ -137,7 +138,9 @@ export default function NewSalePage() {
 
   useEffect(() => {
     apiJson<{ products?: Product[] }>("/api/products").then(({ data }) =>
-      setProducts((data.products || []).filter((p) => p.quantity > 0))
+      setProducts(
+        (data.products || []).filter((p) => (p.availableQuantity ?? p.quantity) > 0)
+      )
     );
     apiJson<{ employees: BranchEmployee[] }>("/api/branch-employees").then(({ ok, data }) => {
       if (ok) setBranchEmployees(data.employees || []);
@@ -290,7 +293,8 @@ export default function NewSalePage() {
         (c) => c.productId === p.id && !isPhoneDeviceLine(c)
       );
       if (existing) {
-        if (existing.quantity >= p.quantity) {
+        const sellableQty = p.availableQuantity ?? p.quantity;
+        if (existing.quantity >= sellableQty) {
           toast.error("الكمية غير متوفرة");
           return prev;
         }
@@ -314,7 +318,7 @@ export default function NewSalePage() {
           unitPrice: p.retailPrice,
           minUnitPrice: Math.max(0, Math.round((p.purchasePrice || 0) * 100) / 100),
           catalogUnitPrice: p.retailPrice,
-          maxQty: p.quantity,
+          maxQty: p.availableQuantity ?? p.quantity,
           barcode: p.barcode || undefined,
         },
       ];

@@ -10,7 +10,11 @@ import {
 } from "@/lib/phone-serial-pricing";
 import { loadPhoneProductSerials } from "@/lib/phone-product-serials";
 import { formatDeviceImeisSnapshot, getDeviceImeis, formatStoredDeviceImeis } from "@/lib/product-serial-imeis";
-import { countPhysicalPhoneSerials, serialWithImeisSelect } from "@/lib/product-serial-service";
+import {
+  countAvailablePhoneSerials,
+  countPhysicalPhoneSerials,
+  serialWithImeisSelect,
+} from "@/lib/product-serial-service";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -38,7 +42,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const isPhone = inventory.product.type === "phone";
   const phoneSerials = isPhone
     ? await loadPhoneProductSerials(auth.branchId, id, inventory.retailPrice, {
-        availableOnly: true,
+        inStockOnly: true,
         backfillMissing: false,
       })
     : [];
@@ -56,6 +60,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   const phoneQuantity = isPhone
     ? await countPhysicalPhoneSerials(prisma, auth.branchId, id)
+    : inventory.quantity;
+  const availableQuantity = isPhone
+    ? await countAvailablePhoneSerials(prisma, auth.branchId, id)
     : inventory.quantity;
 
   if (isPhone && phoneQuantity !== inventory.quantity) {
@@ -77,7 +84,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       purchasePriceRange,
       retailPriceRange,
       phoneSerials,
-      availableQuantity: phoneQuantity,
+      availableQuantity,
       imeis: allImeis,
     },
   });

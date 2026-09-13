@@ -99,10 +99,9 @@ export async function GET(request: NextRequest) {
 
   const products = inventories.map((inv) => {
     const isPhone = inv.product.type === "phone";
-    const serials = isPhone
-      ? (serialsByProduct.get(inv.product.id) ?? []).filter(
-          (serial) => serial.status === PHONE_SERIAL_STATUS.AVAILABLE
-        )
+    const inStockSerials = isPhone ? (serialsByProduct.get(inv.product.id) ?? []) : [];
+    const availableSerials = isPhone
+      ? inStockSerials.filter((serial) => serial.status === PHONE_SERIAL_STATUS.AVAILABLE)
       : [];
 
     let purchasePrice = inv.purchasePrice;
@@ -110,12 +109,12 @@ export async function GET(request: NextRequest) {
     let purchasePriceRange: ReturnType<typeof summarizePriceRange> = null;
     let retailPriceRange: ReturnType<typeof summarizePriceRange> = null;
 
-    if (isPhone && serials.length > 0) {
+    if (isPhone && inStockSerials.length > 0) {
       purchasePriceRange = summarizePriceRange(
-        serials.map((serial) => getSerialEffectivePurchasePrice(serial))
+        inStockSerials.map((serial) => getSerialEffectivePurchasePrice(serial))
       );
       retailPriceRange = summarizePriceRange(
-        serials.map((serial) =>
+        inStockSerials.map((serial) =>
           getSerialEffectiveRetailPrice(
             {
               unitCost: serial.unitCost,
@@ -131,7 +130,8 @@ export async function GET(request: NextRequest) {
       if (retailPriceRange?.single) retailPrice = retailPriceRange.min;
     }
 
-    const quantity = isPhone ? serials.length : inv.quantity;
+    const quantity = isPhone ? inStockSerials.length : inv.quantity;
+    const availableQuantity = isPhone ? availableSerials.length : inv.quantity;
 
     return {
       id: inv.product.id,
@@ -148,6 +148,7 @@ export async function GET(request: NextRequest) {
       imageUrl: inv.product.imageUrl,
       category: inv.product.category?.nameAr,
       quantity,
+      ...(isPhone ? { availableQuantity } : {}),
       minQuantity: inv.minQuantity,
       purchasePrice,
       retailPrice,

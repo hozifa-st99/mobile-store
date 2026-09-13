@@ -386,9 +386,12 @@ export default function EditProductPage() {
               </div>
               <div>
                 <p className="text-[11px] font-medium text-amber-400/90 mb-1">الكمية</p>
-                <p className="text-base font-bold tabular-nums text-amber-200">
-                  {isPhone ? product.availableQuantity : product.quantity}
-                </p>
+                <p className="text-base font-bold tabular-nums text-amber-200">{product.quantity}</p>
+                {isPhone && product.availableQuantity < product.quantity ? (
+                  <p className="text-[11px] text-muted mt-1">
+                    متاح {product.availableQuantity} · محجوز {product.quantity - product.availableQuantity}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

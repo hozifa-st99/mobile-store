@@ -14,6 +14,7 @@ import {
   getPrimaryDeviceImei,
   normalizeDeviceImeis,
 } from "@/lib/product-serial-imeis";
+import { PHONE_SERIAL_IN_STOCK_STATUSES } from "@/lib/phone-serial-status";
 import {
   assertBranchImeisAvailable,
   createPhoneDeviceSerial,
@@ -225,7 +226,7 @@ export async function loadPhoneProductSerials(
   branchId: string,
   productId: string,
   inventoryRetailPrice: number,
-  options?: { availableOnly?: boolean; backfillMissing?: boolean }
+  options?: { availableOnly?: boolean; inStockOnly?: boolean; backfillMissing?: boolean }
 ): Promise<PhoneProductSerialRow[]> {
   const sources = await collectProductDeviceLineSources(branchId, productId);
 
@@ -237,7 +238,11 @@ export async function loadPhoneProductSerials(
     where: {
       branchId,
       productId,
-      ...(options?.availableOnly ? { status: "available" } : {}),
+      ...(options?.availableOnly
+        ? { status: "available" }
+        : options?.inStockOnly
+          ? { status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] } }
+          : {}),
     },
     select: serialWithImeisSelect,
     orderBy: { createdAt: "asc" },

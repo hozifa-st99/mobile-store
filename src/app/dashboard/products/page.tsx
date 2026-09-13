@@ -25,6 +25,7 @@ interface Product {
   storage?: string;
   color?: string;
   quantity: number;
+  availableQuantity?: number;
   purchasePrice: number;
   retailPrice: number;
   purchasePriceRange?: PriceRangeSummary | null;
@@ -489,7 +490,17 @@ function ProductsPageContent() {
                     <td className="p-4 text-sm font-semibold text-white">
                       {renderProductPrice(product, "retail")}
                     </td>
-                    <td className="p-4 text-sm text-white font-medium">{product.quantity}</td>
+                    <td className="p-4 text-sm text-white font-medium">
+                      <span>{product.quantity}</span>
+                      {product.type === "phone" &&
+                      product.availableQuantity != null &&
+                      product.availableQuantity < product.quantity ? (
+                        <span className="block text-[11px] text-muted mt-0.5">
+                          متاح {product.availableQuantity} · محجوز{" "}
+                          {product.quantity - product.availableQuantity}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="p-4">
                       <span className={statusMap[product.status].class}>
                         {statusMap[product.status].label}
