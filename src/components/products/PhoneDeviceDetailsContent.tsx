@@ -5,7 +5,11 @@ import type { ReactNode } from "react";
 
 import ProductNameCell from "@/components/products/ProductNameCell";
 import { em } from "@/components/ui/TableEmoji";
-import type { PhoneDeviceRow } from "@/lib/phone-device-serial-details";
+import {
+  isFullPhoneDeviceRow,
+  type PhoneDeviceRow,
+  type SalePhoneDeviceRow,
+} from "@/lib/phone-device-serial-details";
 import { formatCurrency } from "@/lib/utils";
 
 export type PhoneDeviceDetailsMode = "inventory" | "sale";
@@ -124,11 +128,12 @@ export default function PhoneDeviceDetailsContent({
   mode = "inventory",
   onCloseSourceLink,
 }: {
-  device: PhoneDeviceRow;
+  device: PhoneDeviceRow | SalePhoneDeviceRow;
   mode?: PhoneDeviceDetailsMode;
   onCloseSourceLink?: () => void;
 }) {
   const isSale = mode === "sale";
+  const inventoryDevice = !isSale && isFullPhoneDeviceRow(device) ? device : null;
 
   return (
     <div className="space-y-5">
@@ -146,11 +151,11 @@ export default function PhoneDeviceDetailsContent({
           className={`mt-4 grid grid-cols-1 gap-2 ${isSale ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}
         >
           <DetailRow emoji={em.imei} label="IMEI" value={device.imeiLabel} accent="#3b82f6" />
-          {!isSale ? (
+          {inventoryDevice ? (
             <DetailRow
               emoji={em.purchasePrice}
               label="سعر الشراء"
-              value={`${formatCurrency(device.purchasePrice)} ج.م`}
+              value={`${formatCurrency(inventoryDevice.purchasePrice)} ج.م`}
               accent="#22c55e"
             />
           ) : null}
@@ -210,11 +215,11 @@ export default function PhoneDeviceDetailsContent({
           }
           accent="#84cc16"
         />
-        {!isSale ? (
+        {inventoryDevice ? (
           <DetailRow
             emoji={em.purchasePrice}
             label="سعر الشراء"
-            value={`${formatCurrency(device.details.unitPrice)} ج.م`}
+            value={`${formatCurrency(inventoryDevice.details.unitPrice)} ج.م`}
             accent="#22c55e"
           />
         ) : null}
@@ -228,36 +233,36 @@ export default function PhoneDeviceDetailsContent({
         <DetailRow emoji={em.description} label="ملاحظات" value={device.details.itemNotes} accent="#94a3b8" />
       </DetailSection>
 
-      {!isSale && device.source ? (
+      {inventoryDevice?.source ? (
         <DetailSection emoji={em.invoice} title="مصدر الإدخال" variant="emerald">
           <DetailRow
             emoji={em.type}
             label="نوع المستند"
-            value={device.source.kindLabel}
+            value={inventoryDevice.source.kindLabel}
             accent="#7c3aed"
           />
           <DetailRow
             emoji={em.number}
             label="رقم المستند"
-            value={device.source.documentNumber}
+            value={inventoryDevice.source.documentNumber}
             accent="#6366f1"
           />
           <DetailRow
             emoji={em.supplier}
             label="الطرف"
-            value={device.source.counterparty ?? "—"}
+            value={inventoryDevice.source.counterparty ?? "—"}
             accent="#0ea5e9"
           />
           <DetailRow
             emoji={em.date}
             label="تاريخ الإدخال"
-            value={formatDate(device.source.documentDate)}
+            value={formatDate(inventoryDevice.source.documentDate)}
             accent="#14b8a6"
           />
 
           <div className="sm:col-span-2">
             <Link
-              href={device.source.documentUrl}
+              href={inventoryDevice.source.documentUrl}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition-all hover:border-emerald-400/50 hover:bg-emerald-500/25 hover:text-white"
               onClick={onCloseSourceLink}
             >

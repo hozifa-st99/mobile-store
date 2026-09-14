@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import { LogoDisplay } from "@/components/ui/LogoUpload";
 import { em } from "@/components/ui/TableEmoji";
 import { PhoneConditionBadge } from "@/components/products/PhoneConditionBadge";
+import CatalogSerialInfoButton from "@/components/sales/CatalogSerialInfoButton";
 import { apiJson } from "@/lib/api-client";
 import type {
   CatalogAvailabilityPayload,
@@ -341,6 +342,7 @@ function SerialUnitsModal({
                     {showBranchColumn ? (
                       <th className="py-2.5 px-3 text-right font-semibold">الفرع</th>
                     ) : null}
+                    <th className="py-2.5 px-3 text-center font-semibold w-12">تفاصيل</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -377,6 +379,9 @@ function SerialUnitsModal({
                           ) : null}
                         </td>
                       ) : null}
+                      <td className="py-2.5 px-3 align-middle text-center">
+                        <CatalogSerialInfoButton serialId={unit.serialId} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

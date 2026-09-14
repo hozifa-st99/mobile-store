@@ -209,3 +209,20 @@ export function mapSerialToPhoneDeviceRow(serial: PhoneSerialWithDetails): Phone
     },
   };
 }
+
+/** استجابة عرض البيع — بدون سعر الشراء ولا مصدر المستند */
+export type SalePhoneDeviceRow = Omit<PhoneDeviceRow, "purchasePrice" | "source"> & {
+  details: Omit<PhoneDeviceDetails, "unitPrice">;
+};
+
+export function toSalePhoneDeviceRow(device: PhoneDeviceRow): SalePhoneDeviceRow {
+  const { purchasePrice: _purchasePrice, source: _source, details, ...rest } = device;
+  const { unitPrice: _unitPrice, ...safeDetails } = details;
+  return { ...rest, details: safeDetails };
+}
+
+export function isFullPhoneDeviceRow(
+  device: PhoneDeviceRow | SalePhoneDeviceRow
+): device is PhoneDeviceRow {
+  return "purchasePrice" in device;
+}
