@@ -119,6 +119,15 @@ export function pathnameToScreenKey(pathname: string): ScreenKey | null {
   return null;
 }
 
+function isSuperAdminOnlySettingsPath(pathname: string): boolean {
+  return (
+    pathname === "/dashboard/settings/database-backup" ||
+    pathname.startsWith("/dashboard/settings/database-backup/") ||
+    pathname === "/dashboard/settings/site-activation" ||
+    pathname.startsWith("/dashboard/settings/site-activation/")
+  );
+}
+
 export function canAccessPathname(
   role: string,
   allowedScreens: AllowedScreens | undefined,
@@ -126,6 +135,10 @@ export function canAccessPathname(
 ): boolean {
   if (pathname === "/dashboard/settings") {
     return hasSettingsHubAccess(role, allowedScreens);
+  }
+
+  if (isSuperAdminOnlySettingsPath(pathname)) {
+    return isSuperAdminRole(role);
   }
 
   const key = pathnameToScreenKey(pathname);
