@@ -133,7 +133,14 @@ const selectClass =
   "bg-background-input border border-border rounded-xl px-4 py-2.5 text-sm text-muted focus:outline-none focus:border-primary/50 min-w-[140px]";
 
 type StockStatus = "available" | "low" | "out";
+type StockStatusFilter = StockStatus | "available_low" | "";
 type DeviceSerialStatus = "available" | "reserved" | "sold" | "removed";
+
+function itemMatchesStockStatusFilter(status: string, filter: StockStatusFilter): boolean {
+  if (!filter) return true;
+  if (filter === "available_low") return status === "available" || status === "low";
+  return status === filter;
+}
 
 function renderRetailPrice(item: InvItem): string {
   if (item.type === "phone" && item.retailPriceRange) {
@@ -159,7 +166,7 @@ export default function InventoryPage() {
   const [itemBrandFilter, setItemBrandFilter] = useState("");
   const [itemNameFilter, setItemNameFilter] = useState("");
   const [conditionFilter, setConditionFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StockStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>("");
   const [serialStatusFilter, setSerialStatusFilter] = useState<DeviceSerialStatus | "">("");
   const [movementProductId, setMovementProductId] = useState<string | null>(null);
   const [movementProductName, setMovementProductName] = useState("");
@@ -202,7 +209,9 @@ export default function InventoryPage() {
 
   const visibleItems = useMemo(() => {
     if (!statusFilter) return catalogFilteredItems;
-    return catalogFilteredItems.filter((item) => item.status === statusFilter);
+    return catalogFilteredItems.filter((item) =>
+      itemMatchesStockStatusFilter(item.status, statusFilter)
+    );
   }, [catalogFilteredItems, statusFilter]);
 
   const visibleSerials = useMemo(() => {
@@ -517,10 +526,11 @@ export default function InventoryPage() {
             <div className="flex items-center gap-1.5">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StockStatus | "")}
+                onChange={(e) => setStatusFilter(e.target.value as StockStatusFilter)}
                 className={selectClass}
               >
                 <option value="">كل الحالات</option>
+                <option value="available_low">متوفر ومنخفض</option>
                 <option value="available">متوفر</option>
                 <option value="low">منخفض</option>
                 <option value="out">نفد</option>

@@ -48,7 +48,14 @@ const statusMap = {
 };
 
 type ProductStatus = Product["status"];
+type ProductStatusFilter = ProductStatus | "available_low" | "";
 type ProductsTab = "all" | "phones" | "accessory" | "imei";
+
+function productMatchesStatusFilter(status: ProductStatus, filter: ProductStatusFilter): boolean {
+  if (!filter) return true;
+  if (filter === "available_low") return status === "available" || status === "low";
+  return status === filter;
+}
 
 function resolveProductsTab(value: string | null): ProductsTab {
   if (value === "imei") return "imei";
@@ -101,7 +108,7 @@ function ProductsPageContent() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [brandFilter, setBrandFilter] = useState("");
   const [conditionFilter, setConditionFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ProductStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("");
   const [confirmProduct, setConfirmProduct] = useState<Product | null>(null);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [platformFilter, setPlatformFilter] = useState("");
@@ -169,7 +176,7 @@ function ProductsPageContent() {
       list = list.filter((product) => product.phoneBrandId === phoneBrandFilter);
     }
     if (statusFilter) {
-      list = list.filter((product) => product.status === statusFilter);
+      list = list.filter((product) => productMatchesStatusFilter(product.status, statusFilter));
     }
     return list;
   }, [products, tab, platformFilter, phoneBrandFilter, statusFilter]);
@@ -379,10 +386,11 @@ function ProductsPageContent() {
             <div className="flex items-center gap-1.5">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as ProductStatus | "")}
+                onChange={(e) => setStatusFilter(e.target.value as ProductStatusFilter)}
                 className="bg-background-input border border-border rounded-xl px-4 py-2.5 text-sm text-muted focus:outline-none focus:border-primary/50 min-w-[130px]"
               >
                 <option value="">كل الحالات</option>
+                <option value="available_low">متوفر ومنخفض</option>
                 <option value="available">متوفر</option>
                 <option value="low">منخفض</option>
                 <option value="out">نفد</option>
