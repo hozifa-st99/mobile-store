@@ -82,6 +82,28 @@ export function hasScreenAccess(
   return allowedScreens.includes(screenKey);
 }
 
+/** شاشات الإعدادات الفرعية — كل واحدة لها صلاحية مستقلة (الموردين تحت مسار الإعدادات لكن مفتاحه suppliers) */
+export const SETTINGS_HUB_CHILD_SCREEN_KEYS: ScreenKey[] = [
+  "settings_phone_catalog",
+  "settings_item_catalog",
+  "settings_branches",
+  "settings_users",
+  "settings_notifications",
+  "settings_print",
+  "suppliers",
+];
+
+/** بوابة /dashboard/settings — تظهر إن وُجدت صلاحية الإعدادات أو أي شاشة فرعية */
+export function hasSettingsHubAccess(
+  role: string,
+  allowedScreens: AllowedScreens | undefined
+): boolean {
+  if (hasScreenAccess(role, allowedScreens, "settings")) return true;
+  return SETTINGS_HUB_CHILD_SCREEN_KEYS.some((key) =>
+    hasScreenAccess(role, allowedScreens, key)
+  );
+}
+
 export function pathnameToScreenKey(pathname: string): ScreenKey | null {
   if (PATH_TO_SCREEN[pathname]) return PATH_TO_SCREEN[pathname];
 
@@ -102,6 +124,10 @@ export function canAccessPathname(
   allowedScreens: AllowedScreens | undefined,
   pathname: string
 ): boolean {
+  if (pathname === "/dashboard/settings") {
+    return hasSettingsHubAccess(role, allowedScreens);
+  }
+
   const key = pathnameToScreenKey(pathname);
   if (!key) return isFullAccessRole(role);
   return hasScreenAccess(role, allowedScreens, key);

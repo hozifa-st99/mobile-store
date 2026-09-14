@@ -66,10 +66,11 @@ const printSettingsSection = {
 };
 
 export default function SettingsPage() {
-  const { isSuperAdmin } = useScreenAccess();
+  const { isSuperAdmin, canAccessPath } = useScreenAccess();
 
   const sections = [
-    ...settingsSections,
+    ...settingsSections.filter((section) => canAccessPath(section.href)),
+    ...(canAccessPath(printSettingsSection.href) ? [printSettingsSection] : []),
     ...(isSuperAdmin
       ? [
           {
@@ -88,12 +89,17 @@ export default function SettingsPage() {
           },
         ]
       : []),
-    printSettingsSection,
   ];
 
   return (
     <>
       <PageHeader title="الإعدادات" subtitle="إعدادات النظام والقوائم المرجعية" />
+
+      {sections.length === 0 ? (
+        <div className="glass-card p-8 text-center text-muted text-sm">
+          لا توجد إعدادات متاحة لحسابك.
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {sections.map((section) => (

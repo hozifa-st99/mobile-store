@@ -225,15 +225,18 @@ export default function HubSidebar() {
   const canAccessDebts = canAccessPath("/debts");
   const canAccessReports = canAccessPath("/branch-comparison");
 
+  const canAccessSettingsHub = canAccessPath("/dashboard/settings");
+
   const topItems = useMemo(
     () =>
       TOP_ITEMS.filter((item) => {
         if (item.id === "addParty") return canAddCustomer || canAddSupplier;
         if (item.id === "debts") return canAccessDebts;
         if (item.id === "reports") return canAccessReports;
+        if (item.id === "settings") return canAccessSettingsHub;
         return true;
       }),
-    [canAddCustomer, canAddSupplier, canAccessDebts, canAccessReports]
+    [canAddCustomer, canAddSupplier, canAccessDebts, canAccessReports, canAccessSettingsHub]
   );
 
   const handleLogout = () => {
