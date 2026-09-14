@@ -183,6 +183,33 @@ export async function listAvailablePhonesForReservation(
     });
 }
 
+function buildReservationDeviceSearchFilter(q: string): Pick<Prisma.PhoneReservationWhereInput, "OR"> {
+  return {
+    OR: [
+      {
+        serial: {
+          OR: [
+            { barcode: { contains: q, mode: "insensitive" } },
+            {
+              imeiEntries: {
+                some: { imei: { contains: q, mode: "insensitive" } },
+              },
+            },
+            {
+              product: {
+                OR: [
+                  { nameAr: { contains: q, mode: "insensitive" } },
+                  { brand: { contains: q, mode: "insensitive" } },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
 export async function listActivePhoneReservations(db: Db, branchId: string, search: string) {
   const q = search.trim();
   const rows = await db.phoneReservation.findMany({
@@ -195,26 +222,7 @@ export async function listActivePhoneReservations(db: Db, branchId: string, sear
               { customer: { nameAr: { contains: q, mode: "insensitive" } } },
               { customer: { phone: { contains: q, mode: "insensitive" } } },
               { notes: { contains: q, mode: "insensitive" } },
-              {
-                serial: {
-                  OR: [
-                    { barcode: { contains: q, mode: "insensitive" } },
-                    {
-                      imeiEntries: {
-                        some: { imei: { contains: q, mode: "insensitive" } },
-                      },
-                    },
-                    {
-                      product: {
-                        OR: [
-                          { nameAr: { contains: q, mode: "insensitive" } },
-                          { brand: { contains: q, mode: "insensitive" } },
-                        ],
-                      },
-                    },
-                  ],
-                },
-              },
+              ...(buildReservationDeviceSearchFilter(q).OR ?? []),
             ],
           }
         : {}),
@@ -222,6 +230,25 @@ export async function listActivePhoneReservations(db: Db, branchId: string, sear
     include: reservationInclude,
     orderBy: { reservedAt: "desc" },
     take: 200,
+  });
+
+  return rows.map(mapReservationRow);
+}
+
+/** حجوزات منتهية (مكتملة أو ملغاة) — للعرض فقط */
+export async function listPhoneReservationHistory(db: Db, branchId: string, search: string) {
+  const q = search.trim();
+  const rows = await db.phoneReservation.findMany({
+    where: {
+      branchId,
+      status: {
+        in: [PHONE_RESERVATION_STATUS.COMPLETED, PHONE_RESERVATION_STATUS.CANCELLED],
+      },
+      ...(q ? buildReservationDeviceSearchFilter(q) : {}),
+    },
+    include: reservationInclude,
+    orderBy: { updatedAt: "desc" },
+    ...(q ? {} : { take: 50 }),
   });
 
   return rows.map(mapReservationRow);
