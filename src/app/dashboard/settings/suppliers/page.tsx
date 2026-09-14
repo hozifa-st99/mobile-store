@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+import ExternalDebtsNavButton from "@/components/debts/ExternalDebtsNavButton";
 import PageHeader from "@/components/layout/PageHeader";
 import { ActionEmoji, CellEmoji, ThEmoji, em } from "@/components/ui/TableEmoji";
 import { apiJson } from "@/lib/api-client";
@@ -135,7 +136,11 @@ function SuppliersSettingsPageContent() {
           رجوع للإعدادات
         </Link>
       </div>
-      <PageHeader title="الموردين" subtitle="إدارة قائمة الموردين" />
+      <PageHeader
+        title="الموردين"
+        subtitle="إدارة قائمة الموردين"
+        extraAction={<ExternalDebtsNavButton />}
+      />
 
       <div className="mb-4">
         <button

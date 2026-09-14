@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import ExternalDebtsNavButton from "@/components/debts/ExternalDebtsNavButton";
 import PageHeader from "@/components/layout/PageHeader";
 import { ActionEmoji, CellEmoji, ThEmoji, em } from "@/components/ui/TableEmoji";
 import { apiJson } from "@/lib/api-client";
@@ -99,7 +100,11 @@ function CustomersPageContent() {
 
   return (
     <>
-      <PageHeader title="العملاء" subtitle="إدارة بيانات العملاء" />
+      <PageHeader
+        title="العملاء"
+        subtitle="إدارة بيانات العملاء"
+        extraAction={<ExternalDebtsNavButton />}
+      />
 
       <div className="mb-4">
         <button
