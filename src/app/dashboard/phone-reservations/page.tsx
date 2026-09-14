@@ -79,6 +79,15 @@ function historyFinishedAt(row: ReservationRow) {
   return value ? new Date(value).toLocaleString("ar-EG") : "—";
 }
 
+const reservationBtnBase =
+  "inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 min-h-[2.25rem] text-xs font-semibold whitespace-nowrap transition-all duration-200";
+
+const reservationBtnView = `${reservationBtnBase} border border-primary/35 bg-primary/10 text-primary-light hover:bg-primary/20 hover:text-white`;
+
+const reservationBtnSale = `${reservationBtnBase} border border-transparent text-white bg-gradient-primary shadow-glow hover:brightness-110 active:scale-[0.98]`;
+
+const reservationBtnCancel = `${reservationBtnBase} border border-red-500/35 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300`;
+
 export default function PhoneReservationsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("available");
@@ -415,31 +424,31 @@ export default function PhoneReservationsPage() {
                         {new Date(row.reservedAt).toLocaleString("ar-EG")}
                       </td>
                       <td className="p-4">
-                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 justify-end min-w-[11rem]">
+                        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 justify-end min-w-[11rem]">
                           <button
                             type="button"
                             onClick={() =>
                               setExpandedId((current) => (current === row.id ? null : row.id))
                             }
-                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary-light transition-colors hover:bg-primary/20 hover:text-white whitespace-nowrap"
+                            className={reservationBtnView}
                           >
-                            <span className="text-base leading-none">{em.view}</span>
+                            <span className="text-base leading-none shrink-0">{em.view}</span>
                             {expandedId === row.id ? "إخفاء التفاصيل" : "عرض التفاصيل"}
                           </button>
                           <button
                             type="button"
                             onClick={() => completeSale(row.id)}
-                            className="btn-primary inline-flex items-center justify-center gap-1.5 text-xs px-3.5 py-2 font-semibold whitespace-nowrap"
+                            className={reservationBtnSale}
                           >
-                            <span className="text-base leading-none">{em.salePrice}</span>
+                            <span className="text-base leading-none shrink-0">{em.salePrice}</span>
                             إكمال البيع
                           </button>
                           <button
                             type="button"
                             onClick={() => setCancelTarget(row)}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/35 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300 whitespace-nowrap"
+                            className={reservationBtnCancel}
                           >
-                            <span className="text-base leading-none">{em.delete}</span>
+                            <span className="text-base leading-none shrink-0">{em.delete}</span>
                             إلغاء الحجز
                           </button>
                         </div>
@@ -565,9 +574,9 @@ export default function PhoneReservationsPage() {
                           onClick={() =>
                             setHistoryExpandedId((current) => (current === row.id ? null : row.id))
                           }
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3.5 py-2 text-xs font-semibold text-primary-light transition-colors hover:bg-primary/20 hover:text-white whitespace-nowrap"
+                          className={reservationBtnView}
                         >
-                          <span className="text-base leading-none">{em.view}</span>
+                          <span className="text-base leading-none shrink-0">{em.view}</span>
                           {historyExpandedId === row.id ? "إخفاء التفاصيل" : "عرض التفاصيل"}
                         </button>
                       </td>
