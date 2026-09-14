@@ -14,10 +14,12 @@ export default function ExternalDebtsNavButton() {
   return (
     <Link
       href="/debts"
-      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-500/35 bg-amber-500/10 text-sm font-semibold text-amber-200 hover:bg-amber-500/20 hover:text-white transition-all whitespace-nowrap"
+      className="inline-flex max-w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-[11px] font-semibold leading-tight text-amber-200 transition-all hover:bg-amber-500/20 hover:text-white sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
     >
-      <span aria-hidden>{em.payment}</span>
-      الديون والأجل الخارجي
+      <span className="shrink-0 text-sm leading-none sm:text-base" aria-hidden>
+        {em.payment}
+      </span>
+      <span className="text-center">الديون والأجل الخارجي</span>
     </Link>
   );
 }

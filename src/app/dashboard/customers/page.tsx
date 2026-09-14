@@ -103,7 +103,7 @@ function CustomersPageContent() {
       <PageHeader
         title="العملاء"
         subtitle="إدارة بيانات العملاء"
-        extraAction={<ExternalDebtsNavButton />}
+        centerAction={<ExternalDebtsNavButton />}
       />
 
       <div className="mb-4">

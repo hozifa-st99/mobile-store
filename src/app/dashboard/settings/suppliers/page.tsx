@@ -139,7 +139,7 @@ function SuppliersSettingsPageContent() {
       <PageHeader
         title="الموردين"
         subtitle="إدارة قائمة الموردين"
-        extraAction={<ExternalDebtsNavButton />}
+        centerAction={<ExternalDebtsNavButton />}
       />
 
       <div className="mb-4">
