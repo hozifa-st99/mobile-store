@@ -11,6 +11,8 @@ export const TRANSACTION_TYPE_BADGE_CLASS: Record<string, string> = {
   open_shift_deposit: "bg-violet-500/15 text-violet-300 border-violet-500/30",
   shift_deposit: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   purchase_payment: "bg-primary/15 text-primary-light border-primary/30",
+  manual_deposit: "bg-accent-green/15 text-accent-green border-accent-green/30",
+  manual_withdraw: "bg-red-500/15 text-red-400 border-red-500/30",
 };
 
 export function transactionTypeBadgeClass(type: string): string {

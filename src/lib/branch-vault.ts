@@ -155,6 +155,51 @@ export async function listOpenShiftVaultDeposits(db: Db, branchId: string) {
   });
 }
 
+export async function recordManualBranchVaultCash(params: {
+  branchId: string;
+  action: "deposit" | "withdraw";
+  amount: number;
+  notes?: string | null;
+  userId?: string | null;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const type: BranchVaultMovementType =
+      params.action === "deposit" ? "manual_deposit" : "manual_withdraw";
+    const direction: "in" | "out" = params.action === "deposit" ? "in" : "out";
+    const prefix = params.action === "deposit" ? "VD" : "VW";
+    const count = await tx.branchVaultMovement.count({
+      where: { branchId: params.branchId, type },
+    });
+    const documentNumber = `${prefix}-${String(count + 1).padStart(4, "0")}`;
+    const notes = params.notes?.trim() || null;
+
+    await recordBranchVaultMovement(tx, {
+      branchId: params.branchId,
+      type,
+      direction,
+      amount: params.amount,
+      referenceType: "manual_vault_cash",
+      referenceId: null,
+      documentNumber,
+      description:
+        params.action === "deposit"
+          ? `إيداع مبلغ في خزنة الفرع (${documentNumber})`
+          : `سحب مبلغ من خزنة الفرع (${documentNumber})`,
+      notes,
+      createdByUserId: params.userId ?? null,
+    });
+
+    const balance = await computeBranchVaultBalance(tx, params.branchId);
+    return {
+      documentNumber,
+      amount: roundMoney(params.amount),
+      balance,
+      type,
+      direction,
+    };
+  });
+}
+
 export async function depositOpenShiftCashToVault(
   db: Db,
   params: {
@@ -254,7 +299,8 @@ export async function listBranchVaultMovements(
     movements: rows.map((row) => ({
       id: row.id,
       type: row.type,
-      typeLabel: VAULT_TYPE_LABELS[row.type] || row.type,
+      typeLabel:
+        VAULT_TYPE_LABELS[row.type as BranchVaultMovementType] || row.type,
       direction: row.direction === "in" ? "in" : "out",
       amount: row.amount,
       movementDate: row.movementDate.toISOString(),

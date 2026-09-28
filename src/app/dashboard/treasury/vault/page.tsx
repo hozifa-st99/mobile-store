@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
 import KpiCard from "@/components/dashboard/KpiCard";
+import Modal from "@/components/ui/Modal";
 import TransactionTypeBadge from "@/components/ui/TransactionTypeBadge";
 import DocumentDateTimeStack from "@/components/ui/DocumentDateTimeStack";
 import { ThEmoji, em } from "@/components/ui/TableEmoji";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/FilterControls";
 import { BRANCH_VAULT_TYPE_FILTER_OPTIONS } from "@/lib/branch-vault-types";
 import { apiJson } from "@/lib/api-client";
+import { toast } from "@/lib/toast";
 import { formatAmountExact } from "@/lib/utils";
 
 interface VaultMovement {
@@ -43,6 +45,10 @@ export default function BranchVaultPage() {
   const [dateTo, setDateTo] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [movementType, setMovementType] = useState("");
+  const [modalAction, setModalAction] = useState<"deposit" | "withdraw" | null>(null);
+  const [amountInput, setAmountInput] = useState("");
+  const [notesInput, setNotesInput] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const loadVault = useCallback(async () => {
     setLoading(true);
@@ -66,12 +72,65 @@ export default function BranchVaultPage() {
     void loadVault();
   }, [loadVault]);
 
+  const closeModal = () => {
+    if (saving) return;
+    setModalAction(null);
+    setAmountInput("");
+    setNotesInput("");
+  };
+
+  const submitManualCash = async () => {
+    if (!modalAction) return;
+    const amount = Number(amountInput);
+    setSaving(true);
+    const { ok, data } = await apiJson<{ message?: string }>(
+      "/api/treasury/vault",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: modalAction,
+          amount,
+          notes: notesInput.trim() || undefined,
+        }),
+      }
+    );
+    setSaving(false);
+    if (!ok) {
+      toast.error(data.message || "تعذر تنفيذ حركة الخزنة");
+      return;
+    }
+    toast.success(data.message || "تم حفظ الحركة");
+    setModalAction(null);
+    setAmountInput("");
+    setNotesInput("");
+    await loadVault();
+  };
+
   return (
     <>
       <PageHeader
         title="خزنة الفرع"
         subtitle="نقدية التقفيلات السابقة وحركات السحب والإيداع"
         showHomeButton
+        extraAction={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setModalAction("deposit")}
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-accent-green/15 text-accent-green text-sm font-bold border border-accent-green/30 hover:bg-accent-green/25 transition-all"
+            >
+              إيداع
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalAction("withdraw")}
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold border border-red-500/30 hover:bg-red-500/25 transition-all"
+            >
+              سحب
+            </button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -85,7 +144,8 @@ export default function BranchVaultPage() {
         <div className="glass-card p-4 flex flex-col justify-center text-sm text-muted">
           <p>
             عند تقفيل الوردية، النقدية الصافية تُودَع تلقائياً في خزنة الفرع. يمكن دفع فواتير
-            المشتريات من هذه الخزنة أو من الوردية الحالية.
+            المشتريات من هذه الخزنة أو من الوردية الحالية. الإيداع والسحب اليدوي يخصّان خزنة
+            الفرع فقط.
           </p>
           <Link href="/dashboard/treasury" className="text-primary-light underline mt-2 text-xs">
             الانتقال إلى تقفيل الوردية
@@ -172,7 +232,7 @@ export default function BranchVaultPage() {
               ) : movements.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-muted">
-                    لا توجد حركات بعد — قفل وردية لإيداع النقدية
+                    لا توجد حركات بعد
                   </td>
                 </tr>
               ) : (
@@ -193,7 +253,12 @@ export default function BranchVaultPage() {
                     <td className="p-4">
                       <TransactionTypeBadge type={row.type} label={row.typeLabel} />
                     </td>
-                    <td className="p-4 text-sm text-muted">{row.description}</td>
+                    <td className="p-4 text-sm text-muted">
+                      <span>{row.description}</span>
+                      {row.notes ? (
+                        <span className="block text-xs mt-1 opacity-80">{row.notes}</span>
+                      ) : null}
+                    </td>
                     <td
                       className={`p-4 tabular-nums font-bold ${directionClass[row.direction] || ""}`}
                     >
@@ -207,6 +272,57 @@ export default function BranchVaultPage() {
           </table>
         </div>
       </div>
+
+      <Modal
+        open={modalAction !== null}
+        onClose={closeModal}
+        title={modalAction === "withdraw" ? "سحب من خزنة الفرع" : "إيداع في خزنة الفرع"}
+        size="sm"
+      >
+        <p className="text-sm text-muted mb-4">
+          الرصيد الحالي:{" "}
+          <strong className="text-white tabular-nums">{formatAmountExact(balance)} ج.م</strong>
+        </p>
+        <label className="block text-xs text-muted mb-1.5">المبلغ</label>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={amountInput}
+          onChange={(e) => setAmountInput(e.target.value)}
+          className="glass-input w-full mb-3"
+          placeholder="0.00"
+        />
+        <label className="block text-xs text-muted mb-1.5">ملاحظات (اختياري)</label>
+        <textarea
+          value={notesInput}
+          onChange={(e) => setNotesInput(e.target.value)}
+          className="glass-input w-full mb-5 min-h-[80px]"
+          placeholder="سبب الحركة..."
+        />
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeModal}
+            disabled={saving}
+            className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted hover:text-white"
+          >
+            إلغاء
+          </button>
+          <button
+            type="button"
+            onClick={() => void submitManualCash()}
+            disabled={saving}
+            className={
+              modalAction === "withdraw"
+                ? "px-5 py-2.5 rounded-xl bg-red-500/20 text-red-300 text-sm font-bold border border-red-500/30 disabled:opacity-50"
+                : "px-5 py-2.5 rounded-xl bg-accent-green/20 text-accent-green text-sm font-bold border border-accent-green/30 disabled:opacity-50"
+            }
+          >
+            {saving ? "جاري الحفظ..." : modalAction === "withdraw" ? "تأكيد السحب" : "تأكيد الإيداع"}
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }
