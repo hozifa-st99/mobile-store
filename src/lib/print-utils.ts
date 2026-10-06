@@ -159,3 +159,105 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
 
   window.setTimeout(startPrint, 450);
 }
+
+function invoicePdfFileName(invoiceNumber: string): string {
+  const safe = invoiceNumber.replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "") || "invoice";
+  return `${safe}.pdf`;
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function invoiceElementToPdfBlob(element: HTMLElement): Promise<Blob> {
+  const html2canvas = (await import("html2canvas")).default;
+  const { jsPDF } = await import("jspdf");
+  const paper = (element.getAttribute("data-paper") || "a4").toLowerCase();
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    imageTimeout: 8000,
+  });
+  const image = canvas.toDataURL("image/jpeg", 0.92);
+  const thermalWidth = Number(paper);
+
+  if (Number.isFinite(thermalWidth) && thermalWidth > 0) {
+    const heightMm = Math.max(40, (canvas.height * thermalWidth) / canvas.width);
+    const pdf = new jsPDF({
+      unit: "mm",
+      format: [thermalWidth, heightMm],
+      orientation: "portrait",
+    });
+    pdf.addImage(image, "JPEG", 0, 0, thermalWidth, heightMm);
+    return pdf.output("blob");
+  }
+
+  const format = paper === "b5" ? "b5" : "a4";
+  const pdf = new jsPDF({ unit: "mm", format, orientation: "portrait" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  let remaining = imgHeight;
+  let offsetY = 0;
+  let firstPage = true;
+
+  while (remaining > 0) {
+    if (!firstPage) pdf.addPage();
+    firstPage = false;
+    pdf.addImage(image, "JPEG", 0, offsetY, imgWidth, imgHeight);
+    remaining -= pageHeight;
+    offsetY -= pageHeight;
+  }
+
+  return pdf.output("blob");
+}
+
+export type InvoicePdfShareResult = "shared" | "downloaded" | "cancelled";
+
+/** تجهيز نفس معاينة الفاتورة كملف للمشاركة — بدون حفظ أو تعديل على الفاتورة */
+export async function shareInvoicePdfFromContainer(
+  container: HTMLElement | null,
+  invoiceNumber: string
+): Promise<InvoicePdfShareResult> {
+  const invoice = container?.querySelector(".invoice-print-page") as HTMLElement | null;
+  if (!invoice) {
+    throw new Error("NO_INVOICE");
+  }
+
+  const blob = await invoiceElementToPdfBlob(invoice);
+  const filename = invoicePdfFileName(invoiceNumber);
+  const file = new File([blob], filename, { type: "application/pdf" });
+  const payload = {
+    title: invoiceNumber,
+    text: invoiceNumber,
+    files: [file],
+  };
+
+  try {
+    if (typeof navigator.share === "function") {
+      const canShareFiles =
+        typeof navigator.canShare !== "function" || navigator.canShare(payload);
+      if (canShareFiles) {
+        await navigator.share(payload);
+        return "shared";
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return "cancelled";
+    }
+  }
+
+  downloadBlob(blob, filename);
+  return "downloaded";
+}
