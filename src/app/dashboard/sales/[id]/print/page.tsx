@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
+import { FileDown, Share2 } from "lucide-react";
 
 import SaleInvoicePrintSwitch from "@/components/print/SaleInvoicePrintSwitch";
 import { apiJson } from "@/lib/api-client";
@@ -13,7 +14,11 @@ import {
   type PrintSettings,
   type SaleInvoicePrintData,
 } from "@/lib/print-settings";
-import { printInvoiceFromContainer, shareInvoicePdfFromContainer } from "@/lib/print-utils";
+import {
+  printInvoiceFromContainer,
+  prepareInvoicePdfFromContainer,
+  sharePreparedInvoiceFile,
+} from "@/lib/print-utils";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -71,7 +76,9 @@ export default function SalePrintPage() {
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [sharing, setSharing] = useState(false);
+  const [preparingShare, setPreparingShare] = useState(false);
+  const [shareReady, setShareReady] = useState(false);
+  const preparedPdfRef = useRef<File | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -174,26 +181,46 @@ export default function SalePrintPage() {
           >
             ← رجوع
           </Link>
-          <button
-            type="button"
-            disabled={sharing}
-            onClick={() => {
-              setSharing(true);
-              void shareInvoicePdfFromContainer(printRef.current, sale.invoiceNumber)
-                .then((result) => {
+          {shareReady ? (
+            <button
+              type="button"
+              onClick={() => {
+                const file = preparedPdfRef.current;
+                if (!file) return;
+                void sharePreparedInvoiceFile(file, sale.invoiceNumber).then((result) => {
                   if (result === "downloaded") {
                     toast.info("تم تنزيل ملف الفاتورة — يمكنك مشاركته من الملفات");
                   }
-                })
-                .catch(() => {
-                  toast.error("تعذر تجهيز ملف الفاتورة للمشاركة");
-                })
-                .finally(() => setSharing(false));
-            }}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 disabled:opacity-50"
-          >
-            {sharing ? "جاري التجهيز..." : "مشاركة"}
-          </button>
+                });
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500/15 border border-emerald-500/35 text-emerald-300"
+            >
+              <Share2 className="h-4 w-4" aria-hidden />
+              مشاركة الفاتورة
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={preparingShare}
+              onClick={() => {
+                setPreparingShare(true);
+                void prepareInvoicePdfFromContainer(printRef.current, sale.invoiceNumber)
+                  .then((file) => {
+                    preparedPdfRef.current = file;
+                    setShareReady(true);
+                    toast.success("تم تجهيز الفاتورة — اضغط مشاركة الفاتورة");
+                  })
+                  .catch(() => {
+                    toast.error("تعذر تجهيز ملف الفاتورة للمشاركة");
+                  })
+                  .finally(() => setPreparingShare(false));
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" aria-hidden />
+              {preparingShare ? "جاري التجهيز..." : "تجهيز الفاتورة للمشاركة"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => printInvoiceFromContainer(printRef.current)}

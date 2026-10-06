@@ -224,19 +224,25 @@ async function invoiceElementToPdfBlob(element: HTMLElement): Promise<Blob> {
 
 export type InvoicePdfShareResult = "shared" | "downloaded" | "cancelled";
 
-/** تجهيز نفس معاينة الفاتورة كملف للمشاركة — بدون حفظ أو تعديل على الفاتورة */
-export async function shareInvoicePdfFromContainer(
+/** تجهيز نفس معاينة الفاتورة كملف — بدون حفظ أو تعديل على الفاتورة */
+export async function prepareInvoicePdfFromContainer(
   container: HTMLElement | null,
   invoiceNumber: string
-): Promise<InvoicePdfShareResult> {
+): Promise<File> {
   const invoice = container?.querySelector(".invoice-print-page") as HTMLElement | null;
   if (!invoice) {
     throw new Error("NO_INVOICE");
   }
 
   const blob = await invoiceElementToPdfBlob(invoice);
-  const filename = invoicePdfFileName(invoiceNumber);
-  const file = new File([blob], filename, { type: "application/pdf" });
+  return new File([blob], invoicePdfFileName(invoiceNumber), { type: "application/pdf" });
+}
+
+/** فتح مربع مشاركة الجهاز للملف الجاهز — لازم تُستدعى من ضغطة المستخدم */
+export async function sharePreparedInvoiceFile(
+  file: File,
+  invoiceNumber: string
+): Promise<InvoicePdfShareResult> {
   const payload = {
     title: invoiceNumber,
     text: invoiceNumber,
@@ -245,12 +251,8 @@ export async function shareInvoicePdfFromContainer(
 
   try {
     if (typeof navigator.share === "function") {
-      const canShareFiles =
-        typeof navigator.canShare !== "function" || navigator.canShare(payload);
-      if (canShareFiles) {
-        await navigator.share(payload);
-        return "shared";
-      }
+      await navigator.share(payload);
+      return "shared";
     }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
@@ -258,6 +260,6 @@ export async function shareInvoicePdfFromContainer(
     }
   }
 
-  downloadBlob(blob, filename);
+  downloadBlob(file, file.name);
   return "downloaded";
 }
