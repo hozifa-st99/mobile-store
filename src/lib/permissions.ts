@@ -160,6 +160,23 @@ export function getDefaultBranchLandingPath(
 export const SITE_NOT_ACTIVATED_MESSAGE =
   "رجاء تواصل مع المهندس في اقرب وقت لعمل التحديثات اللازمة";
 
+export const SITE_EXPIRING_SOON_MESSAGE =
+  "Please contact the responsible engineer to perform the necessary website maintenance.";
+
+const SITE_EXPIRING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** تفعيل ساري وباقي ٧ أيام أو أقل — ليس مدى الحياة وليس منتهيًا */
+export function isSiteActivationExpiringSoon(
+  activatedUntil: Date | string | null | undefined
+): boolean {
+  if (!activatedUntil) return false;
+  const date = typeof activatedUntil === "string" ? new Date(activatedUntil) : activatedUntil;
+  if (isLifetimeActivation(date)) return false;
+  if (!isSiteCurrentlyActive(date)) return false;
+  const remaining = date.getTime() - Date.now();
+  return remaining > 0 && remaining <= SITE_EXPIRING_SOON_MS;
+}
+
 export const LIFETIME_ACTIVATION_DATE = new Date("2099-12-31T23:59:59.999Z");
 
 export const ACTIVATION_PERIODS = [

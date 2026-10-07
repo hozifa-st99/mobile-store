@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signAccessToken, signRefreshToken } from "@/lib/auth";
-import { isSiteCurrentlyActive } from "@/lib/permissions";
+import {
+  isSiteActivationExpiringSoon,
+  isSiteCurrentlyActive,
+  SITE_EXPIRING_SOON_MESSAGE,
+} from "@/lib/permissions";
 import {
   assertSiteAccess,
   getAllowedScreensForUser,
@@ -85,6 +89,9 @@ export async function POST(request: NextRequest) {
       branches,
       allowedScreens,
       siteActive: isSiteCurrentlyActive(user.company.siteActivatedUntil),
+      siteExpiryWarning: isSiteActivationExpiringSoon(user.company.siteActivatedUntil)
+        ? SITE_EXPIRING_SOON_MESSAGE
+        : null,
       accessToken,
     });
 

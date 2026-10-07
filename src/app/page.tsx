@@ -207,6 +207,10 @@ export default function LoginPage() {
 
       setAuth(data.user, data.branches, data.allowedScreens ?? "all");
 
+      if (typeof data.siteExpiryWarning === "string" && data.siteExpiryWarning.trim()) {
+        toast.warning(data.siteExpiryWarning);
+      }
+
       if (data.branches.length === 1) {
         const branchRes = await fetch("/api/auth/select-branch", {
           method: "POST",
