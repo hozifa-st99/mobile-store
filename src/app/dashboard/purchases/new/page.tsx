@@ -167,7 +167,7 @@ export default function NewPurchasePage() {
     taxRate: 14,
     paymentType: "full_cash" as "full_cash" | "credit" | "partial_credit",
     partialPaidAmount: "",
-    cashSource: "shift" as "shift" | "vault",
+    cashSource: "vault" as "shift" | "vault",
   });
 
   const loadNextInvoiceNumber = async () => {
