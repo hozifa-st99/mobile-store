@@ -2,27 +2,22 @@
 
 import { useEffect, useRef } from "react";
 
-const MM_TO_CSS_PX = 96 / 25.4;
-
-/** يملأ عرض الملصق المتاح (بعد 5 مم من كل جانب) — تكبير أو تصغير متناسب */
-function fitLabelBarcodeSvg(svg: SVGSVGElement, maxWidthMm: number) {
-  const targetPx = Math.max(20, maxWidthMm * MM_TO_CSS_PX);
+/** يملأ عرض منطقة البarcode (بعد 5 مم من كل جانب) — بدون px ثابت يتكسر في الطباعة */
+function fitLabelBarcodeSvg(svg: SVGSVGElement) {
   const bbox = svg.getBBox();
-  const nativeW = bbox.width || svg.width.baseVal.value;
-  const nativeH = bbox.height || svg.height.baseVal.value;
+  const nativeW = bbox.width;
+  const nativeH = bbox.height;
   if (!nativeW || !nativeH) return;
 
-  const scale = targetPx / nativeW;
-  const viewBox = `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`;
-  svg.setAttribute("viewBox", viewBox);
+  svg.setAttribute("viewBox", `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svg.setAttribute("width", String(Math.floor(targetPx)));
-  svg.setAttribute("height", String(Math.ceil(nativeH * scale)));
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
   svg.style.display = "block";
-  svg.style.marginInline = "auto";
+  svg.style.width = "100%";
   svg.style.maxWidth = "100%";
-  svg.style.width = `${Math.floor(targetPx)}px`;
   svg.style.height = "auto";
+  svg.style.marginInline = "auto";
 }
 
 interface InvoiceBarcodeProps {
@@ -79,7 +74,7 @@ export default function InvoiceBarcode({
         if (maxWidthMm != null && maxWidthMm > 0) {
           requestAnimationFrame(() => {
             if (!cancelled && svgRef.current) {
-              fitLabelBarcodeSvg(svgRef.current, maxWidthMm);
+              fitLabelBarcodeSvg(svgRef.current);
             }
           });
         }

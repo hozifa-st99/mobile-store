@@ -141,8 +141,8 @@
 
 .barcode-label-graphic svg,
 .barcode-label-svg {
+  width: 100%;
   max-width: 100%;
-  width: auto;
   height: auto;
   display: block;
   margin-inline: auto;

@@ -83,9 +83,10 @@ export function getBarcodeLabelMeta(labelSize: BarcodeLabelSize) {
 }
 
 /** هامش غير قابل للطباعة على أغلب طابعات الملصقات (مم من كل جانب) */
+/** هامش @page — صفر أفقي؛ الـ 5 مم من padding الملصق فقط */
 export const BARCODE_LABEL_PRINT_MARGIN_MM = {
-  vertical: 1,
-  horizontal: 2.5,
+  vertical: 0,
+  horizontal: 0,
 } as const;
 
 /** هامش بسيط داخل الملصق (مم من كل جانب) */
@@ -152,7 +153,7 @@ export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number
 export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValue?: string) {
   const contentMm = getBarcodeLabelContentWidthMm(labelSize);
   const graphicMm = getBarcodeGraphicMaxWidthMm(labelSize);
-  const quietPx = 8;
+  const quietPx = 4;
 
   let height: number;
   let barWidth: number;

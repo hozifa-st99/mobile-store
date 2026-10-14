@@ -1,5 +1,3 @@
-import { BARCODE_LABEL_PRINT_MARGIN_MM } from "@/lib/barcode-print-settings";
-
 /** تشغيل الطباعة بعدد نسخ محدد (بعد كل طباعة ينتظر إغلاق مربع الطباعة) */
 export function runAutoPrint(
   copies: number,
@@ -141,26 +139,26 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
     }
     @page {
       size: ${widthMm}mm ${heightMm}mm;
-      margin: ${BARCODE_LABEL_PRINT_MARGIN_MM.vertical}mm ${BARCODE_LABEL_PRINT_MARGIN_MM.horizontal}mm;
+      margin: 0;
     }
     @media print {
       .barcode-label-page {
-        width: 100%;
-        height: 100%;
-        min-height: 100%;
+        width: ${widthMm}mm;
+        height: ${heightMm}mm;
         box-sizing: border-box;
         display: flex;
         align-items: stretch;
         justify-content: stretch;
       }
       .barcode-label {
-        width: 100% !important;
-        height: 100% !important;
+        width: ${widthMm}mm !important;
+        height: ${heightMm}mm !important;
         max-width: none !important;
         overflow: hidden !important;
         box-sizing: border-box;
       }
       .barcode-label-safe {
+        width: 100% !important;
         height: 100% !important;
         overflow: hidden !important;
         box-sizing: border-box;
@@ -168,19 +166,21 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
       .barcode-label-graphic {
         overflow: hidden !important;
         padding-inline: 5mm !important;
+        box-sizing: border-box !important;
       }
       .barcode-label-header {
         padding-inline: 5mm !important;
+        box-sizing: border-box !important;
       }
       .barcode-label-phone-meta-block {
         padding-inline: 5mm !important;
+        box-sizing: border-box !important;
       }
       .barcode-label-graphic svg,
       .barcode-label-svg {
-        width: auto !important;
+        width: 100% !important;
         max-width: 100% !important;
         height: auto !important;
-        margin-inline: auto !important;
         display: block !important;
       }
     }
