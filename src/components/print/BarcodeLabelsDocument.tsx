@@ -3,6 +3,7 @@
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import {
   formatBarcodePhoneMetaLines,
+  getBarcodeHeaderFontPt,
   getBarcodeLabelMeta,
   getBarcodeRenderOptions,
   type BarcodeLabelItem,
@@ -23,6 +24,7 @@ export default function BarcodeLabelsDocument({
   preview = false,
 }: BarcodeLabelsDocumentProps) {
   const meta = getBarcodeLabelMeta(settings.labelSize);
+  const headerFont = getBarcodeHeaderFontPt(settings.labelSize);
   const showHeader =
     (settings.showName && labels.some((label) => label.name)) ||
     (settings.showPrice && labels.some((label) => typeof label.price === "number"));
@@ -46,10 +48,20 @@ export default function BarcodeLabelsDocument({
                 {showHeader ? (
                   <div className="barcode-label-header">
                     {settings.showName && label.name ? (
-                      <div className="barcode-label-name">{label.name}</div>
+                      <div
+                        className="barcode-label-name"
+                        style={{ fontSize: `${headerFont.name}pt` }}
+                      >
+                        {label.name}
+                      </div>
                     ) : null}
                     {settings.showPrice && typeof label.price === "number" ? (
-                      <div className="barcode-label-price">{formatCurrency(label.price)} ج.م</div>
+                      <div
+                        className="barcode-label-price"
+                        style={{ fontSize: `${headerFont.price}pt` }}
+                      >
+                        {formatCurrency(label.price)} ج.م
+                      </div>
                     ) : null}
                   </div>
                 ) : null}

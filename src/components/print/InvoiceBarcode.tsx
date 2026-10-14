@@ -10,7 +10,7 @@ function fitLabelBarcodeSvg(svg: SVGSVGElement, maxWidthMm: number) {
   const nativeW = bbox.width || svg.width.baseVal.value;
   const nativeH = bbox.height || svg.height.baseVal.value;
   const targetPx = Math.min(maxPx, nativeW || maxPx);
-  if (!nativeW || nativeW <= maxPx + 0.5) {
+  if (!nativeW || nativeW <= maxPx + 1) {
     svg.style.display = "block";
     svg.style.marginInline = "auto";
     svg.style.maxWidth = "100%";
@@ -18,7 +18,7 @@ function fitLabelBarcodeSvg(svg: SVGSVGElement, maxWidthMm: number) {
     return;
   }
 
-  const scale = targetPx / nativeW;
+  const scale = maxPx / nativeW;
   const viewBox = `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`;
   svg.setAttribute("viewBox", viewBox);
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");

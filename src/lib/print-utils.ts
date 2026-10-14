@@ -157,25 +157,17 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
         width: 100% !important;
         height: 100% !important;
         max-width: none !important;
-        overflow: visible !important;
+        overflow: hidden !important;
         box-sizing: border-box;
-        padding-top: 1mm !important;
-        padding-inline: 1.2mm !important;
-        padding-bottom: 0.35mm !important;
       }
       .barcode-label-safe {
-        max-width: 100% !important;
-        padding-inline: 0.5mm !important;
+        height: 100% !important;
+        overflow: hidden !important;
         box-sizing: border-box;
-      }
-      .barcode-label-header {
-        padding-inline: 0.4mm !important;
-        box-sizing: border-box;
-        max-width: 100%;
       }
       .barcode-label-graphic {
-        overflow: visible !important;
-        padding-inline: 0 !important;
+        overflow: hidden !important;
+        padding-inline: 1.5mm !important;
       }
       .barcode-label-graphic svg,
       .barcode-label-svg {
