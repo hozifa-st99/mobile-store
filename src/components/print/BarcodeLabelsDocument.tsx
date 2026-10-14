@@ -5,7 +5,6 @@ import {
   formatBarcodePhoneMetaLines,
   getBarcodeLabelMeta,
   getBarcodeRenderOptions,
-  getBarcodeUsableWidthMm,
   type BarcodeLabelItem,
   type BarcodePrintSettings,
 } from "@/lib/barcode-print-settings";
@@ -24,7 +23,6 @@ export default function BarcodeLabelsDocument({
   preview = false,
 }: BarcodeLabelsDocumentProps) {
   const meta = getBarcodeLabelMeta(settings.labelSize);
-  const contentWidthMm = getBarcodeUsableWidthMm(settings.labelSize);
   const showHeader =
     (settings.showName && labels.some((label) => label.name)) ||
     (settings.showPrice && labels.some((label) => typeof label.price === "number"));
@@ -43,19 +41,13 @@ export default function BarcodeLabelsDocument({
 
         return (
           <div key={`${label.barcodeValue}-${index}`} className="barcode-label-page">
-            <div
-              className="barcode-label"
-              data-size={settings.labelSize}
-              style={{ ["--barcode-content-width-mm" as string]: `${contentWidthMm}mm` }}
-            >
+            <div className="barcode-label" data-size={settings.labelSize}>
               <div className="barcode-label-safe">
                 {showHeader ? (
                   <div className="barcode-label-header">
                     {settings.showName && label.name ? (
                       <div className="barcode-label-name">{label.name}</div>
-                    ) : (
-                      <span className="barcode-label-name-spacer" aria-hidden />
-                    )}
+                    ) : null}
                     {settings.showPrice && typeof label.price === "number" ? (
                       <div className="barcode-label-price">{formatCurrency(label.price)} ج.م</div>
                     ) : null}

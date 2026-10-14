@@ -37,7 +37,7 @@
   align-items: stretch;
   justify-content: flex-start;
   overflow: visible;
-  padding: 1.1mm 2.2mm 0.45mm;
+  padding: 1mm 1.2mm 0.4mm;
   background: #fff;
   color: #000;
   font-family: Tajawal, Arial, sans-serif;
@@ -77,13 +77,14 @@
 
 .barcode-label-safe {
   width: 100%;
-  max-width: var(--barcode-content-width-mm, 100%);
+  max-width: 100%;
   margin-inline: auto;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   flex-shrink: 0;
+  padding-inline: 0.4mm;
 }
 
 .barcode-label-header {
@@ -91,35 +92,42 @@
   max-width: 100%;
   box-sizing: border-box;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.6mm;
-  margin-bottom: 0.5mm;
-  padding-inline: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.2mm;
+  margin-bottom: 0.45mm;
+  padding-inline: 0.3mm;
   flex-shrink: 0;
+  text-align: center;
 }
 
 .barcode-label-name {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: start;
+  text-overflow: clip;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-align: center;
+  word-break: break-word;
 }
 
 .barcode-label-name-spacer {
-  flex: 1;
+  display: none;
 }
 
 .barcode-label-price {
-  flex-shrink: 0;
+  width: 100%;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   white-space: nowrap;
-  text-align: end;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: center;
 }
 
 .barcode-label[data-size="38x12.5"] .barcode-label-name,
@@ -130,7 +138,7 @@
 
 .barcode-label[data-size="38x25"] .barcode-label-name,
 .barcode-label[data-size="38x25"] .barcode-label-price {
-  font-size: 7pt;
+  font-size: 6.5pt;
 }
 
 .barcode-label[data-size="50x25"] .barcode-label-name,
@@ -268,22 +276,22 @@
   }
 
   .barcode-label {
-    padding-top: 1.2mm !important;
-    padding-inline: 2.4mm !important;
-    padding-bottom: 0.4mm !important;
+    padding-top: 1mm !important;
+    padding-inline: 1.2mm !important;
+    padding-bottom: 0.35mm !important;
   }
 
   .barcode-label[data-size="38x12.5"] {
-    padding-top: 0.6mm !important;
-    padding-inline: 2mm !important;
+    padding-top: 0.55mm !important;
+    padding-inline: 1mm !important;
   }
 
   .barcode-label-safe {
-    max-width: var(--barcode-content-width-mm, 100%) !important;
-    margin-inline: auto !important;
+    max-width: 100% !important;
+    padding-inline: 0.5mm !important;
   }
 
   .barcode-label-header {
-    padding-inline: 0 !important;
+    padding-inline: 0.4mm !important;
   }
 }

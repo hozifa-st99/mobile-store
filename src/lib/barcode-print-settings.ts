@@ -88,11 +88,15 @@ export const BARCODE_LABEL_PRINT_MARGIN_MM = {
   horizontal: 2.5,
 } as const;
 
-/** مساحة داخلية آمنة داخل الملصق (مم من كل جانب) */
-export const BARCODE_LABEL_CONTENT_INSET_MM = {
-  vertical: 1.1,
-  horizontal: 2.2,
-} as const;
+/** هامش داخلي لمحاذاة الاسم/الباركود/الموبايل (مم من كل جانب — بدون خصم مرتين لهامش @page) */
+/** هامش بسيط داخل الملصق — الاسم/السعر على عرض تقريباً كامل */
+export const BARCODE_LABEL_SIDE_INSET_MM = 1.5;
+
+/** مساحة بيضاء إضافية يمين/يسار الشريط (quiet zone) */
+export const BARCODE_GRAPHIC_QUIET_MM = 2.5;
+
+/** أدنى سُمك شريط CODE128 مقروء بالماسح */
+export const BARCODE_MIN_MODULE_WIDTH = 0.58;
 
 const MM_TO_CSS_PX = 96 / 25.4;
 
@@ -109,25 +113,33 @@ function shrinkBarWidthToFit(
 ): number {
   const maxPx = Math.max(24, usableWidthMm * MM_TO_CSS_PX);
   let bar = startBarWidth;
-  while (bar > 0.4 && estimateCode128WidthPx(value, bar, quietPx) > maxPx) {
-    bar -= 0.04;
+  while (bar > BARCODE_MIN_MODULE_WIDTH && estimateCode128WidthPx(value, bar, quietPx) > maxPx) {
+    bar -= 0.03;
   }
-  return Math.round(bar * 100) / 100;
+  return Math.round(Math.max(BARCODE_MIN_MODULE_WIDTH, bar) * 100) / 100;
+}
+
+/** عرض عمود المحتوى (اسم + باركود + موبايل) — محاذاة واحدة */
+export function getBarcodeLabelContentWidthMm(labelSize: BarcodeLabelSize): number {
+  const meta = getBarcodeLabelMeta(labelSize);
+  return Math.max(12, meta.widthMm - BARCODE_LABEL_SIDE_INSET_MM * 2);
 }
 
 export function getBarcodeUsableWidthMm(labelSize: BarcodeLabelSize): number {
-  const meta = getBarcodeLabelMeta(labelSize);
+  return getBarcodeLabelContentWidthMm(labelSize);
+}
+
+export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number {
   return Math.max(
-    8,
-    meta.widthMm -
-      BARCODE_LABEL_PRINT_MARGIN_MM.horizontal * 2 -
-      BARCODE_LABEL_CONTENT_INSET_MM.horizontal * 2
+    10,
+    getBarcodeLabelContentWidthMm(labelSize) - BARCODE_GRAPHIC_QUIET_MM * 2
   );
 }
 
 export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValue?: string) {
-  const usableMm = getBarcodeUsableWidthMm(labelSize);
-  const quietPx = 5;
+  const contentMm = getBarcodeLabelContentWidthMm(labelSize);
+  const graphicMm = getBarcodeGraphicMaxWidthMm(labelSize);
+  const quietPx = 10;
 
   let height: number;
   let barWidth: number;
@@ -135,41 +147,41 @@ export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValu
 
   switch (labelSize) {
     case "38x12.5":
-      height = 7;
-      barWidth = 0.65;
+      height = 8;
+      barWidth = 0.62;
       fontSize = 5.5;
       break;
     case "38x25":
-      height = 18;
-      barWidth = 0.72;
+      height = 20;
+      barWidth = 0.68;
       fontSize = 7;
       break;
     case "50x25":
-      height = 22;
-      barWidth = 0.82;
+      height = 24;
+      barWidth = 0.78;
       fontSize = 8;
       break;
     case "40x30":
-      height = 26;
-      barWidth = 0.9;
+      height = 28;
+      barWidth = 0.85;
       fontSize = 9;
       break;
     case "50x30":
-      height = 30;
-      barWidth = 0.95;
+      height = 32;
+      barWidth = 0.88;
       fontSize = 9;
       break;
     default:
-      height = 22;
-      barWidth = 0.82;
+      height = 24;
+      barWidth = 0.78;
       fontSize = 8;
   }
 
   if (barcodeValue?.trim()) {
-    barWidth = shrinkBarWidthToFit(barcodeValue.trim(), usableMm, barWidth, quietPx);
+    barWidth = shrinkBarWidthToFit(barcodeValue.trim(), graphicMm, barWidth, quietPx);
   }
 
-  return { height, barWidth, fontSize, quietMargin: quietPx, maxWidthMm: usableMm };
+  return { height, barWidth, fontSize, quietMargin: quietPx, maxWidthMm: graphicMm };
 }
 
 export function normalizeBarcodePrintSettings(
