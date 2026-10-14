@@ -134,7 +134,7 @@
   flex: 0 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 0 1.2mm;
+  padding: 0 4mm;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -152,7 +152,7 @@
   width: 100%;
   flex: 0 0 auto;
   flex-shrink: 0;
-  margin-top: 0.2mm;
+  margin-top: -0.45mm;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -178,7 +178,7 @@
 }
 
 .barcode-label[data-size="38x12.5"] .barcode-label-phone-meta-block {
-  margin-top: 0.05mm;
+  margin-top: -0.25mm;
 }
 
 .barcode-label[data-size="38x12.5"] .barcode-label-phone-meta {
@@ -266,6 +266,7 @@
   }
 
   .barcode-label-graphic {
-    padding-inline: 1.5mm !important;
+    padding-inline: 4mm !important;
   }
+
 }

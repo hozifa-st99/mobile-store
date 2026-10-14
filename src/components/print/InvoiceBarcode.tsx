@@ -80,7 +80,7 @@ export default function InvoiceBarcode({
           height: barcodeHeight ?? (compact ? 34 : 48),
           margin: quietMargin ?? 0,
           textAlign: "center",
-          textMargin: 2,
+          textMargin: 1,
           width: barWidth ?? (compact ? 1.2 : 1.6),
         });
 

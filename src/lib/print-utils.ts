@@ -167,7 +167,7 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
       }
       .barcode-label-graphic {
         overflow: hidden !important;
-        padding-inline: 1.5mm !important;
+        padding-inline: 4mm !important;
       }
       .barcode-label-graphic svg,
       .barcode-label-svg {
