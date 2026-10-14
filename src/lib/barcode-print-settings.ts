@@ -148,37 +148,42 @@ export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number
   return Math.max(10, meta.widthMm - BARCODE_GRAPHIC_SIDE_GAP_MM * 2);
 }
 
-export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValue?: string) {
+export function getBarcodeRenderOptions(
+  labelSize: BarcodeLabelSize,
+  barcodeValue?: string,
+  options?: { withPhoneMeta?: boolean }
+) {
   const graphicMm = getBarcodeGraphicMaxWidthMm(labelSize);
   const quietPx = 1;
+  const withPhoneMeta = options?.withPhoneMeta === true;
 
   let height: number;
   let fontSize: number;
 
   switch (labelSize) {
     case "38x12.5":
-      height = 7;
-      fontSize = 5;
+      height = withPhoneMeta ? 5 : 7;
+      fontSize = 4.5;
       break;
     case "38x25":
-      height = 17;
-      fontSize = 6;
+      height = withPhoneMeta ? 14 : 17;
+      fontSize = withPhoneMeta ? 5.5 : 6;
       break;
     case "50x25":
-      height = 20;
-      fontSize = 7;
+      height = withPhoneMeta ? 17 : 20;
+      fontSize = withPhoneMeta ? 6 : 7;
       break;
     case "40x30":
-      height = 28;
-      fontSize = 9;
+      height = withPhoneMeta ? 24 : 28;
+      fontSize = 8;
       break;
     case "50x30":
-      height = 32;
-      fontSize = 9;
+      height = withPhoneMeta ? 28 : 32;
+      fontSize = 8;
       break;
     default:
-      height = 24;
-      fontSize = 8;
+      height = withPhoneMeta ? 20 : 24;
+      fontSize = 7;
   }
 
   let barWidth = 0.85;

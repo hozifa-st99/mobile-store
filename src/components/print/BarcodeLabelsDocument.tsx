@@ -40,8 +40,10 @@ export default function BarcodeLabelsDocument({
     >
       {labels.map((label, index) => {
         const phoneMeta = formatBarcodePhoneMetaLines(settings, label);
-        const renderOptions = getBarcodeRenderOptions(settings.labelSize, label.barcodeValue);
         const showPhoneMeta = Boolean(phoneMeta.primary || phoneMeta.tax);
+        const renderOptions = getBarcodeRenderOptions(settings.labelSize, label.barcodeValue, {
+          withPhoneMeta: showPhoneMeta,
+        });
 
         return (
           <div key={`${label.barcodeValue}-${index}`} className="barcode-label-page">
@@ -68,23 +70,25 @@ export default function BarcodeLabelsDocument({
                   </div>
                 ) : null}
                 <div
-                  className="barcode-label-graphic"
+                  className="barcode-label-barcode-zone"
                   style={{ ["--barcode-track-width-mm" as string]: `${graphicTrackMm}mm` }}
                 >
-                  <div className="barcode-label-graphic-track">
-                  <InvoiceBarcode
-                    value={label.barcodeValue}
-                    barcodeHeight={renderOptions.height}
-                    barWidth={renderOptions.barWidth}
-                    fontSize={renderOptions.fontSize}
-                    quietMargin={renderOptions.quietMargin}
-                    maxWidthMm={renderOptions.maxWidthMm}
-                    className="barcode-label-svg"
-                  />
+                  <div className="barcode-label-graphic">
+                    <div className="barcode-label-graphic-track">
+                      <InvoiceBarcode
+                        value={label.barcodeValue}
+                        barcodeHeight={renderOptions.height}
+                        barWidth={renderOptions.barWidth}
+                        fontSize={renderOptions.fontSize}
+                        quietMargin={renderOptions.quietMargin}
+                        maxWidthMm={renderOptions.maxWidthMm}
+                        className="barcode-label-svg"
+                      />
+                    </div>
                   </div>
                 </div>
                 {showPhoneMeta ? (
-                  <div className="barcode-label-phone-meta-block">
+                  <div className="barcode-label-phone-meta-block" aria-label="معلومات الموبايل">
                     {phoneMeta.primary ? (
                       <div className="barcode-label-phone-meta">{phoneMeta.primary}</div>
                     ) : null}
