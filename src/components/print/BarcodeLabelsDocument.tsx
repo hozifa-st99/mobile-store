@@ -4,6 +4,7 @@ import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import {
   formatBarcodePhoneMetaLines,
   getBarcodeHeaderFontPt,
+  getBarcodeGraphicMaxWidthMm,
   getBarcodeLabelMeta,
   getBarcodeRenderOptions,
   type BarcodeLabelItem,
@@ -24,6 +25,7 @@ export default function BarcodeLabelsDocument({
   preview = false,
 }: BarcodeLabelsDocumentProps) {
   const meta = getBarcodeLabelMeta(settings.labelSize);
+  const graphicTrackMm = getBarcodeGraphicMaxWidthMm(settings.labelSize);
   const headerFont = getBarcodeHeaderFontPt(settings.labelSize);
   const showHeader =
     (settings.showName && labels.some((label) => label.name)) ||
@@ -65,7 +67,11 @@ export default function BarcodeLabelsDocument({
                     ) : null}
                   </div>
                 ) : null}
-                <div className="barcode-label-graphic">
+                <div
+                  className="barcode-label-graphic"
+                  style={{ ["--barcode-track-width-mm" as string]: `${graphicTrackMm}mm` }}
+                >
+                  <div className="barcode-label-graphic-track">
                   <InvoiceBarcode
                     value={label.barcodeValue}
                     barcodeHeight={renderOptions.height}
@@ -75,6 +81,7 @@ export default function BarcodeLabelsDocument({
                     maxWidthMm={renderOptions.maxWidthMm}
                     className="barcode-label-svg"
                   />
+                  </div>
                 </div>
                 {showPhoneMeta ? (
                   <div className="barcode-label-phone-meta-block">

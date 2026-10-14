@@ -71,13 +71,13 @@ export default function InvoiceBarcode({
           width: barWidth ?? (compact ? 1.2 : 1.6),
         });
 
-        if (maxWidthMm != null && maxWidthMm > 0) {
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             if (!cancelled && svgRef.current) {
               fitLabelBarcodeSvg(svgRef.current);
             }
           });
-        }
+        });
       })
       .catch(() => {
         /* ignore barcode render errors */

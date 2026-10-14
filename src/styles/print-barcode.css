@@ -139,13 +139,19 @@
   overflow: hidden;
 }
 
+.barcode-label-graphic-track {
+  width: min(100%, var(--barcode-track-width-mm, 100%));
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
 .barcode-label-graphic svg,
 .barcode-label-svg {
   width: 100%;
   max-width: 100%;
   height: auto;
   display: block;
-  margin-inline: auto;
+  vertical-align: top;
 }
 
 .barcode-label-phone-meta-block {

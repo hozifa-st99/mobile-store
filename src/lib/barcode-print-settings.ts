@@ -119,19 +119,17 @@ function shrinkBarWidthToFit(
   return Math.round(Math.max(BARCODE_MIN_MODULE_WIDTH, bar) * 100) / 100;
 }
 
-function growBarWidthToFill(
+/** عرض الشريطة لملء مساحة البarcode (مم) — مع حد أدنى/أقصى للقراءة */
+function resolveBarModuleWidthForGraphic(
   value: string,
-  targetWidthMm: number,
-  startBarWidth: number,
-  quietPx: number,
-  maxModuleWidth: number
+  graphicMm: number,
+  quietPx: number
 ): number {
-  const targetPx = Math.max(24, targetWidthMm * MM_TO_CSS_PX);
-  let bar = startBarWidth;
-  while (bar + 0.02 <= maxModuleWidth && estimateCode128WidthPx(value, bar + 0.02, quietPx) <= targetPx) {
-    bar += 0.02;
-  }
-  return Math.round(bar * 100) / 100;
+  const modules = 35 + value.length * 11;
+  const targetPx = Math.max(24, graphicMm * MM_TO_CSS_PX);
+  let bar = (targetPx - quietPx * 2) / modules;
+  bar = Math.min(2.35, Math.max(BARCODE_MIN_MODULE_WIDTH, bar));
+  return Math.round(bar * 1000) / 1000;
 }
 
 /** عرض عمود المحتوى (اسم + باركود + موبايل) — محاذاة واحدة */
@@ -151,51 +149,43 @@ export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number
 }
 
 export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValue?: string) {
-  const contentMm = getBarcodeLabelContentWidthMm(labelSize);
   const graphicMm = getBarcodeGraphicMaxWidthMm(labelSize);
-  const quietPx = 4;
+  const quietPx = 1;
 
   let height: number;
-  let barWidth: number;
   let fontSize: number;
 
   switch (labelSize) {
     case "38x12.5":
       height = 7;
-      barWidth = 0.68;
       fontSize = 5;
       break;
     case "38x25":
       height = 17;
-      barWidth = 0.72;
       fontSize = 6;
       break;
     case "50x25":
       height = 20;
-      barWidth = 0.8;
       fontSize = 7;
       break;
     case "40x30":
       height = 28;
-      barWidth = 0.85;
       fontSize = 9;
       break;
     case "50x30":
       height = 32;
-      barWidth = 0.88;
       fontSize = 9;
       break;
     default:
       height = 24;
-      barWidth = 0.78;
       fontSize = 8;
   }
 
+  let barWidth = 0.85;
   if (barcodeValue?.trim()) {
     const code = barcodeValue.trim();
-    const shrunk = shrinkBarWidthToFit(code, graphicMm, barWidth, quietPx);
-    barWidth = Math.max(BARCODE_MIN_MODULE_WIDTH, shrunk);
-    barWidth = growBarWidthToFill(code, graphicMm, barWidth, quietPx, 2);
+    barWidth = resolveBarModuleWidthForGraphic(code, graphicMm, quietPx);
+    barWidth = shrinkBarWidthToFit(code, graphicMm, barWidth, quietPx);
   }
 
   return { height, barWidth, fontSize, quietMargin: quietPx, maxWidthMm: graphicMm };
