@@ -30,6 +30,13 @@ interface PhoneSerialRow {
   imei: string | null;
   barcode: string | null;
   retailPrice: number;
+  batteryPercent?: number | null;
+}
+
+interface PhoneProductAttrs {
+  color?: string | null;
+  storage?: string | null;
+  batteryPercent?: number | null;
 }
 
 interface ProductBarcodePrintModalProps {
@@ -47,6 +54,7 @@ export default function ProductBarcodePrintModal({
   const [settings, setSettings] = useState<BarcodePrintSettings>(DEFAULT_BARCODE_PRINT_SETTINGS);
   const [loading, setLoading] = useState(false);
   const [phoneSerials, setPhoneSerials] = useState<PhoneSerialRow[]>([]);
+  const [phoneProductAttrs, setPhoneProductAttrs] = useState<PhoneProductAttrs | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedSerialIds, setSelectedSerialIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +73,7 @@ export default function ProductBarcodePrintModal({
             : serial.imei?.trim() || "—",
         barcode: serial.barcode?.trim() || "",
         retailPrice: serial.retailPrice,
+        batteryPercent: serial.batteryPercent ?? null,
       })),
     [phoneSerials]
   );
@@ -76,6 +85,7 @@ export default function ProductBarcodePrintModal({
     setQuantity(1);
     setSelectedSerialIds([]);
     setPhoneSerials([]);
+    setPhoneProductAttrs(null);
     setPrintLabels([]);
     setPrinting(false);
 
@@ -91,7 +101,9 @@ export default function ProductBarcodePrintModal({
     if (product.type !== "phone") return;
 
     setLoading(true);
-    apiJson<{ product: { phoneSerials?: PhoneSerialRow[] } }>(`/api/products/${product.id}`)
+    apiJson<{
+      product: PhoneProductAttrs & { phoneSerials?: PhoneSerialRow[] };
+    }>(`/api/products/${product.id}`)
       .then(({ ok, data }) => {
         if (!ok) {
           setError("تعذر تحميل بيانات الموبايل");
@@ -99,6 +111,11 @@ export default function ProductBarcodePrintModal({
         }
         const serials = data.product?.phoneSerials || [];
         setPhoneSerials(serials);
+        setPhoneProductAttrs({
+          color: data.product?.color ?? null,
+          storage: data.product?.storage ?? null,
+          batteryPercent: data.product?.batteryPercent ?? null,
+        });
         setSelectedSerialIds(serials.map((serial) => serial.id));
       })
       .finally(() => setLoading(false));
@@ -119,11 +136,18 @@ export default function ProductBarcodePrintModal({
       return deviceOptions
         .filter((row) => selectedSerialIds.includes(row.serialId))
         .filter((row) => row.barcode)
-        .map((row) => ({
-          barcodeValue: row.barcode,
-          name: product.name,
-          price: row.retailPrice,
-        }));
+        .map((row) => {
+          const batteryPercent = row.batteryPercent ?? phoneProductAttrs?.batteryPercent ?? null;
+
+          return {
+            barcodeValue: row.barcode,
+            name: product.name,
+            price: row.retailPrice,
+            storage: phoneProductAttrs?.storage ?? null,
+            color: phoneProductAttrs?.color ?? null,
+            batteryPercent,
+          };
+        });
     }
 
     if (!product.barcode?.trim()) return [];

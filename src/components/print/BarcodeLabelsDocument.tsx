@@ -2,6 +2,7 @@
 
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import {
+  formatBarcodePhoneMeta,
   getBarcodeLabelMeta,
   getBarcodeRenderOptions,
   type BarcodeLabelItem,
@@ -34,7 +35,10 @@ export default function BarcodeLabelsDocument({
       data-label-width-mm={meta.widthMm}
       data-label-height-mm={meta.heightMm}
     >
-      {labels.map((label, index) => (
+      {labels.map((label, index) => {
+        const phoneMeta = formatBarcodePhoneMeta(settings, label);
+
+        return (
         <div key={`${label.barcodeValue}-${index}`} className="barcode-label-page">
           <div className="barcode-label" data-size={settings.labelSize}>
             {showHeader ? (
@@ -55,9 +59,13 @@ export default function BarcodeLabelsDocument({
                 barcodeHeight={renderOptions.height}
                 barWidth={renderOptions.barWidth}
                 fontSize={renderOptions.fontSize}
-                className="max-w-full"
+                quietMargin={2}
+                className="barcode-label-svg"
               />
             </div>
+            {phoneMeta ? (
+              <div className="barcode-label-phone-meta">{phoneMeta}</div>
+            ) : null}
             {preview ? (
               <div className="barcode-label-size-hint" aria-hidden>
                 {meta.label}
@@ -65,7 +73,8 @@ export default function BarcodeLabelsDocument({
             ) : null}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

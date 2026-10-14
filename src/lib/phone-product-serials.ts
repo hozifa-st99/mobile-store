@@ -37,6 +37,7 @@ export interface PhoneProductSerialRow {
   cycleIndex: number;
   purchasePrice: number;
   retailPrice: number;
+  batteryPercent: number | null;
 }
 
 function compareNewestFirst(dateA: Date | string, dateB: Date | string): number {
@@ -84,6 +85,8 @@ function mapSerialToPhoneRow(
       },
       inventoryRetailPrice
     ),
+    batteryPercent:
+      serial.purchaseItem?.batteryPercent ?? serial.stockEntryItem?.batteryPercent ?? null,
   };
 }
 

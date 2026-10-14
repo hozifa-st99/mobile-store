@@ -141,12 +141,45 @@
   align-items: flex-start;
   flex: 0 0 auto;
   margin: 0;
-  padding: 0;
+  padding: 0 0.5mm;
+  box-sizing: border-box;
 }
 
-.barcode-label-graphic svg {
+.barcode-label-graphic svg,
+.barcode-label-svg {
   max-width: 100%;
+  width: 100%;
   height: auto;
+}
+
+.barcode-label-phone-meta {
+  width: 100%;
+  flex-shrink: 0;
+  margin-top: 0.3mm;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barcode-label[data-size="38x12.5"] .barcode-label-phone-meta {
+  font-size: 4.5pt;
+  margin-top: 0.1mm;
+}
+
+.barcode-label[data-size="38x25"] .barcode-label-phone-meta {
+  font-size: 6pt;
+}
+
+.barcode-label[data-size="50x25"] .barcode-label-phone-meta {
+  font-size: 6.5pt;
+}
+
+.barcode-label[data-size="40x30"] .barcode-label-phone-meta,
+.barcode-label[data-size="50x30"] .barcode-label-phone-meta {
+  font-size: 7pt;
 }
 
 .barcode-label-size-hint {

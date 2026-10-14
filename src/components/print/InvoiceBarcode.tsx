@@ -9,6 +9,8 @@ interface InvoiceBarcodeProps {
   barcodeHeight?: number;
   barWidth?: number;
   fontSize?: number;
+  /** هامش أبيض حول الباركود (ملصقات الطباعة) */
+  quietMargin?: number;
 }
 
 export default function InvoiceBarcode({
@@ -18,6 +20,7 @@ export default function InvoiceBarcode({
   barcodeHeight,
   barWidth,
   fontSize,
+  quietMargin,
 }: InvoiceBarcodeProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -35,7 +38,7 @@ export default function InvoiceBarcode({
           font: "Tajawal, sans-serif",
           fontSize: fontSize ?? (compact ? 10 : 12),
           height: barcodeHeight ?? (compact ? 34 : 48),
-          margin: 0,
+          margin: quietMargin ?? 0,
           textAlign: "center",
           textMargin: 2,
           width: barWidth ?? (compact ? 1.2 : 1.6),
@@ -48,7 +51,7 @@ export default function InvoiceBarcode({
     return () => {
       cancelled = true;
     };
-  }, [value, compact, barcodeHeight, barWidth, fontSize]);
+  }, [value, compact, barcodeHeight, barWidth, fontSize, quietMargin]);
 
   return <svg ref={svgRef} role="img" aria-label={`باركود ${value}`} className={className} />;
 }

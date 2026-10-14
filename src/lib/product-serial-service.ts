@@ -26,8 +26,12 @@ const serialWithImeisSelect = {
   status: true,
   cycleIndex: true,
   imeiEntries: { select: { imei: true }, orderBy: { createdAt: "asc" as const } },
-  purchaseItem: { select: { productId: true, retailPrice: true } },
-  stockEntryItem: { select: { productId: true, retailPrice: true } },
+  purchaseItem: {
+    select: { productId: true, retailPrice: true, batteryPercent: true },
+  },
+  stockEntryItem: {
+    select: { productId: true, retailPrice: true, batteryPercent: true },
+  },
 } as const;
 
 export type LoadedDeviceSerial = Prisma.ProductSerialGetPayload<{

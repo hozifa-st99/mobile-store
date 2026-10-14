@@ -83,11 +83,15 @@ export default function PurchaseBarcodePrintModal({
       if (copies <= 0 || !barcode) continue;
 
       const name = item.description.split(" · ")[0]?.trim() || item.description;
+      const isPhone = parseImeisSnapshot(item.imeisSnapshot).length > 0;
       for (let index = 0; index < copies; index += 1) {
         labels.push({
           barcodeValue: barcode,
           name,
           price: item.retailPrice,
+          ...(isPhone && item.batteryPercent != null
+            ? { batteryPercent: item.batteryPercent }
+            : {}),
         });
       }
     }

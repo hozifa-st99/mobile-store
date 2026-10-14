@@ -134,6 +134,36 @@ export default function BarcodePrintSettingsPanel() {
         </section>
 
         <section className="space-y-3">
+          <SectionHeading emoji={em.device}>معلومات الموبايل على الملصق</SectionHeading>
+          <p className="text-xs text-muted px-0.5">
+            تُطبَّق على أصناف الموبايل فقط — تظهر تحت رقم الباركود (لا تؤثر على الإكسسوار).
+          </p>
+          <div className="rounded-xl border border-border/50 bg-background-input/20 p-2">
+            <ToggleRow
+              emoji={em.storage}
+              title="عرض المساحة"
+              desc="مثل 128GB — من بطاقة المنتج"
+              checked={settings.showStorage}
+              onChange={(showStorage) => setSettings((current) => ({ ...current, showStorage }))}
+            />
+            <ToggleRow
+              emoji={em.color}
+              title="عرض اللون"
+              desc="من بطاقة المنتج"
+              checked={settings.showColor}
+              onChange={(showColor) => setSettings((current) => ({ ...current, showColor }))}
+            />
+            <ToggleRow
+              emoji={em.battery}
+              title="عرض البطارية"
+              desc="نسبة البطارية للجهاز أو بطاقة المنتج"
+              checked={settings.showBattery}
+              onChange={(showBattery) => setSettings((current) => ({ ...current, showBattery }))}
+            />
+          </div>
+        </section>
+
+        <section className="space-y-3">
           <SectionHeading emoji={em.serial}>مقاس الملصق</SectionHeading>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {BARCODE_LABEL_SIZES.map((size) => (
