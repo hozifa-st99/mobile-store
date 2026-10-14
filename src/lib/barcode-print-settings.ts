@@ -92,7 +92,7 @@ export const BARCODE_LABEL_PRINT_MARGIN_MM = {
 export const BARCODE_LABEL_SIDE_INSET_MM = 1.5;
 
 /** فراغ أبيض يمين/يسار الشريط عن حافة الملصق (مم) */
-export const BARCODE_GRAPHIC_SIDE_GAP_MM = 4;
+export const BARCODE_GRAPHIC_SIDE_GAP_MM = 5;
 
 /** أدنى سُمك شريط CODE128 — لا ننزل تحته في ملصقات الطباعة */
 export const BARCODE_MIN_MODULE_WIDTH = 0.68;
@@ -143,7 +143,7 @@ export function getBarcodeUsableWidthMm(labelSize: BarcodeLabelSize): number {
   return getBarcodeLabelContentWidthMm(labelSize);
 }
 
-/** عرض الشريط = عرض الملصق − 4 مم من كل جانب */
+/** عرض الشريط = عرض الملصق − 5 مم من كل جانب */
 export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number {
   const meta = getBarcodeLabelMeta(labelSize);
   return Math.max(10, meta.widthMm - BARCODE_GRAPHIC_SIDE_GAP_MM * 2);
@@ -152,7 +152,7 @@ export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number
 export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValue?: string) {
   const contentMm = getBarcodeLabelContentWidthMm(labelSize);
   const graphicMm = getBarcodeGraphicMaxWidthMm(labelSize);
-  const quietPx = 12;
+  const quietPx = 8;
 
   let height: number;
   let barWidth: number;
@@ -194,7 +194,7 @@ export function getBarcodeRenderOptions(labelSize: BarcodeLabelSize, barcodeValu
     const code = barcodeValue.trim();
     const shrunk = shrinkBarWidthToFit(code, graphicMm, barWidth, quietPx);
     barWidth = Math.max(BARCODE_MIN_MODULE_WIDTH, shrunk);
-    barWidth = growBarWidthToFill(code, graphicMm, barWidth, quietPx, 1.45);
+    barWidth = growBarWidthToFill(code, graphicMm, barWidth, quietPx, 2);
   }
 
   return { height, barWidth, fontSize, quietMargin: quietPx, maxWidthMm: graphicMm };

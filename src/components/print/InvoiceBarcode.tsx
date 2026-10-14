@@ -4,21 +4,15 @@ import { useEffect, useRef } from "react";
 
 const MM_TO_CSS_PX = 96 / 25.4;
 
+/** يملأ عرض الملصق المتاح (بعد 5 مم من كل جانب) — تكبير أو تصغير متناسب */
 function fitLabelBarcodeSvg(svg: SVGSVGElement, maxWidthMm: number) {
-  const maxPx = Math.max(20, maxWidthMm * MM_TO_CSS_PX);
+  const targetPx = Math.max(20, maxWidthMm * MM_TO_CSS_PX);
   const bbox = svg.getBBox();
   const nativeW = bbox.width || svg.width.baseVal.value;
   const nativeH = bbox.height || svg.height.baseVal.value;
-  const targetPx = Math.min(maxPx, nativeW || maxPx);
-  if (!nativeW || nativeW <= maxPx + 1) {
-    svg.style.display = "block";
-    svg.style.marginInline = "auto";
-    svg.style.maxWidth = "100%";
-    svg.style.height = "auto";
-    return;
-  }
+  if (!nativeW || !nativeH) return;
 
-  const scale = maxPx / nativeW;
+  const scale = targetPx / nativeW;
   const viewBox = `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`;
   svg.setAttribute("viewBox", viewBox);
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -38,9 +32,7 @@ interface InvoiceBarcodeProps {
   barcodeHeight?: number;
   barWidth?: number;
   fontSize?: number;
-  /** هامش أبيض حول الباركود (ملصقات الطباعة) */
   quietMargin?: number;
-  /** تصغير الباركود ليتسع داخل عرض الملصق (مم) */
   maxWidthMm?: number;
 }
 
