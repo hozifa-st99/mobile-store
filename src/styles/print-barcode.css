@@ -75,6 +75,17 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
+.barcode-label-safe {
+  width: 100%;
+  max-width: var(--barcode-content-width-mm, 100%);
+  margin-inline: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
 .barcode-label-header {
   width: 100%;
   max-width: 100%;
@@ -82,9 +93,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 0.8mm;
-  margin-bottom: 0.6mm;
-  padding-inline: 0.6mm;
+  gap: 0.6mm;
+  margin-bottom: 0.5mm;
+  padding-inline: 0;
   flex-shrink: 0;
 }
 
@@ -158,10 +169,19 @@
   margin-inline: auto;
 }
 
+.barcode-label-phone-meta-block {
+  width: 100%;
+  flex-shrink: 0;
+  margin-top: 0.25mm;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15mm;
+}
+
 .barcode-label-phone-meta {
   width: 100%;
   flex-shrink: 0;
-  margin-top: 0.3mm;
   font-weight: 600;
   line-height: 1.1;
   text-align: center;
@@ -170,9 +190,18 @@
   white-space: nowrap;
 }
 
+.barcode-label-phone-meta--tax {
+  white-space: normal;
+  line-height: 1.05;
+  font-weight: 600;
+}
+
+.barcode-label[data-size="38x12.5"] .barcode-label-phone-meta-block {
+  margin-top: 0.1mm;
+}
+
 .barcode-label[data-size="38x12.5"] .barcode-label-phone-meta {
   font-size: 4.5pt;
-  margin-top: 0.1mm;
 }
 
 .barcode-label[data-size="38x25"] .barcode-label-phone-meta {
@@ -249,7 +278,12 @@
     padding-inline: 2mm !important;
   }
 
+  .barcode-label-safe {
+    max-width: var(--barcode-content-width-mm, 100%) !important;
+    margin-inline: auto !important;
+  }
+
   .barcode-label-header {
-    padding-inline: 0.7mm !important;
+    padding-inline: 0 !important;
   }
 }

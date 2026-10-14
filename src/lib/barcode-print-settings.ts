@@ -52,20 +52,30 @@ export const SAMPLE_BARCODE_LABEL: BarcodeLabelItem = {
   batteryPercent: 87,
 };
 
-export function formatBarcodePhoneMeta(
+export interface BarcodePhoneMetaLines {
+  primary: string | null;
+  tax: string | null;
+}
+
+/** سطر 1: مساحة · لون · بطارية — سطر 2: الضريبة */
+export function formatBarcodePhoneMetaLines(
   settings: BarcodePrintSettings,
   label: BarcodeLabelItem
-): string | null {
-  const parts: string[] = [];
-  if (settings.showStorage && label.storage?.trim()) parts.push(label.storage.trim());
-  if (settings.showColor && label.color?.trim()) parts.push(label.color.trim());
-  if (settings.showTaxStatus && label.taxStatus) {
-    parts.push(taxStatusLabel(label.taxStatus));
-  }
+): BarcodePhoneMetaLines {
+  const primaryParts: string[] = [];
+  if (settings.showStorage && label.storage?.trim()) primaryParts.push(label.storage.trim());
+  if (settings.showColor && label.color?.trim()) primaryParts.push(label.color.trim());
   if (settings.showBattery && label.batteryPercent != null) {
-    parts.push(`${label.batteryPercent}%`);
+    primaryParts.push(`${label.batteryPercent}%`);
   }
-  return parts.length > 0 ? parts.join(" · ") : null;
+
+  const tax =
+    settings.showTaxStatus && label.taxStatus ? taxStatusLabel(label.taxStatus) : null;
+
+  return {
+    primary: primaryParts.length > 0 ? primaryParts.join(" · ") : null,
+    tax,
+  };
 }
 
 export function getBarcodeLabelMeta(labelSize: BarcodeLabelSize) {

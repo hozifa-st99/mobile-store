@@ -2,9 +2,10 @@
 
 import InvoiceBarcode from "@/components/print/InvoiceBarcode";
 import {
-  formatBarcodePhoneMeta,
+  formatBarcodePhoneMetaLines,
   getBarcodeLabelMeta,
   getBarcodeRenderOptions,
+  getBarcodeUsableWidthMm,
   type BarcodeLabelItem,
   type BarcodePrintSettings,
 } from "@/lib/barcode-print-settings";
@@ -23,6 +24,7 @@ export default function BarcodeLabelsDocument({
   preview = false,
 }: BarcodeLabelsDocumentProps) {
   const meta = getBarcodeLabelMeta(settings.labelSize);
+  const contentWidthMm = getBarcodeUsableWidthMm(settings.labelSize);
   const showHeader =
     (settings.showName && labels.some((label) => label.name)) ||
     (settings.showPrice && labels.some((label) => typeof label.price === "number"));
@@ -35,45 +37,61 @@ export default function BarcodeLabelsDocument({
       data-label-height-mm={meta.heightMm}
     >
       {labels.map((label, index) => {
-        const phoneMeta = formatBarcodePhoneMeta(settings, label);
+        const phoneMeta = formatBarcodePhoneMetaLines(settings, label);
         const renderOptions = getBarcodeRenderOptions(settings.labelSize, label.barcodeValue);
+        const showPhoneMeta = Boolean(phoneMeta.primary || phoneMeta.tax);
 
         return (
-        <div key={`${label.barcodeValue}-${index}`} className="barcode-label-page">
-          <div className="barcode-label" data-size={settings.labelSize}>
-            {showHeader ? (
-              <div className="barcode-label-header">
-                {settings.showName && label.name ? (
-                  <div className="barcode-label-name">{label.name}</div>
-                ) : (
-                  <span className="barcode-label-name-spacer" aria-hidden />
-                )}
-                {settings.showPrice && typeof label.price === "number" ? (
-                  <div className="barcode-label-price">{formatCurrency(label.price)} ج.م</div>
+          <div key={`${label.barcodeValue}-${index}`} className="barcode-label-page">
+            <div
+              className="barcode-label"
+              data-size={settings.labelSize}
+              style={{ ["--barcode-content-width-mm" as string]: `${contentWidthMm}mm` }}
+            >
+              <div className="barcode-label-safe">
+                {showHeader ? (
+                  <div className="barcode-label-header">
+                    {settings.showName && label.name ? (
+                      <div className="barcode-label-name">{label.name}</div>
+                    ) : (
+                      <span className="barcode-label-name-spacer" aria-hidden />
+                    )}
+                    {settings.showPrice && typeof label.price === "number" ? (
+                      <div className="barcode-label-price">{formatCurrency(label.price)} ج.م</div>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className="barcode-label-graphic">
+                  <InvoiceBarcode
+                    value={label.barcodeValue}
+                    barcodeHeight={renderOptions.height}
+                    barWidth={renderOptions.barWidth}
+                    fontSize={renderOptions.fontSize}
+                    quietMargin={renderOptions.quietMargin}
+                    maxWidthMm={renderOptions.maxWidthMm}
+                    className="barcode-label-svg"
+                  />
+                </div>
+                {showPhoneMeta ? (
+                  <div className="barcode-label-phone-meta-block">
+                    {phoneMeta.primary ? (
+                      <div className="barcode-label-phone-meta">{phoneMeta.primary}</div>
+                    ) : null}
+                    {phoneMeta.tax ? (
+                      <div className="barcode-label-phone-meta barcode-label-phone-meta--tax">
+                        {phoneMeta.tax}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-            ) : null}
-            <div className="barcode-label-graphic">
-              <InvoiceBarcode
-                value={label.barcodeValue}
-                barcodeHeight={renderOptions.height}
-                barWidth={renderOptions.barWidth}
-                fontSize={renderOptions.fontSize}
-                quietMargin={renderOptions.quietMargin}
-                maxWidthMm={renderOptions.maxWidthMm}
-                className="barcode-label-svg"
-              />
+              {preview ? (
+                <div className="barcode-label-size-hint" aria-hidden>
+                  {meta.label}
+                </div>
+              ) : null}
             </div>
-            {phoneMeta ? (
-              <div className="barcode-label-phone-meta">{phoneMeta}</div>
-            ) : null}
-            {preview ? (
-              <div className="barcode-label-size-hint" aria-hidden>
-                {meta.label}
-              </div>
-            ) : null}
           </div>
-        </div>
         );
       })}
     </div>

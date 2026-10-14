@@ -163,8 +163,13 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
         padding-inline: 2.4mm !important;
         padding-bottom: 0.4mm !important;
       }
+      .barcode-label-safe {
+        max-width: var(--barcode-content-width-mm, 100%) !important;
+        margin-inline: auto !important;
+        box-sizing: border-box;
+      }
       .barcode-label-header {
-        padding-inline: 0.7mm !important;
+        padding-inline: 0 !important;
         box-sizing: border-box;
         max-width: 100%;
       }
