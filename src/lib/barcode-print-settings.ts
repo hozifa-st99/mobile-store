@@ -93,7 +93,7 @@ export const BARCODE_LABEL_PRINT_MARGIN_MM = {
 export const BARCODE_LABEL_SIDE_INSET_MM = 1.5;
 
 /** فراغ أبيض يمين/يسار الشريط عن حافة الملصق (مم) */
-export const BARCODE_GRAPHIC_SIDE_GAP_MM = 5;
+export const BARCODE_GRAPHIC_SIDE_GAP_MM = 2;
 
 /** أدنى سُمك شريط CODE128 — لا ننزل تحته في ملصقات الطباعة */
 export const BARCODE_MIN_MODULE_WIDTH = 0.68;
@@ -142,7 +142,7 @@ export function getBarcodeUsableWidthMm(labelSize: BarcodeLabelSize): number {
   return getBarcodeLabelContentWidthMm(labelSize);
 }
 
-/** عرض الشريط = عرض الملصق − 5 مم من كل جانب */
+/** عرض الشريط = عرض الملصق − 2 مم من كل جانب (فراغ أبيض للماسح) */
 export function getBarcodeGraphicMaxWidthMm(labelSize: BarcodeLabelSize): number {
   const meta = getBarcodeLabelMeta(labelSize);
   return Math.max(10, meta.widthMm - BARCODE_GRAPHIC_SIDE_GAP_MM * 2);

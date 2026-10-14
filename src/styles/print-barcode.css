@@ -134,7 +134,7 @@
   flex: 0 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 0 5mm;
+  padding: 0 2mm;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -278,7 +278,7 @@
   }
 
   .barcode-label-graphic {
-    padding-inline: 5mm !important;
+    padding-inline: 2mm !important;
   }
 
   .barcode-label-phone-meta-block {
