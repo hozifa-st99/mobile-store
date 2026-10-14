@@ -2,6 +2,34 @@
 
 import { useEffect, useRef } from "react";
 
+const MM_TO_CSS_PX = 96 / 25.4;
+
+function fitLabelBarcodeSvg(svg: SVGSVGElement, maxWidthMm: number) {
+  const maxPx = Math.max(20, maxWidthMm * MM_TO_CSS_PX);
+  const bbox = svg.getBBox();
+  const nativeW = bbox.width || svg.width.baseVal.value;
+  const nativeH = bbox.height || svg.height.baseVal.value;
+  if (!nativeW || nativeW <= maxPx) {
+    svg.style.display = "block";
+    svg.style.marginInline = "auto";
+    svg.style.maxWidth = "100%";
+    svg.style.height = "auto";
+    return;
+  }
+
+  const scale = maxPx / nativeW;
+  const viewBox = `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`;
+  svg.setAttribute("viewBox", viewBox);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  svg.setAttribute("width", String(Math.floor(maxPx)));
+  svg.setAttribute("height", String(Math.ceil(nativeH * scale)));
+  svg.style.display = "block";
+  svg.style.marginInline = "auto";
+  svg.style.maxWidth = "100%";
+  svg.style.width = `${Math.floor(maxPx)}px`;
+  svg.style.height = "auto";
+}
+
 interface InvoiceBarcodeProps {
   value: string;
   compact?: boolean;
@@ -11,6 +39,8 @@ interface InvoiceBarcodeProps {
   fontSize?: number;
   /** هامش أبيض حول الباركود (ملصقات الطباعة) */
   quietMargin?: number;
+  /** تصغير الباركود ليتسع داخل عرض الملصق (مم) */
+  maxWidthMm?: number;
 }
 
 export default function InvoiceBarcode({
@@ -21,6 +51,7 @@ export default function InvoiceBarcode({
   barWidth,
   fontSize,
   quietMargin,
+  maxWidthMm,
 }: InvoiceBarcodeProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -32,7 +63,15 @@ export default function InvoiceBarcode({
     import("jsbarcode")
       .then(({ default: JsBarcode }) => {
         if (cancelled || !svgRef.current) return;
-        JsBarcode(svgRef.current, value, {
+        const svg = svgRef.current;
+        svg.removeAttribute("viewBox");
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+        svg.style.transform = "";
+        svg.style.width = "";
+        svg.style.height = "";
+
+        JsBarcode(svg, value, {
           format: "CODE128",
           displayValue: true,
           font: "Tajawal, sans-serif",
@@ -43,6 +82,14 @@ export default function InvoiceBarcode({
           textMargin: 2,
           width: barWidth ?? (compact ? 1.2 : 1.6),
         });
+
+        if (maxWidthMm != null && maxWidthMm > 0) {
+          requestAnimationFrame(() => {
+            if (!cancelled && svgRef.current) {
+              fitLabelBarcodeSvg(svgRef.current, maxWidthMm);
+            }
+          });
+        }
       })
       .catch(() => {
         /* ignore barcode render errors */
@@ -51,7 +98,7 @@ export default function InvoiceBarcode({
     return () => {
       cancelled = true;
     };
-  }, [value, compact, barcodeHeight, barWidth, fontSize, quietMargin]);
+  }, [value, compact, barcodeHeight, barWidth, fontSize, quietMargin, maxWidthMm]);
 
   return <svg ref={svgRef} role="img" aria-label={`باركود ${value}`} className={className} />;
 }

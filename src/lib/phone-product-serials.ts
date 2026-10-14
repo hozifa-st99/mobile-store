@@ -38,6 +38,7 @@ export interface PhoneProductSerialRow {
   purchasePrice: number;
   retailPrice: number;
   batteryPercent: number | null;
+  taxStatus: string;
 }
 
 function compareNewestFirst(dateA: Date | string, dateB: Date | string): number {
@@ -65,7 +66,8 @@ interface ProductDeviceLineSource {
 
 function mapSerialToPhoneRow(
   serial: LoadedDeviceSerial,
-  inventoryRetailPrice: number
+  inventoryRetailPrice: number,
+  productTaxStatus: string
 ): PhoneProductSerialRow {
   const imeis = getDeviceImeis(serial);
   return {
@@ -87,6 +89,7 @@ function mapSerialToPhoneRow(
     ),
     batteryPercent:
       serial.purchaseItem?.batteryPercent ?? serial.stockEntryItem?.batteryPercent ?? null,
+    taxStatus: serial.purchaseItem?.taxStatus ?? productTaxStatus,
   };
 }
 
@@ -237,23 +240,31 @@ export async function loadPhoneProductSerials(
     await ensurePhoneDeviceRecords(branchId, productId, sources);
   }
 
-  const serials = await prisma.productSerial.findMany({
-    where: {
-      branchId,
-      productId,
-      ...(options?.availableOnly
-        ? { status: "available" }
-        : options?.inStockOnly
-          ? { status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] } }
-          : {}),
-    },
-    select: serialWithImeisSelect,
-    orderBy: { createdAt: "asc" },
-  });
+  const [serials, product] = await Promise.all([
+    prisma.productSerial.findMany({
+      where: {
+        branchId,
+        productId,
+        ...(options?.availableOnly
+          ? { status: "available" }
+          : options?.inStockOnly
+            ? { status: { in: [...PHONE_SERIAL_IN_STOCK_STATUSES] } }
+            : {}),
+      },
+      select: serialWithImeisSelect,
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.product.findUnique({
+      where: { id: productId },
+      select: { taxStatus: true },
+    }),
+  ]);
+
+  const productTaxStatus = product?.taxStatus ?? "zero";
 
   return serials
     .filter((serial) => serialBelongsToProduct(serial, productId))
-    .map((serial) => mapSerialToPhoneRow(serial, inventoryRetailPrice))
+    .map((serial) => mapSerialToPhoneRow(serial, inventoryRetailPrice, productTaxStatus))
     .sort((a, b) => (a.imei ?? "").localeCompare(b.imei ?? "", "ar"));
 }
 

@@ -23,7 +23,6 @@ export default function BarcodeLabelsDocument({
   preview = false,
 }: BarcodeLabelsDocumentProps) {
   const meta = getBarcodeLabelMeta(settings.labelSize);
-  const renderOptions = getBarcodeRenderOptions(settings.labelSize);
   const showHeader =
     (settings.showName && labels.some((label) => label.name)) ||
     (settings.showPrice && labels.some((label) => typeof label.price === "number"));
@@ -37,6 +36,7 @@ export default function BarcodeLabelsDocument({
     >
       {labels.map((label, index) => {
         const phoneMeta = formatBarcodePhoneMeta(settings, label);
+        const renderOptions = getBarcodeRenderOptions(settings.labelSize, label.barcodeValue);
 
         return (
         <div key={`${label.barcodeValue}-${index}`} className="barcode-label-page">
@@ -59,7 +59,8 @@ export default function BarcodeLabelsDocument({
                 barcodeHeight={renderOptions.height}
                 barWidth={renderOptions.barWidth}
                 fontSize={renderOptions.fontSize}
-                quietMargin={2}
+                quietMargin={renderOptions.quietMargin}
+                maxWidthMm={renderOptions.maxWidthMm}
                 className="barcode-label-svg"
               />
             </div>

@@ -1,3 +1,5 @@
+import { BARCODE_LABEL_PRINT_MARGIN_MM } from "@/lib/barcode-print-settings";
+
 /** تشغيل الطباعة بعدد نسخ محدد (بعد كل طباعة ينتظر إغلاق مربع الطباعة) */
 export function runAutoPrint(
   copies: number,
@@ -139,7 +141,45 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
     }
     @page {
       size: ${widthMm}mm ${heightMm}mm;
-      margin: 0;
+      margin: ${BARCODE_LABEL_PRINT_MARGIN_MM.vertical}mm ${BARCODE_LABEL_PRINT_MARGIN_MM.horizontal}mm;
+    }
+    @media print {
+      .barcode-label-page {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+      .barcode-label {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        overflow: visible !important;
+        box-sizing: border-box;
+        padding-top: 1.2mm !important;
+        padding-inline: 2.4mm !important;
+        padding-bottom: 0.4mm !important;
+      }
+      .barcode-label-header {
+        padding-inline: 0.7mm !important;
+        box-sizing: border-box;
+        max-width: 100%;
+      }
+      .barcode-label-graphic {
+        overflow: visible !important;
+        padding-inline: 0 !important;
+      }
+      .barcode-label-graphic svg,
+      .barcode-label-svg {
+        width: auto !important;
+        max-width: 100% !important;
+        height: auto !important;
+        margin-inline: auto !important;
+        display: block !important;
+      }
     }
   </style>
 </head>
@@ -157,7 +197,7 @@ export function printBarcodeFromContainer(container: HTMLElement | null): void {
     win.addEventListener("afterprint", cleanup, { once: true });
   };
 
-  window.setTimeout(startPrint, 450);
+  window.setTimeout(startPrint, 950);
 }
 
 function invoicePdfFileName(invoiceNumber: string): string {

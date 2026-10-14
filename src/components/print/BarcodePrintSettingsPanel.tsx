@@ -154,6 +154,13 @@ export default function BarcodePrintSettingsPanel() {
               onChange={(showColor) => setSettings((current) => ({ ...current, showColor }))}
             />
             <ToggleRow
+              emoji={em.tax}
+              title="عرض حالة الضريبة"
+              desc="بجانب اللون — من بند الشراء أو بطاقة المنتج"
+              checked={settings.showTaxStatus}
+              onChange={(showTaxStatus) => setSettings((current) => ({ ...current, showTaxStatus }))}
+            />
+            <ToggleRow
               emoji={em.battery}
               title="عرض البطارية"
               desc="نسبة البطارية للجهاز أو بطاقة المنتج"

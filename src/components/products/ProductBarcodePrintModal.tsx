@@ -31,12 +31,14 @@ interface PhoneSerialRow {
   barcode: string | null;
   retailPrice: number;
   batteryPercent?: number | null;
+  taxStatus?: string;
 }
 
 interface PhoneProductAttrs {
   color?: string | null;
   storage?: string | null;
   batteryPercent?: number | null;
+  taxStatus?: string;
 }
 
 interface ProductBarcodePrintModalProps {
@@ -74,6 +76,7 @@ export default function ProductBarcodePrintModal({
         barcode: serial.barcode?.trim() || "",
         retailPrice: serial.retailPrice,
         batteryPercent: serial.batteryPercent ?? null,
+        taxStatus: serial.taxStatus,
       })),
     [phoneSerials]
   );
@@ -115,6 +118,7 @@ export default function ProductBarcodePrintModal({
           color: data.product?.color ?? null,
           storage: data.product?.storage ?? null,
           batteryPercent: data.product?.batteryPercent ?? null,
+          taxStatus: data.product?.taxStatus ?? "zero",
         });
         setSelectedSerialIds(serials.map((serial) => serial.id));
       })
@@ -145,6 +149,7 @@ export default function ProductBarcodePrintModal({
             price: row.retailPrice,
             storage: phoneProductAttrs?.storage ?? null,
             color: phoneProductAttrs?.color ?? null,
+            taxStatus: row.taxStatus ?? phoneProductAttrs?.taxStatus ?? "zero",
             batteryPercent,
           };
         });
@@ -202,7 +207,7 @@ export default function ProductBarcodePrintModal({
       printBarcodeFromContainer(printRef.current);
       setPrinting(false);
       onClose();
-    }, 500);
+    }, 1100);
 
     return () => window.clearTimeout(timer);
   }, [printing, printLabels, onClose]);

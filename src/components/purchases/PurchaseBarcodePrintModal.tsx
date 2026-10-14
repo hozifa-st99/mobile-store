@@ -126,7 +126,7 @@ export default function PurchaseBarcodePrintModal({
       printBarcodeFromContainer(printRef.current);
       setPrinting(false);
       onClose();
-    }, 500);
+    }, 1100);
 
     return () => window.clearTimeout(timer);
   }, [printing, printLabels, onClose]);

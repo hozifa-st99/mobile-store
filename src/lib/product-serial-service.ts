@@ -27,7 +27,7 @@ const serialWithImeisSelect = {
   cycleIndex: true,
   imeiEntries: { select: { imei: true }, orderBy: { createdAt: "asc" as const } },
   purchaseItem: {
-    select: { productId: true, retailPrice: true, batteryPercent: true },
+    select: { productId: true, retailPrice: true, batteryPercent: true, taxStatus: true },
   },
   stockEntryItem: {
     select: { productId: true, retailPrice: true, batteryPercent: true },

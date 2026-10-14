@@ -36,8 +36,8 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  overflow: hidden;
-  padding: 1.5mm;
+  overflow: visible;
+  padding: 1.1mm 2.2mm 0.45mm;
   background: #fff;
   color: #000;
   font-family: Tajawal, Arial, sans-serif;
@@ -47,7 +47,7 @@
 .barcode-label[data-size="38x12.5"] {
   width: 38mm;
   height: 12.5mm;
-  padding: 0.4mm;
+  padding: 0.55mm 1.9mm 0.2mm;
 }
 
 .barcode-label[data-size="38x25"] {
@@ -77,11 +77,14 @@
 
 .barcode-label-header {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1mm;
-  margin-bottom: 1mm;
+  gap: 0.8mm;
+  margin-bottom: 0.6mm;
+  padding-inline: 0.6mm;
   flex-shrink: 0;
 }
 
@@ -141,15 +144,18 @@
   align-items: flex-start;
   flex: 0 0 auto;
   margin: 0;
-  padding: 0 0.5mm;
+  padding: 0;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 .barcode-label-graphic svg,
 .barcode-label-svg {
   max-width: 100%;
-  width: 100%;
+  width: auto;
   height: auto;
+  display: block;
+  margin-inline: auto;
 }
 
 .barcode-label-phone-meta {
@@ -230,5 +236,20 @@
     height: 100%;
     margin: 0;
     padding: 0;
+  }
+
+  .barcode-label {
+    padding-top: 1.2mm !important;
+    padding-inline: 2.4mm !important;
+    padding-bottom: 0.4mm !important;
+  }
+
+  .barcode-label[data-size="38x12.5"] {
+    padding-top: 0.6mm !important;
+    padding-inline: 2mm !important;
+  }
+
+  .barcode-label-header {
+    padding-inline: 0.7mm !important;
   }
 }
