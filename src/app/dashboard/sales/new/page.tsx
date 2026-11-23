@@ -148,6 +148,16 @@ export default function NewSalePage() {
     apiJson<{ employees: BranchEmployee[] }>("/api/branch-employees").then(({ ok, data }) => {
       if (ok) setBranchEmployees(data.employees || []);
     });
+    fetch("/api/settings/sales", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings && typeof d.settings.defaultTaxEnabled === "boolean") {
+          setTaxEnabled(d.settings.defaultTaxEnabled);
+        }
+      })
+      .catch(() => {
+        /* keep default */
+      });
   }, []);
 
   useEffect(() => {

@@ -65,12 +65,21 @@ const printSettingsSection = {
   color: "#0ea5e9",
 };
 
+const salesSettingsSection = {
+  title: "المبيعات",
+  desc: "الضريبة الافتراضية في فاتورة مبيعات جديدة",
+  href: "/dashboard/settings/sales",
+  emoji: "🛒",
+  color: "#22c55e",
+};
+
 export default function SettingsPage() {
   const { isSuperAdmin, canAccessPath } = useScreenAccess();
 
   const sections = [
     ...settingsSections.filter((section) => canAccessPath(section.href)),
     ...(canAccessPath(printSettingsSection.href) ? [printSettingsSection] : []),
+    ...(canAccessPath(salesSettingsSection.href) ? [salesSettingsSection] : []),
     ...(isSuperAdmin
       ? [
           {
