@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
 import Modal from "@/components/ui/Modal";
 import { em } from "@/components/ui/TableEmoji";
-import { type ExpenseCategoryItem } from "@/lib/expense-categories";
+import { DEFAULT_EXPENSE_CATEGORIES, type ExpenseCategoryItem } from "@/lib/expense-categories";
 import { toast } from "@/lib/toast";
 
 async function apiPut(body: Record<string, unknown>) {
@@ -85,6 +85,59 @@ export default function ExpenseCategoriesSettingsPage() {
     closeModal();
   };
 
+  const defaultCategoryKeys = useMemo(
+    () => new Set(DEFAULT_EXPENSE_CATEGORIES.map((c) => c.key)),
+    []
+  );
+
+  const baseCategories = useMemo(
+    () => categories.filter((c) => defaultCategoryKeys.has(c.key)),
+    [categories, defaultCategoryKeys]
+  );
+
+  const addedCategories = useMemo(
+    () => categories.filter((c) => !defaultCategoryKeys.has(c.key)),
+    [categories, defaultCategoryKeys]
+  );
+
+  const renderCategoryRow = (item: ExpenseCategoryItem) => (
+    <li
+      key={item.key}
+      className="flex flex-wrap items-center justify-between gap-3 py-3 px-3 rounded-xl border border-border/50 bg-background/30"
+    >
+      <div>
+        <p className="text-sm font-medium text-white">{item.nameAr}</p>
+        {item.isSystem ? (
+          <p className="text-xs text-muted mt-0.5">تصنيف نظام — لا يُحذف</p>
+        ) : (
+          <p className="text-xs text-muted-dark mt-0.5 font-mono" dir="ltr">
+            {item.key}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => openEdit(item)}
+          disabled={saving}
+          className="text-sm px-3 py-1.5 rounded-lg border border-border text-muted hover:text-white"
+        >
+          تعديل
+        </button>
+        {!item.isSystem ? (
+          <button
+            type="button"
+            onClick={() => void handleDelete(item)}
+            disabled={saving}
+            className="text-sm px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10"
+          >
+            حذف
+          </button>
+        ) : null}
+      </div>
+    </li>
+  );
+
   const handleDelete = async (item: ExpenseCategoryItem) => {
     if (item.isSystem) {
       toast.error("تصنيف النظام — لا يمكن حذفه");
@@ -135,45 +188,20 @@ export default function ExpenseCategoriesSettingsPage() {
         ) : categories.length === 0 ? (
           <p className="text-sm text-muted">لا توجد تصنيفات.</p>
         ) : (
-          <ul className="space-y-2">
-            {categories.map((item) => (
-              <li
-                key={item.key}
-                className="flex flex-wrap items-center justify-between gap-3 py-3 px-3 rounded-xl border border-border/50 bg-background/30"
-              >
-                <div>
-                  <p className="text-sm font-medium text-white">{item.nameAr}</p>
-                  {item.isSystem ? (
-                    <p className="text-xs text-muted mt-0.5">تصنيف نظام — لا يُحذف</p>
-                  ) : (
-                    <p className="text-xs text-muted-dark mt-0.5 font-mono" dir="ltr">
-                      {item.key}
-                    </p>
-                  )}
+          <div className="space-y-4">
+            <ul className="space-y-2">{baseCategories.map(renderCategoryRow)}</ul>
+
+            {addedCategories.length > 0 ? (
+              <>
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="flex-1 border-t border-border/60" aria-hidden />
+                  <span className="text-xs text-muted whitespace-nowrap">تصنيفات مضافة</span>
+                  <div className="flex-1 border-t border-border/60" aria-hidden />
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(item)}
-                    disabled={saving}
-                    className="text-sm px-3 py-1.5 rounded-lg border border-border text-muted hover:text-white"
-                  >
-                    تعديل
-                  </button>
-                  {!item.isSystem ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(item)}
-                      disabled={saving}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10"
-                    >
-                      حذف
-                    </button>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+                <ul className="space-y-2">{addedCategories.map(renderCategoryRow)}</ul>
+              </>
+            ) : null}
+          </div>
         )}
       </div>
 
