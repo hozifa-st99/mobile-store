@@ -13,6 +13,7 @@ import SalesReportsModal from "@/components/reports/SalesReportsModal";
 import SuppliersReportModal from "@/components/reports/SuppliersReportModal";
 import ProfitBreakdownInfo from "@/components/ui/ProfitBreakdownInfo";
 import { em } from "@/components/ui/TableEmoji";
+import { useExpenseCategoryLabels } from "@/hooks/use-expense-category-labels";
 import { buildReportQuery } from "@/lib/report-query";
 import { formatCurrency } from "@/lib/utils";
 
@@ -58,14 +59,6 @@ interface ReportData {
   expenseChart: { name: string; value: number }[];
 }
 
-const categoryLabels: Record<string, string> = {
-  rent: "إيجار",
-  utilities: "مرافق",
-  salary: "رواتب",
-  marketing: "تسويق",
-  other: "أخرى",
-};
-
 const categoryEmojis: Record<string, string> = {
   rent: "🏠",
   utilities: "💡",
@@ -77,6 +70,7 @@ const categoryEmojis: Record<string, string> = {
 const defaultMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
 export default function ReportsPage() {
+  const { labels: categoryLabels } = useExpenseCategoryLabels();
   const [filter, setFilter] = useState<ReportFilterState>({
     mode: "preset",
     period: "month",
@@ -306,6 +300,7 @@ export default function ReportsPage() {
               salesChart={data.salesChart}
               comparisonChart={data.comparisonChart}
               expenseChart={data.expenseChart}
+              categoryLabels={categoryLabels}
             />
           )}
 

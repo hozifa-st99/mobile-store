@@ -20,6 +20,7 @@ import {
   type BranchComparisonSectionId,
 } from "@/components/branch-comparison/BranchComparisonReportsModal";
 import { em } from "@/components/ui/TableEmoji";
+import { useExpenseCategoryLabels } from "@/hooks/use-expense-category-labels";
 import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 
 const TimelineChart = dynamic(
@@ -56,14 +57,6 @@ function CountWithAmountBadge({
     </span>
   );
 }
-
-const categoryLabels: Record<string, string> = {
-  rent: "إيجار",
-  utilities: "مرافق",
-  salary: "رواتب",
-  marketing: "تسويق",
-  other: "أخرى",
-};
 
 const categoryEmojis: Record<string, string> = {
   rent: "🏠",
@@ -285,6 +278,7 @@ interface BranchComparisonDashboardProps {
 export default function BranchComparisonDashboard({
   initialSection = null,
 }: BranchComparisonDashboardProps) {
+  const { labels: categoryLabels } = useExpenseCategoryLabels();
   const [filter, setFilter] = useState<BranchComparisonFilterState>(defaultBranchComparisonFilter);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);

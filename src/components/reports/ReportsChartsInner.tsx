@@ -18,14 +18,6 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { em } from "@/components/ui/TableEmoji";
 
-const categoryLabels: Record<string, string> = {
-  rent: "إيجار",
-  utilities: "مرافق",
-  salary: "رواتب",
-  marketing: "تسويق",
-  other: "أخرى",
-};
-
 const pieColors = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"];
 
 const chartTooltipStyle = {
@@ -55,12 +47,14 @@ interface Props {
   salesChart: { label: string; sales: number }[];
   comparisonChart: { name: string; value: number; fill: string }[];
   expenseChart: { name: string; value: number }[];
+  categoryLabels: Record<string, string>;
 }
 
 export default function ReportsChartsInner({
   salesChart,
   comparisonChart,
   expenseChart,
+  categoryLabels,
 }: Props) {
   const expenseData = expenseChart.map((e) => ({
     name: categoryLabels[e.name] || e.name,

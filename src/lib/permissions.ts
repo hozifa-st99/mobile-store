@@ -41,6 +41,11 @@ export const APP_SCREENS = [
   { key: "settings_notifications", label: "التنبيهات", path: "/dashboard/settings/notifications" },
   { key: "settings_print", label: "إعدادات الطباعة", path: "/dashboard/settings/print" },
   { key: "settings_sales", label: "إعدادات المبيعات", path: "/dashboard/settings/sales" },
+  {
+    key: "settings_expense_categories",
+    label: "قائمة المصروفات",
+    path: "/dashboard/settings/expense-categories",
+  },
 ] as const;
 
 export type ScreenKey = (typeof APP_SCREENS)[number]["key"];
@@ -92,6 +97,7 @@ export const SETTINGS_HUB_CHILD_SCREEN_KEYS: ScreenKey[] = [
   "settings_notifications",
   "settings_print",
   "settings_sales",
+  "settings_expense_categories",
   "suppliers",
 ];
 

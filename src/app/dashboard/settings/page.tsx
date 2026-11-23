@@ -73,6 +73,14 @@ const salesSettingsSection = {
   color: "#22c55e",
 };
 
+const expenseCategoriesSection = {
+  title: "قائمة المصروفات",
+  desc: "تصنيفات المصروفات — إضافة وتعديل وحذف",
+  href: "/dashboard/settings/expense-categories",
+  emoji: "💸",
+  color: "#f59e0b",
+};
+
 export default function SettingsPage() {
   const { isSuperAdmin, canAccessPath } = useScreenAccess();
 
@@ -80,6 +88,7 @@ export default function SettingsPage() {
     ...settingsSections.filter((section) => canAccessPath(section.href)),
     ...(canAccessPath(printSettingsSection.href) ? [printSettingsSection] : []),
     ...(canAccessPath(salesSettingsSection.href) ? [salesSettingsSection] : []),
+    ...(canAccessPath(expenseCategoriesSection.href) ? [expenseCategoriesSection] : []),
     ...(isSuperAdmin
       ? [
           {

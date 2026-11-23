@@ -27,16 +27,19 @@ export default function ReportsCharts({
   salesChart,
   comparisonChart,
   expenseChart,
+  categoryLabels,
 }: {
   salesChart: ChartPoint[];
   comparisonChart: ComparePoint[];
   expenseChart: ExpensePoint[];
+  categoryLabels: Record<string, string>;
 }) {
   return (
     <ReportsChartsInner
       salesChart={salesChart}
       comparisonChart={comparisonChart}
       expenseChart={expenseChart}
+      categoryLabels={categoryLabels}
     />
   );
 }

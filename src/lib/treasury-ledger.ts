@@ -6,6 +6,7 @@ import {
   computePurchaseReturnExpenseRecoveryCash,
   computePurchaseReturnCashFromReturn,
 } from "@/lib/purchase-return-settlement";
+import { loadExpenseCategoryLabelMap } from "@/lib/expense-categories-server";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -41,15 +42,6 @@ export interface TreasurySummary {
   totalOut: number;
   netInPeriod: number;
 }
-
-const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
-  rent: "إيجار",
-  utilities: "مرافق",
-  salary: "رواتب",
-  marketing: "تسويق",
-  other: "أخرى",
-  "مصاريف مشتريات": "مصاريف مشتريات",
-};
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "نقدي",
@@ -88,6 +80,15 @@ export function summarizeTreasuryTransactions(
 
 /** يبني كل حركات الخزنة بدون حد — للوردية والسجل الكامل */
 export async function buildAllTreasuryTransactions(branchId: string): Promise<TreasuryTransaction[]> {
+  const branchMeta = await prisma.branch.findUnique({
+    where: { id: branchId },
+    select: { companyId: true },
+  });
+  const expenseCategoryLabels = await loadExpenseCategoryLabelMap(
+    prisma,
+    branchMeta?.companyId ?? ""
+  );
+
   const [
     sales,
     purchases,
@@ -261,7 +262,7 @@ export async function buildAllTreasuryTransactions(branchId: string): Promise<Tr
   }
 
   for (const e of expenses) {
-    const categoryLabel = EXPENSE_CATEGORY_LABELS[e.category] || e.category;
+    const categoryLabel = expenseCategoryLabels[e.category] || e.category;
     const linkedReturn = e.purchaseReturn?.returnNumber;
     rows.push({
       id: e.id,

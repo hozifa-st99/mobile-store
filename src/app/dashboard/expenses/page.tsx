@@ -7,6 +7,7 @@ import ExpenseDocumentModal from "@/components/expenses/ExpenseDocumentModal";
 import ReportDateFilter, { type ReportFilterState } from "@/components/reports/ReportDateFilter";
 import DocumentDateTimeStack from "@/components/ui/DocumentDateTimeStack";
 import { ThEmoji, em } from "@/components/ui/TableEmoji";
+import { useExpenseCategoryLabels } from "@/hooks/use-expense-category-labels";
 import { apiJson } from "@/lib/api-client";
 import { toast } from "@/lib/toast";
 import { formatAmountExact } from "@/lib/utils";
@@ -52,15 +53,6 @@ interface ListLineForm {
   amount: string;
 }
 
-const categoryLabels: Record<string, string> = {
-  rent: "إيجار",
-  utilities: "مرافق",
-  salary: "رواتب",
-  marketing: "تسويق",
-  other: "أخرى",
-  "مصاريف مشتريات": "مصاريف مشتريات",
-};
-
 const paymentLabels: Record<string, string> = {
   cash: "نقدي",
   card: "بطاقة",
@@ -93,6 +85,7 @@ function buildDepositedQuery(filter: ReportFilterState, shiftId: string) {
 }
 
 export default function ExpensesPage() {
+  const { labels: categoryLabels } = useExpenseCategoryLabels();
   const [documents, setDocuments] = useState<ExpenseDocument[]>([]);
   const [total, setTotal] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);

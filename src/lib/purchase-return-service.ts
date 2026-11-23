@@ -12,6 +12,7 @@ import {
   type PurchaseReturnExpenseHandling,
 } from "@/lib/purchase-return-expense";
 import { allocatePurchaseReturnNumber } from "@/lib/purchase-return-number-server";
+import { PURCHASE_RETURN_EXPENSE_CATEGORY_KEY } from "@/lib/expense-categories";
 import { createExpenseDocumentInTransaction } from "@/lib/expense-service";
 import { createPurchaseReturnWithItems } from "@/lib/purchase-return-db";
 import {
@@ -110,7 +111,7 @@ async function createReturnDailyExpense(
     purchaseReturnId,
     lines: [
       {
-        category: "مصاريف مشتريات",
+        category: PURCHASE_RETURN_EXPENSE_CATEGORY_KEY,
         description,
         amount: rounded,
       },
