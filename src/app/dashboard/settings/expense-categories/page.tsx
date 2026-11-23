@@ -192,14 +192,16 @@ export default function ExpenseCategoriesSettingsPage() {
             <ul className="space-y-2">{baseCategories.map(renderCategoryRow)}</ul>
 
             {addedCategories.length > 0 ? (
-              <>
-                <div className="flex items-center gap-3 pt-1">
-                  <div className="flex-1 border-t border-border/60" aria-hidden />
-                  <span className="text-xs text-muted whitespace-nowrap">تصنيفات مضافة</span>
-                  <div className="flex-1 border-t border-border/60" aria-hidden />
+              <div className="rounded-2xl border border-amber-500/40 bg-amber-500/[0.08] shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 border-t border-amber-500/35" aria-hidden />
+                  <span className="text-xs font-semibold text-amber-200/90 whitespace-nowrap">
+                    تصنيفات مضافة
+                  </span>
+                  <div className="flex-1 border-t border-amber-500/35" aria-hidden />
                 </div>
                 <ul className="space-y-2">{addedCategories.map(renderCategoryRow)}</ul>
-              </>
+              </div>
             ) : null}
           </div>
         )}
