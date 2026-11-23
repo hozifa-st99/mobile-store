@@ -6,31 +6,134 @@ export interface ReportDateRange {
   label: string;
 }
 
+/** نفس منطق عرض تواريخ المستندات — تقارير تُقسَّم بتقويم مصر */
+const CAIRO_TZ = "Africa/Cairo";
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+type CairoParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+function readCairoParts(d: Date): CairoParts {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: CAIRO_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
+}
+
+/** لحظة UTC حين تكون الساعة في القاهرة = القيم المطلوبة */
+function cairoWallClockToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0
+): Date {
+  let probe = Date.UTC(year, month - 1, day, hour - 4, minute, second, 0);
+  const end = probe + 8 * 60 * 60 * 1000;
+
+  while (probe <= end) {
+    const p = readCairoParts(new Date(probe));
+    if (
+      p.year === year &&
+      p.month === month &&
+      p.day === day &&
+      p.hour === hour &&
+      p.minute === minute &&
+      p.second === second
+    ) {
+      return new Date(probe + millisecond);
+    }
+    probe += 60_000;
+  }
+
+  return new Date(Date.UTC(year, month - 1, day, hour - 2, minute, second, millisecond));
+}
+
+function parseCairoDateInput(value: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return startOfDay(new Date(value));
+  return cairoWallClockToUtc(Number(m[1]), Number(m[2]), Number(m[3]), 0, 0, 0, 0);
+}
+
+function lastDayOfMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function cairoDayDiff(from: Date, to: Date): number {
+  const a = readCairoParts(startOfDay(from));
+  const b = readCairoParts(startOfDay(to));
+  const utcA = Date.UTC(a.year, a.month - 1, a.day);
+  const utcB = Date.UTC(b.year, b.month - 1, b.day);
+  return Math.round((utcB - utcA) / 86_400_000);
+}
+
+function addCairoDays(start: Date, days: number): Date {
+  const base = readCairoParts(startOfDay(start));
+  const shifted = new Date(Date.UTC(base.year, base.month - 1, base.day + days));
+  return cairoWallClockToUtc(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth() + 1,
+    shifted.getUTCDate(),
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function formatCairoDate(d: Date, opts?: Intl.DateTimeFormatOptions) {
+  return d.toLocaleDateString("ar-EG", { timeZone: CAIRO_TZ, ...opts });
+}
+
 export function toDateInput(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const p = readCairoParts(d);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
 export function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+  const p = readCairoParts(d);
+  return cairoWallClockToUtc(p.year, p.month, p.day, 0, 0, 0, 0);
 }
 
 export function endOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
+  const p = readCairoParts(d);
+  const secondMatch = cairoWallClockToUtc(p.year, p.month, p.day, 23, 59, 59, 0);
+  return new Date(secondMatch.getTime() + 999);
 }
 
-/** عدد أيام الفترة شاملًا (يوم البداية + يوم النهاية) */
+/** عدد أيام الفترة شاملًا (يوم البداية + يوم النهاية) — بتقويم القاهرة */
 export function inclusivePeriodDays(from: Date | string, to: Date | string): number {
   const start = startOfDay(new Date(from));
   const end = startOfDay(new Date(to));
-  return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+  return Math.max(1, cairoDayDiff(start, end) + 1);
 }
 
 export function resolveReportRange(params: {
@@ -40,32 +143,35 @@ export function resolveReportRange(params: {
   month?: string | null;
 }): ReportDateRange {
   const now = new Date();
+  const nowCairo = readCairoParts(now);
 
   if (params.from && params.to) {
-    const from = startOfDay(new Date(params.from));
-    const to = endOfDay(new Date(params.to));
+    const from = parseCairoDateInput(params.from);
+    const to = endOfDay(parseCairoDateInput(params.to));
     return {
       from: from.toISOString(),
       to: to.toISOString(),
-      label: `${from.toLocaleDateString("ar-EG")} — ${to.toLocaleDateString("ar-EG")}`,
+      label: `${formatCairoDate(from)} — ${formatCairoDate(parseCairoDateInput(params.to))}`,
     };
   }
 
   if (params.month && /^\d{4}-\d{2}$/.test(params.month)) {
     const [y, m] = params.month.split("-").map(Number);
-    const from = new Date(y, m - 1, 1);
-    const to = endOfDay(new Date(y, m, 0));
+    const from = cairoWallClockToUtc(y, m, 1, 0, 0, 0, 0);
+    const lastDay = lastDayOfMonth(y, m);
+    const to = endOfDay(cairoWallClockToUtc(y, m, lastDay, 12, 0, 0, 0));
     return {
       from: from.toISOString(),
       to: to.toISOString(),
-      label: from.toLocaleDateString("ar-EG", { month: "long", year: "numeric" }),
+      label: formatCairoDate(from, { month: "long", year: "numeric" }),
     };
   }
 
   const period = (params.period || "month") as ReportPeriodPreset;
 
   if (period === "week") {
-    const from = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
+    const todayStart = startOfDay(now);
+    const from = addCairoDays(todayStart, -6);
     return {
       from: from.toISOString(),
       to: endOfDay(now).toISOString(),
@@ -74,60 +180,65 @@ export function resolveReportRange(params: {
   }
 
   if (period === "year") {
-    const from = new Date(now.getFullYear(), 0, 1);
+    const from = cairoWallClockToUtc(nowCairo.year, 1, 1, 0, 0, 0, 0);
     return {
       from: from.toISOString(),
       to: endOfDay(now).toISOString(),
-      label: `سنة ${now.getFullYear()}`,
+      label: `سنة ${nowCairo.year}`,
     };
   }
 
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const from = cairoWallClockToUtc(nowCairo.year, nowCairo.month, 1, 0, 0, 0, 0);
   return {
     from: from.toISOString(),
     to: endOfDay(now).toISOString(),
-    label: from.toLocaleDateString("ar-EG", { month: "long", year: "numeric" }),
+    label: formatCairoDate(from, { month: "long", year: "numeric" }),
   };
 }
 
 export function buildChartBuckets(fromIso: string, toIso: string) {
   const from = startOfDay(new Date(fromIso));
   const to = startOfDay(new Date(toIso));
-  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+  const days = Math.max(1, cairoDayDiff(from, to) + 1);
 
   const buckets: { key: string; label: string }[] = [];
 
   if (days <= 31) {
     for (let i = 0; i < days; i++) {
-      const d = new Date(from);
-      d.setDate(from.getDate() + i);
-      const key = startOfDay(d).toISOString();
+      const dayStart = addCairoDays(from, i);
+      const key = dayStart.toISOString();
       buckets.push({
         key,
-        label: d.toLocaleDateString("ar-EG", { day: "numeric", month: "short" }),
+        label: formatCairoDate(dayStart, { day: "numeric", month: "short" }),
       });
     }
   } else if (days <= 120) {
     let cursor = startOfDay(from);
-    while (cursor <= to) {
-      const weekEnd = new Date(cursor);
-      weekEnd.setDate(weekEnd.getDate() + 6);
+    const toEnd = startOfDay(to);
+    while (cursor.getTime() <= toEnd.getTime()) {
       const key = cursor.toISOString();
+      const p = readCairoParts(cursor);
       buckets.push({
         key,
-        label: `${cursor.getDate()}/${cursor.getMonth() + 1}`,
+        label: `${p.day}/${p.month}`,
       });
-      cursor = new Date(cursor);
-      cursor.setDate(cursor.getDate() + 7);
+      cursor = addCairoDays(cursor, 7);
     }
   } else {
-    let cursor = new Date(from.getFullYear(), from.getMonth(), 1);
-    while (cursor <= to) {
+    let y = readCairoParts(from).year;
+    let m = readCairoParts(from).month;
+    const endParts = readCairoParts(to);
+    while (y < endParts.year || (y === endParts.year && m <= endParts.month)) {
+      const monthStart = cairoWallClockToUtc(y, m, 1, 0, 0, 0, 0);
       buckets.push({
-        key: cursor.toISOString(),
-        label: cursor.toLocaleDateString("ar-EG", { month: "short", year: "2-digit" }),
+        key: monthStart.toISOString(),
+        label: formatCairoDate(monthStart, { month: "short", year: "2-digit" }),
       });
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      m += 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
     }
   }
 
@@ -137,17 +248,17 @@ export function buildChartBuckets(fromIso: string, toIso: string) {
 export function bucketDate(date: Date, fromIso: string, toIso: string) {
   const from = startOfDay(new Date(fromIso));
   const to = startOfDay(new Date(toIso));
-  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+  const days = Math.max(1, cairoDayDiff(from, to) + 1);
   const d = startOfDay(date);
 
   if (days <= 31) return d.toISOString();
 
   if (days <= 120) {
-    const diff = Math.floor((d.getTime() - from.getTime()) / 86400000);
-    const weekStart = new Date(from);
-    weekStart.setDate(from.getDate() + Math.floor(diff / 7) * 7);
+    const diff = cairoDayDiff(from, d);
+    const weekStart = addCairoDays(from, Math.floor(diff / 7) * 7);
     return startOfDay(weekStart).toISOString();
   }
 
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+  const p = readCairoParts(d);
+  return startOfDay(cairoWallClockToUtc(p.year, p.month, 1, 0, 0, 0, 0)).toISOString();
 }
