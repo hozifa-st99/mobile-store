@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import CustomersReportModal from "@/components/reports/CustomersReportModal";
+import BelowCostSalesReportSection, {
+  type BelowCostReportPayload,
+} from "@/components/reports/BelowCostSalesReportSection";
 import ExpensesReportSection, { ReportIconButton } from "@/components/reports/ExpensesReportSection";
 import InventoryReportModal from "@/components/reports/InventoryReportModal";
 import ReportDateFilter, { type ReportFilterState } from "@/components/reports/ReportDateFilter";
@@ -79,6 +82,7 @@ export default function ReportsPage() {
     to: "",
   });
   const [data, setData] = useState<ReportData | null>(null);
+  const [belowCostData, setBelowCostData] = useState<BelowCostReportPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -89,9 +93,19 @@ export default function ReportsPage() {
   const loadReport = useCallback(async (nextFilter: ReportFilterState) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reports?${buildReportQuery(nextFilter)}`, { credentials: "include" });
-      const json = await res.json();
+      const query = buildReportQuery(nextFilter);
+      const [mainRes, belowRes] = await Promise.all([
+        fetch(`/api/reports?${query}`, { credentials: "include" }),
+        fetch(`/api/reports/below-cost-sales?${query}`, { credentials: "include" }),
+      ]);
+      const json = await mainRes.json();
       setData(json);
+      if (belowRes.ok) {
+        const belowJson = await belowRes.json();
+        setBelowCostData({ summary: belowJson.summary, details: belowJson.details });
+      } else {
+        setBelowCostData(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -303,6 +317,8 @@ export default function ReportsPage() {
               categoryLabels={categoryLabels}
             />
           )}
+
+          {belowCostData && <BelowCostSalesReportSection data={belowCostData} />}
 
           {data?.salesByPayment && data.salesByPayment.length > 0 && (
             <div className="glass-card p-5 mb-4">
