@@ -134,9 +134,6 @@ export default function BelowCostSalesReportSection({ data }: { data: BelowCostR
               <span className="text-sm font-bold text-white/85">إجمالي الخسارة في الفترة</span>
               <span className="text-2xl font-extrabold text-rose-300">{formatCurrency(summary.totalLoss)} ج.م</span>
             </div>
-            <p className="text-xs font-semibold text-white/55 mt-2">
-              الخسارة = التكلفة − صافي البيع بعد نصيب السطر من خصم الفاتورة. المرتجعات تُخصم من الإجمالي.
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
